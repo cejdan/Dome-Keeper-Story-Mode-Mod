@@ -1,0 +1,10 @@
+{
+  "_comment": "Mod-owned palette cells: empty in every vanilla palette, so the mod fills them at runtime and the colors stay the same in every world. Each mineral gets [dark, mid, light]. Metals use the square shape, gems the star.",
+  "iron":     {"row": 3, "cols": [14, 15, 16], "colors": ["#4a4c52", "#8d8f96", "#cfd0d4"]},
+  "bronze":   {"row": 3, "cols": [17, 18, 19], "colors": ["#4a2a1c", "#8c5a36", "#c99467"]},
+  "gold":     {"row": 3, "cols": [20, 21, 22], "colors": ["#9a6a10", "#e8b923", "#fff3a0"]},
+  "sapphire": {"row": 3, "cols": [23, 24, 25], "colors": ["#17266e", "#2f62d8", "#a8ccff"]},
+  "emerald":  {"row": 3, "cols": [26, 27, 28], "colors": ["#0f4a2a", "#20a24e", "#9ef5b2"]},
+  "ruby":     {"row": 3, "cols": [29, 30, 31], "colors": ["#5e0a1e", "#d0213f", "#ff9aa8"]},
+  "diamond":  {"row": 4, "cols": [18, 19, 20], "colors": ["#6f8796", "#cfe9f5", "#ffffff"]}
+}

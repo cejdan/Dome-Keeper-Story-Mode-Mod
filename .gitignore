@@ -1,0 +1,18 @@
+# This folder is the full decompiled Dome Keeper project: not ours to redistribute.
+# Git tracks only our own files. Everything else is ignored by default.
+# To track a new top-level file or folder of ours, add a "!/<name>" line below.
+
+/*
+
+!/.gitignore
+!/README.md
+!/CLAUDE.md
+!/GLOSSARY.md
+!/.scratch/
+!/docs/
+!/art/
+!/mods-unpacked/
+
+# Engine caches and build output, wherever they appear (e.g. art/tools/engine_render)
+.godot/
+*.tmp
