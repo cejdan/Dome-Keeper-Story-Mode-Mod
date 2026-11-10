@@ -20,6 +20,7 @@ This folder is the decompiled Dome Keeper project (Godot 4.3.1, custom build). W
 ## Version control
 
 - This folder is a clone of https://github.com/cejdan/Dome-Keeper-Story-Mode-Mod (branch `main`). `.gitignore` ignores everything by default and allowlists only our files (`mods-unpacked/`, `.scratch/`, `docs/`, `art/`, `CLAUDE.md`, `GLOSSARY.md`, `README.md`, `override.cfg`). Never commit vanilla game files; to track a new top-level file of ours, add a `!/<name>` line to `.gitignore`.
+- Never work on `main`. Each ticket gets its own branch off an up-to-date `main`, named `ticket/<issue>-<short-slug>` (e.g. `ticket/6-mod-skeleton`). Push the branch and open a PR into `main` that links the issue. Merge only when the user says so.
 - One commit per ticket, made when the ticket resolves, covering its code and assets. Message: `#<issue>: <ticket title>`, then a line or two on what changed and how it was verified.
 - Before committing, run `git status` and check that only our files are staged.
 - To roll back a ticket's change, `git revert` its commit. Don't rewrite history or force anything.
