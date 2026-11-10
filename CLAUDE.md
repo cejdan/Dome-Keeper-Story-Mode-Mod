@@ -29,6 +29,7 @@ This folder is the decompiled Dome Keeper project (Godot 4.3.1, custom build). W
 
 - Launch: `../custom_godot_for_windows/godot.windows.editor.x86_64.exe --path "<abs path>/Dome Keeper"`. The project is in dev mode and skips the title screen.
 - **Real saves are off limits.** `override.cfg` gives dev runs their own user folder, `%APPDATA%\StoryModeDev`, with logs in `logs/godot.log` and `logs/modloader.log`. Without it, runs write into the real Steam save folder (`%APPDATA%\Godot\app_userdata\Dome Keeper`) and rotate the player's saves out. Never remove `override.cfg`, and never write to the real folder.
+- **Dev runs don't report to the developers' Sentry.** `project.godot` holds Bippinbits' Sentry DSN, and the SDK starts and sends even with `allowCrashReports: false` in the dev `options.txt`. `override.cfg` sets `[sentry] options/enabled=false`, so godot.log shows `Sentry SDK is disabled in the project settings.` and no `envelope` requests. Keep that key in `override.cfg`; if a run's godot.log shows `starting Sentry SDK`, stop and fix it before launching again.
 - Mod loaded? `modloader.log` should show `cejdan-StoryMode: Init` and `Done`. The title-screen Modding button is hidden in this game version.
 
 ## Agent skills
