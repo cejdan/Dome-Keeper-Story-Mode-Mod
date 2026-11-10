@@ -6,6 +6,8 @@
 
 !/.gitignore
 !/README.md
+!/override.cfg
+!/.gitattributes
 !/CLAUDE.md
 !/GLOSSARY.md
 !/.scratch/

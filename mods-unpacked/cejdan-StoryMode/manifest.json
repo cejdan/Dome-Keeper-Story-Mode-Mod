@@ -1,0 +1,21 @@
+{
+  "name": "StoryMode",
+  "namespace": "cejdan",
+  "version_number": "0.1.0",
+  "description": "Adds Story Mode, a new single-player game mode: a deep descent with a money economy, a depth-based mineral ladder, metal gates and a voice from the depths.",
+  "website_url": "https://github.com/cejdan/Dome-Keeper-Story-Mode-Mod",
+  "dependencies": [],
+  "extra": {
+    "godot": {
+      "authors": ["cejdan"],
+      "compatible_game_version": ["5.0.8"],
+      "compatible_mod_loader_version": ["7.0.1"],
+      "description_rich": "",
+      "image": null,
+      "incompatibilities": [],
+      "load_before": [],
+      "optional_dependencies": [],
+      "tags": ["gamemode"]
+    }
+  }
+}

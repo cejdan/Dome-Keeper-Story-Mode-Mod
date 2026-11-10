@@ -3,7 +3,8 @@
 This folder is the decompiled Dome Keeper project (Godot 4.3.1, custom build). We are building a Story Mode mod: a Motherload-style descent with a money economy, a depth-based mineral ladder, story text boxes from a monster in the depths, and metal gates that only the Suit Blaster can break.
 
 - Design goals: https://claude.ai/artifact/2uRKfLccTeaYAzEsKDNzrA
-- Build plan and issue board: `.scratch/story-mode/map.md` (wayfinder map, tickets in `.scratch/story-mode/issues/`)
+- Build plan and issue board: GitHub Issues on https://github.com/cejdan/Dome-Keeper-Story-Mode-Mod. The wayfinder map is issue #1 ("Story Mode mod"); its tickets are sub-issues.
+- The mod: `mods-unpacked/cejdan-StoryMode/` (`manifest.json`, `mod_main.gd`)
 - Modding wiki: https://github.com/DomeKeeperMods/Docs/wiki
 - Engine: `../custom_godot_for_windows/godot.windows.editor.x86_64.exe`
 - Art: LibreSprite in `../tools/libresprite`, driven by scripts; pipeline and the game's palette encoding in `art/README.md`
@@ -18,16 +19,22 @@ This folder is the decompiled Dome Keeper project (Godot 4.3.1, custom build). W
 
 ## Version control
 
-- Git repo root is this folder. `.gitignore` ignores everything by default and allowlists only our files (`mods-unpacked/`, `.scratch/`, `docs/`, `art/`, `CLAUDE.md`, `GLOSSARY.md`). Never commit vanilla game files; to track a new top-level file of ours, add a `!/<name>` line to `.gitignore`.
-- One commit per ticket, made when the ticket resolves, covering its code, assets and the ticket/map updates. Message: `<ticket NN>: <ticket title>`, then a line or two on what changed and how it was verified.
+- This folder is a clone of https://github.com/cejdan/Dome-Keeper-Story-Mode-Mod (branch `main`). `.gitignore` ignores everything by default and allowlists only our files (`mods-unpacked/`, `.scratch/`, `docs/`, `art/`, `CLAUDE.md`, `GLOSSARY.md`, `README.md`, `override.cfg`). Never commit vanilla game files; to track a new top-level file of ours, add a `!/<name>` line to `.gitignore`.
+- One commit per ticket, made when the ticket resolves, covering its code and assets. Message: `#<issue>: <ticket title>`, then a line or two on what changed and how it was verified.
 - Before committing, run `git status` and check that only our files are staged.
 - To roll back a ticket's change, `git revert` its commit. Don't rewrite history or force anything.
+
+## Running the game
+
+- Launch: `../custom_godot_for_windows/godot.windows.editor.x86_64.exe --path "<abs path>/Dome Keeper"`. The project is in dev mode and skips the title screen.
+- **Real saves are off limits.** `override.cfg` gives dev runs their own user folder, `%APPDATA%\StoryModeDev`, with logs in `logs/godot.log` and `logs/modloader.log`. Without it, runs write into the real Steam save folder (`%APPDATA%\Godot\app_userdata\Dome Keeper`) and rotate the player's saves out. Never remove `override.cfg`, and never write to the real folder.
+- Mod loaded? `modloader.log` should show `cejdan-StoryMode: Init` and `Done`. The title-screen Modding button is hidden in this game version.
 
 ## Agent skills
 
 ### Issue tracker
 
-Local markdown under `.scratch/`. See `docs/agents/issue-tracker.md`.
+GitHub Issues via the `gh` CLI (`C:\Program Files\GitHub CLI\gh.exe`). See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 
