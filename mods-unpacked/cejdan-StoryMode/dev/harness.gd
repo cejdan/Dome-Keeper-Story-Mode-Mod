@@ -257,7 +257,20 @@ func keeper_tile() -> Vector2i:
 
 func teleport_tile(coord: Vector2i) -> void:
 	keeper().teleport(Level.map.getTilePos(coord))
+	snap_camera()
 	await frames(3)
+
+
+# Moves the keeper's camera straight onto the keeper. The game's camera moves
+# at most about twice the keeper's speed, so after a long teleport it would
+# take many seconds to arrive.
+func snap_camera() -> void:
+	var k = keeper()
+	if Level.viewports == null or k == null:
+		return
+	var cam = Level.viewports.getPlayerCam(k.playerId)
+	if cam != null:
+		cam.position = k.position + (cam.targetOffset if "targetOffset" in cam else Vector2.ZERO)
 
 
 func disable_waves() -> void:
