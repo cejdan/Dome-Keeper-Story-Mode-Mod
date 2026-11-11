@@ -121,6 +121,7 @@ func run(h) -> void:
 	field.mass.clear()
 	field.sources.clear()
 	field.shown.clear()
+	field.pools.clear()
 
 	var used: Array = []
 	var Y: int = 30
@@ -142,6 +143,7 @@ func run(h) -> void:
 		deep_rows.append("LLL" + "x".repeat(13))
 	deep_rows.append("LLL" + ".".repeat(12) + "x")
 	await _layout(tx, Y + 9, deep_rows, false)
+	field.wake_all()
 
 	var cool_a: Array = []
 	var cool_b: Array = []

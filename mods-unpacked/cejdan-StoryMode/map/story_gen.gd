@@ -8,6 +8,7 @@ extends RefCounted
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
+const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
 
 # Special tiles a gate never swallows: gadget, relic, relic switch, power core.
 const KEEP_IDS: Array = [3, 4, 6, 7]  # Data.TILE_GADGET, TILE_RELIC, TILE_RELIC_SWITCH, TILE_SUPPLEMENT
@@ -20,6 +21,87 @@ static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
 	place_metal(map_data, rand)
+	place_pools(map_data, rand)
+
+
+# Open lava pools (#42): enclosed caverns in B5 and deeper, carved here as
+# open cells and filled brim-full by the lava field when the run starts. Each
+# pool is grown from a seeded start by a random walk (sideways twice as often
+# as up or down, so wider than tall, with shelves and arms), only through plain
+# rock, and keeps POOL_GAP tiles of rock between itself and anything open, any
+# special tile, metal, the gate, the border and other pools. Size grows linearly
+# with depth. The cells go in map_data's "story_pools" meta (a list of pools).
+static func place_pools(map_data, rand: RandomNumberGenerator) -> Array:
+	var cells: Array = map_data.get_used_biome_cells()
+	cells.sort()
+	var y_top: int = 1 << 20
+	var y_bottom: int = -(1 << 20)
+	var rock: Array = []
+	for c: Vector2i in cells:
+		if map_data.get_biomev(c) >= LavaData.POOL_START_BIOME:
+			y_top = mini(y_top, c.y)
+			y_bottom = maxi(y_bottom, c.y)
+			if map_data.get_resourcev(c) == Data.TILE_DIRT_START:
+				rock.append(c)
+	var pools: Array = []
+	if rock.is_empty():
+		map_data.set_meta("story_pools", pools)
+		return pools
+	var taken: Dictionary = {}
+	var span: float = maxf(1.0, float(y_bottom - y_top))
+	var seeds: Array = rock.duplicate()
+	_shuffle(seeds, rand)
+	var budget: float = 0.0
+	for start: Vector2i in seeds:
+		var depth: float = clampf(float(start.y - y_top) / span, 0.0, 1.0)
+		# Each rock cell adds a little to the budget; a pool spends one unit.
+		budget += (1.0 + LavaData.POOL_FREQ_BONUS_AT_BOTTOM * depth) / LavaData.POOL_ROCK_PER_POOL
+		if budget < 1.0:
+			continue
+		if not _pool_cell_ok(map_data, start, taken, {}):
+			continue
+		var size: int = int(round(lerpf(LavaData.POOL_SIZE_TOP, LavaData.POOL_SIZE_BOTTOM, depth)))
+		var pool: Array = [start]
+		var mine: Dictionary = {start: true}
+		var dirs: Array = [Vector2i(1, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+		for attempt in size * 8:
+			if pool.size() >= size:
+				break
+			var from: Vector2i = pool[rand.randi() % pool.size()]
+			var n: Vector2i = from + dirs[rand.randi() % dirs.size()]
+			if mine.has(n) or not _pool_cell_ok(map_data, n, taken, mine):
+				continue
+			pool.append(n)
+			mine[n] = true
+		if pool.size() < 3:
+			continue
+		budget -= 1.0
+		for c: Vector2i in pool:
+			map_data.set_resourcev(c, Data.TILE_EMPTY)
+			taken[c] = true
+		pools.append(pool)
+	map_data.set_meta("story_pools", pools)
+	return pools
+
+
+# May cell `c` become part of a pool? It must be plain rock in B5 or deeper,
+# with only plain rock (or the pool itself) within POOL_GAP tiles.
+static func _pool_cell_ok(map_data, c: Vector2i, taken: Dictionary, mine: Dictionary) -> bool:
+	if map_data.get_resourcev(c) != Data.TILE_DIRT_START or map_data.get_biomev(c) < LavaData.POOL_START_BIOME:
+		return false
+	var g: int = LavaData.POOL_GAP
+	for ox in range(-g, g + 1):
+		for oy in range(-g, g + 1):
+			var n: Vector2i = c + Vector2i(ox, oy)
+			if mine.has(n):
+				continue
+			if taken.has(n) or map_data.get_biomev(n) < 0:
+				return false
+			# Plain rock and mineral tiles make walls; anything else is too close.
+			var r: int = map_data.get_resourcev(n)
+			if r != Data.TILE_DIRT_START and Minerals.by_tile_id(r) == "":
+				return false
+	return true
 
 
 # Scatters clumps of metal through the plain rock of the deep biomes
