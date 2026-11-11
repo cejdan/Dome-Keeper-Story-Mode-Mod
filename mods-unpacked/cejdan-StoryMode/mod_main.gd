@@ -3,6 +3,8 @@ extends Node
 const STORYMODE_LOG = "cejdan-StoryMode"
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
+const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
+const Palette = preload("res://mods-unpacked/cejdan-StoryMode/util/palette.gd")
 const Prices = preload("res://mods-unpacked/cejdan-StoryMode/data/prices.gd")
 const Strings = preload("res://mods-unpacked/cejdan-StoryMode/text/strings.gd")
 
@@ -53,6 +55,10 @@ func _ready():
 	ModLoaderLog.info("Done", STORYMODE_LOG)
 
 
+func _process(_delta: float) -> void:
+	Palette.keep_filled()
+
+
 # Called by the game once its data is loaded.
 func modInit():
 	# Script extensions: each handles Story Mode and defers to vanilla otherwise.
@@ -64,6 +70,10 @@ func modInit():
 		"content/hud/inventory/Inventory.gd",
 		"content/techtree/Tech2.gd",
 		"content/techtree/TechTreePopup.gd",
+		"content/map/Map.gd",
+		"content/map/tile/Tile.gd",
+		"content/dome/Dome.gd",
+		"content/map/generation/TileDataGenerator.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	# Scenes that were already loaded still hold the vanilla script; reload them
@@ -71,8 +81,14 @@ func modInit():
 	for scene_path: String in [
 		"res://content/techtree/Tech2.tscn",
 		"res://content/techtree/TechTreePopup.tscn",
+		"res://content/map/Map.tscn",
+		"res://content/map/tile/Tile.tscn",
+		"res://content/dome/Dome.tscn",
+		"res://content/map/generation/TileDataGenerator.tscn",
 	]:
-		_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
+		if ResourceLoader.has_cached(scene_path):
+			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
+	Minerals.register()
 	Data.registerGameMode(Story.MODE_ID)
 	GameWorld.unlockElement(Story.MODE_ID)
 
@@ -87,4 +103,5 @@ func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 	levelStartData.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
 	if not levelStartData.mapArchetype:
 		levelStartData.mapArchetype = load("res://content/map/generation/archetypes/prestige-10k.tres").duplicate()
+	levelStartData.mapArchetype.set_meta("story_map", true)
 	GameWorld.prepareRegularLevelStart(levelStartData)
