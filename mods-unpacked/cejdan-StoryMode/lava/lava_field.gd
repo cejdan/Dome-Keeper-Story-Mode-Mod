@@ -42,6 +42,8 @@ const COOL_DOME_PER_SECOND := LavaData.COOL_DOME_PER_SECOND
 const HEAT_MAX := LavaData.HEAT_MAX
 
 const TILE := 24.0
+const KEEPER_BOX := Vector2(10, 16)
+const BURN_TOLERANCE := 1.5
 const COL_CORE := Color("ffd23e")
 const COL_HOT := Color("ff8a1c")
 const COL_BODY := Color("e8430e")
@@ -68,6 +70,10 @@ var _glow: Node2D
 var _glow_tex: GradientTexture2D
 # Dev only: the old rule (every cell cools), for timing comparisons.
 var legacy_cooling := false
+# Dev only: hold the lava still (no flow or cooling) so a playtest can stand next to a fixed shape.
+var freeze_flow := false
+# Dev only: outline the keeper's lava-contact box.
+var debug_boxes := false
 var pools: Array = []              # Array of Array[Vector2i]: open pools filled at run start
 var pools_skipped := 0             # pools left empty because something opened their wall
 # Sleeping: only cells in _awake run the flow math. A cell wakes when its mass or
@@ -234,7 +240,8 @@ func _physics_body(delta: float) -> void:
 	_acc += delta
 	while _acc >= TICK:
 		_acc -= TICK
-		_step()
+		if not freeze_flow:
+			_step()
 	_melt(delta)
 	_check_water()
 	_update_heat(delta)
@@ -452,7 +459,7 @@ func _check_water() -> void:
 		if not "type" in d or d.type != CONST.WATER or d.absorbed or not is_instance_valid(d):
 			continue
 		var c: Vector2i = map.getTileCoord(d.global_position)
-		if mass.get(c, 0.0) < BURN_MASS:
+		if not lava_overlaps(Rect2(d.global_position - Vector2(2, 2), Vector2(4, 4))):
 			continue
 		var cells := _harden_from(c, LavaData.WATER_HARDENS_CELLS)
 		for k in Keepers.getAll():
@@ -553,7 +560,7 @@ func _update_heat(delta: float) -> void:
 		var raw: float = passive_rate_at(map.getTileCoord(keeper.global_position))
 		passive_zone = raw > 0.0 or map.tileData.get_biomev(map.getTileCoord(keeper.global_position)) >= LavaData.PASSIVE_HEAT_START_BIOME
 		passive_rate = raw * LavaData.passive_heat_mult(keeper.teamId)
-	if lava_at(keeper.global_position) >= BURN_MASS and not keeper.disabled:
+	if keeper_in_lava(keeper) and not keeper.disabled:
 		# Heat Shielding (#44) slows lava heat but never stops it.
 		heat = min(HEAT_MAX, heat + (HEAT_PER_SECOND * LavaData.lava_heat_mult(keeper.teamId) + passive_rate) * delta)
 	elif keeper.isInsideDome:
@@ -625,6 +632,55 @@ func _seen(c: Vector2i) -> bool:
 	return map.visibleTileCoords.has(Vector2(c)) or map.visibleTileCoords.has(c)
 
 
+# The lava in a cell as it is drawn, in this node's space: a pouring stream
+# (a column) or a body (a rect at the cell's bottom, f x TILE tall, or the full
+# cell under more lava). _draw() and the burn and water checks all use this, so
+# what burns is what the player sees (#48).
+func _lava_shape(c: Vector2i) -> Dictionary:
+	var f := _fill_of(c)
+	var o := _cell_origin(c)
+	var above_has: bool = shown.get(c + Vector2i.UP, 0.0) > 0.05
+	if f <= 0.02:
+		return {"rect": Rect2(o, Vector2.ZERO), "stream": false, "above_has": above_has}
+	var below: Vector2i = c + Vector2i.DOWN
+	var falling: bool = _is_open(below) and shown.get(below, 0.0) < 0.95
+	if falling and not above_has and f < 0.9:
+		var w: float = clamp(round(6.0 + f * 16.0), 4.0, TILE)
+		var wob: float = round(sin(_time * 5.0 + c.y * 1.3) * 1.5)
+		var x: float = round((TILE - w) * 0.5) + wob
+		return {"rect": Rect2(o + Vector2(x, 0), Vector2(w, TILE)), "stream": true, "above_has": above_has}
+	var h: float = TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
+	return {"rect": Rect2(o + Vector2(0, TILE - h), Vector2(TILE, h)), "stream": false, "above_has": above_has}
+
+
+# Does a rect (world space) overlap drawn lava that is deep enough to burn
+# (BURN_MASS)? BURN_TOLERANCE px of overlap are forgiven, so skimming the
+# surface doesn't flicker.
+func lava_overlaps(world_rect: Rect2) -> bool:
+	var a: Vector2i = map.getTileCoord(world_rect.position)
+	var b: Vector2i = map.getTileCoord(world_rect.end)
+	var local := Rect2(to_local(world_rect.position), world_rect.size)
+	for y in range(a.y, b.y + 1):
+		for x in range(a.x, b.x + 1):
+			var c := Vector2i(x, y)
+			if mass.get(c, 0.0) < BURN_MASS:
+				continue
+			var r: Rect2 = _lava_shape(c)["rect"].grow(-BURN_TOLERANCE)
+			if r.size.x > 0.0 and r.size.y > 0.0 and r.intersects(local):
+				return true
+	return false
+
+
+# The keeper's body for lava contact: a fixed box around its position, from its
+# collision shapes (a 5 px circle and two small squares 3.9 px above and below).
+func keeper_rect(keeper) -> Rect2:
+	return Rect2(keeper.global_position - KEEPER_BOX * 0.5, KEEPER_BOX)
+
+
+func keeper_in_lava(keeper) -> bool:
+	return lava_overlaps(keeper_rect(keeper))
+
+
 func _fill_of(c: Vector2i) -> float:
 	return clamp(shown.get(c, 0.0), 0.0, 1.0)
 
@@ -649,20 +705,18 @@ func _draw() -> void:
 		if f <= 0.02 or not _seen(c):
 			continue
 		var o := _cell_origin(c)
-		var above_has: bool = shown.get(c + Vector2i.UP, 0.0) > 0.05
-		var below: Vector2i = c + Vector2i.DOWN
-		var falling: bool = _is_open(below) and shown.get(below, 0.0) < 0.95
-		if falling and not above_has and f < 0.9:
+		var sh: Dictionary = _lava_shape(c)
+		var above_has: bool = sh["above_has"]
+		if sh["stream"]:
 			# A pouring stream: a column that wobbles, thicker with more lava.
-			var w: float = clamp(round(6.0 + f * 16.0), 4.0, TILE)
-			var wob: float = round(sin(_time * 5.0 + c.y * 1.3) * 1.5)
-			var x: float = round((TILE - w) * 0.5) + wob
-			draw_rect(Rect2(o + Vector2(x, 0), Vector2(w, TILE)), COL_BODY)
+			var w: float = sh["rect"].size.x
+			var x: float = sh["rect"].position.x - o.x
+			draw_rect(sh["rect"], COL_BODY)
 			draw_rect(Rect2(o + Vector2(x + 1, 0), Vector2(max(1.0, w - 2), TILE)), COL_HOT)
 			if w > 6:
 				draw_rect(Rect2(o + Vector2(x + round(w * 0.5) - 1, 0), Vector2(2, TILE)), COL_CORE)
 			continue
-		var h: float = TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
+		var h: float = sh["rect"].size.y
 		var top: float = TILE - h
 		draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_BODY)
 		# Darker toward the bottom of a deep pool.
@@ -694,6 +748,11 @@ func _draw() -> void:
 		var o := _cell_origin(e[0])
 		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.75 * a))
 	_draw_heat_bar()
+	if debug_boxes:
+		var k = Keepers.first()
+		if k != null and is_instance_valid(k):
+			var r := keeper_rect(k)
+			draw_rect(Rect2(to_local(r.position), r.size), Color(0.3, 1.0, 0.4, 0.9), false, 1.0)
 
 
 func _draw_heat_bar() -> void:
