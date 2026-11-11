@@ -13,6 +13,7 @@ extends Node2D
 # live in data/lava.gd.
 
 const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
+const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const SAVE_KEY := "story.lava"
 
 const POCKET_MIN_DEPTH := LavaData.POCKET_MIN_DEPTH
@@ -55,6 +56,7 @@ var sources: Dictionary = {}       # Vector2i -> float, lava a breached cell sti
 var melt_timers: Dictionary = {}   # Vector2i -> seconds of lava contact
 var heat := 0.0
 var recalls := 0
+var last_penalty := 0
 var breaches := 0
 var recall_pos = null
 var _acc := 0.0
@@ -466,6 +468,35 @@ func _recall(keeper) -> void:
 	InputSystem.shake(10.0, 0.4, 24.0)
 	if recall_pos != null:
 		keeper.teleport(recall_pos)
+	# Dying in the deep costs half the money (#45). With $0 or $1 it stays free.
+	last_penalty = 0
+	if Story.is_story():
+		var key: String = keeper.teamId + ".inventory.money"
+		var loss: int = int(floor(int(Data.ofOr(key, 0)) / 2.0))
+		if loss > 0:
+			Data.changeByInt(key, -loss)
+			last_penalty = loss
+			_float_loss(keeper, loss)
+		ModLoaderLog.info("Overheat recall: lost $%d" % loss, "cejdan-StoryMode")
+
+
+# A short "-$X" rising over the keeper where it lands (placeholder look; the
+# money HUD also flashes red on any loss).
+func _float_loss(keeper, loss: int) -> void:
+	var label := Label.new()
+	label.text = "-$" + str(loss)
+	label.add_theme_font_override("font", load("res://gui/fonts/FontHudPixelartMonospaced.tres"))
+	label.add_theme_color_override("font_color", Color("ff4a3a"))
+	label.add_theme_color_override("font_outline_color", Color("12121a"))
+	label.add_theme_constant_override("outline_size", 6)
+	label.scale = Vector2(1.25, 1.25)
+	label.z_index = 50
+	label.position = to_local(keeper.global_position) + Vector2(-40, -70)
+	add_child(label)
+	var tw := label.create_tween()
+	tw.tween_property(label, "position:y", label.position.y - 30.0, 2.5)
+	tw.parallel().tween_property(label, "modulate:a", 0.0, 2.5).set_delay(1.0)
+	tw.tween_callback(label.queue_free)
 
 
 # --- drawing -------------------------------------------------------------------
