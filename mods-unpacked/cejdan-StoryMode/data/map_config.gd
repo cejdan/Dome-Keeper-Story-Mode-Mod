@@ -3,10 +3,11 @@ extends RefCounted
 # The Story Mode map: its size and biomes, and which minerals sit where.
 # All numbers are starting values for the user to tune.
 
-# The one gate: a metal wall this many tiles thick under biome index
+# The one gate: a metal wall this many tiles thick (1, per the user: a base
+# Suit Blaster blast opens it with no special rule) under biome index
 # GATE_BELOW_BIOME (2 = B3), i.e. along the B3/B4 boundary.
 const GATE_BELOW_BIOME: int = 2
-const GATE_THICKNESS: int = 2
+const GATE_THICKNESS: int = 1
 
 # Scattered metal: share of a biome's plain rock that becomes metal, by biome
 # index (5 = B6), placed in clumps of METAL_CLUMP tiles. None anywhere else.

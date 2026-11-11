@@ -148,3 +148,35 @@ func run(h) -> void:
 	h.snap("end", [])
 	var bt = Level.map.getTile(Vector2(below))
 	h.note("tile under gate", {"exists": bt != null, "type": bt.type if bt else "", "health": bt.health if bt else -1, "max": bt.max_health if bt else -1, "hardness": bt.hardness if bt else -1, "drill": Data.ofOr("player1.keeper.drillstrength", Data.ofOr("keeper1.drillStrength", -1))})
+
+	# A 1-thick wall on a ragged boundary has corners where two gate tiles touch
+	# only diagonally. Open cells on both sides of such a corner and push the
+	# keeper into it: it must not squeeze through.
+	var q: Vector2i = Vector2i(-8, 12)
+	var room: Array = []
+	for yy in range(q.y - 3, q.y + 4):
+		for xx in range(q.x - 3, q.x + 4):
+			room.append(Vector2i(xx, yy))
+	for c in room:
+		td2.set_resourcev(c, Data.TILE_DIRT_START)
+	var a: Vector2i = q
+	var d: Vector2i = q + Vector2i(1, 1)
+	td2.set_resourcev(q + Vector2i(1, 0), Metal.GATE_ID)
+	td2.set_resourcev(q + Vector2i(0, 1), Metal.GATE_ID)
+	await h.reveal(room)
+	await h.clear_tiles([a, a + Vector2i(-1, 0), a + Vector2i(0, -1), a + Vector2i(-1, -1), d, d + Vector2i(1, 0), d + Vector2i(0, 1), d + Vector2i(1, 1)])
+	await h.teleport_tile(a + Vector2i(-1, -1))
+	await h.wait(1.5)
+	h.down("ui_right")
+	h.down("ui_down")
+	var reached: bool = false
+	var t_end: float = h.now() + 6.0
+	while h.now() < t_end:
+		await h.frames(2)
+		var kq: Vector2i = h.keeper_tile()
+		if kq.x > a.x and kq.y > a.y:
+			reached = true
+	h.up("ui_right")
+	h.up("ui_down")
+	await h.shot("diagonal_corner")
+	h.check("the keeper can't squeeze through a diagonal corner of the gate", not reached and td2.get_resourcev(q + Vector2i(1, 0)) == Metal.GATE_ID and td2.get_resourcev(q + Vector2i(0, 1)) == Metal.GATE_ID, h.keeper_tile())
