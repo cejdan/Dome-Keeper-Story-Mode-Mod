@@ -6,6 +6,7 @@ extends "res://content/map/Map.gd"
 
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
+const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 
 
 func revealTile(coord: Vector2):
@@ -17,6 +18,8 @@ func revealTile(coord: Vector2):
 	var tile = tiles[coord]
 	if Minerals.is_mod_mineral(tile.type):
 		tile.richness = float(Minerals.TABLE[tile.type]["richness"])
+		revealTileVisually(coord)
+	elif tile.type == Metal.TYPE:
 		revealTileVisually(coord)
 
 
