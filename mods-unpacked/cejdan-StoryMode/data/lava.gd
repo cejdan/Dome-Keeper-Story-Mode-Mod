@@ -57,6 +57,12 @@ const POOL_GAP := 2                    # rock tiles kept between a pool and anyt
 const PASSIVE_HEAT_START_BIOME := 3
 const PASSIVE_HEAT_RATE_AT_BOTTOM := 2.2
 
+# --- water hardens lava (#47) ---------------------------------------------
+# A water drop that touches lava (a cell with at least BURN_MASS) is used up and
+# turns up to this many connected lava cells, nearest first, into plain rock.
+const WATER_HARDENS_CELLS := 6
+const STEAM_SECONDS := 0.7
+
 # --- heat resistance (#44) -------------------------------------------------
 # Heat Shielding I-IV, sold in the Story Mode shop. Index = tier (0 = none).
 # The max tier still burns in lava (just slower) but blocks passive heat.
