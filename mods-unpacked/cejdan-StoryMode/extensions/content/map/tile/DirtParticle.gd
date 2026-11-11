@@ -4,10 +4,11 @@ extends "res://content/map/tile/DirtParticle.gd"
 # iron). Everything else is vanilla.
 
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
+const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 
 
 func _ready():
-	var tex: Texture2D = Minerals.particle_for_type(type)
+	var tex: Texture2D = Metal.particle() if type == Metal.TYPE else Minerals.particle_for_type(type)
 	if tex == null:
 		super._ready()
 		return

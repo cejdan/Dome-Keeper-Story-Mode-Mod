@@ -4,6 +4,7 @@ const STORYMODE_LOG = "cejdan-StoryMode"
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
 const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
+const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const Palette = preload("res://mods-unpacked/cejdan-StoryMode/util/palette.gd")
 const Prices = preload("res://mods-unpacked/cejdan-StoryMode/data/prices.gd")
@@ -76,6 +77,7 @@ func modInit():
 		"content/map/tile/DirtParticle.gd",
 		"content/dome/Dome.gd",
 		"content/map/generation/TileDataGenerator.gd",
+		"content/gadgets/suitblaster/SuitblasterExplosion.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	# Scenes that were already loaded still hold the vanilla script; reload them
@@ -89,10 +91,12 @@ func modInit():
 		"res://content/map/tile/TileBreakParticles.tscn",
 		"res://content/dome/Dome.tscn",
 		"res://content/map/generation/TileDataGenerator.tscn",
+		"res://content/gadgets/suitblaster/SuitblasterExplosion.tscn",
 	]:
 		if ResourceLoader.has_cached(scene_path):
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
 	Minerals.register()
+	Metal.register()
 	Data.registerGameMode(Story.MODE_ID)
 	GameWorld.unlockElement(Story.MODE_ID)
 
