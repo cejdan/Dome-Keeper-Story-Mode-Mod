@@ -17,6 +17,10 @@ func _ready():
 	var lava_probe = load("res://mods-unpacked/cejdan-StoryMode/lava/dev_lava_probe.gd").new()
 	lava_probe.name = "DevLavaProbe"
 	add_child(lava_probe)
+	# Dev-only: F9 jumps the keeper to the next magma pocket; needs `-- --lava`.
+	var lava_finder = load("res://mods-unpacked/cejdan-StoryMode/lava/dev_lava_finder.gd").new()
+	lava_finder.name = "DevLavaFinder"
+	add_child(lava_finder)
 	add_to_group("mod_init")
 
 
