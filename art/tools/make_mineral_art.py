@@ -2,6 +2,7 @@
 #   mods-unpacked/cejdan-StoryMode/art/minerals/drop_<m>.png    drop sprite (8x8 metals, 9x9 gems)
 #   mods-unpacked/cejdan-StoryMode/art/minerals/sheet_<m>.png   ore sheet, 12x12 grid of 24 px cells
 #   mods-unpacked/cejdan-StoryMode/art/minerals/icon_<m>.png    24 px HUD/shop icon (drop sprite x3)
+#   mods-unpacked/cejdan-StoryMode/art/minerals/particle_<m>.png  tile-break debris strip (4 frames of 4x4)
 # plus art/preview/mineral_sheets.png (real colors, for looking at).
 #
 # Ore sheet layout (same grid as vanilla content/map/border/resources_sheet.png):
@@ -104,6 +105,20 @@ def border_block(pal):
     return out
 
 
+def particle(pal):
+    # Vanilla's iron tile-break particle strip (4 frames of 4x4), recoloured.
+    src = Image.open(os.path.join(ROOT, "content", "map", "tile", "tile-break-dirt-particle_iron.png")).convert("RGBA")
+    used = sorted({p for p in src.getdata() if p[3] > 0}, key=lambda p: p[0])
+    order = ["D", "C", "L"]
+    out = Image.new("RGBA", src.size, (0, 0, 0, 0))
+    for y in range(src.height):
+        for x in range(src.width):
+            p = src.getpixel((x, y))
+            if p[3] > 0:
+                out.putpixel((x, y), pal[order[min(2, used.index(p))]])
+    return out
+
+
 def sheet(m, shape, pal):
     rng = random.Random(hash(m) & 0xffff if False else sum(map(ord, m)))
     img = Image.new("RGBA", (288, 288), (0, 0, 0, 0))
@@ -126,6 +141,7 @@ def main():
         d.save(os.path.join(OUT, "drop_%s.png" % m))
         d.resize((d.width * 3, d.height * 3), Image.NEAREST).save(os.path.join(OUT, "icon_%s.png" % m))
         sheet(m, shape, pal).save(os.path.join(OUT, "sheet_%s.png" % m))
+        particle(pal).save(os.path.join(OUT, "particle_%s.png" % m))
         # real-colour preview: 5 tile frames + the drop, at 2x
         real = real_of(m)
         rs = sheet(m, shape, real)
