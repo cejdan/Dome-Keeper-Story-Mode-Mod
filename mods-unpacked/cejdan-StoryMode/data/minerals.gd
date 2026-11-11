@@ -48,6 +48,23 @@ static func sheet_for_type(type: String) -> Texture2D:
 	return null
 
 
+# Tile-break debris strip for this type, or null for the vanilla look.
+static func particle_for_type(type: String) -> Texture2D:
+	if is_mod_mineral(type) or (type == "iron" and Story.is_story()):
+		return Assets.tex(ART + "particle_%s.png" % type)
+	return null
+
+
+# Story Mode shows iron as a grey metal square; vanilla modes keep vanilla iron.
+static var _vanilla_iron_drop: PackedScene = null
+
+
+static func use_story_iron(story: bool) -> void:
+	if _vanilla_iron_drop == null:
+		_vanilla_iron_drop = Data.DROP_SCENES["iron"]
+	Data.DROP_SCENES["iron"] = load(DROPS + "iron_drop.tscn") if story else _vanilla_iron_drop
+
+
 static func sheet_for_tile_id(id: int) -> Texture2D:
 	if id < 40:
 		return null

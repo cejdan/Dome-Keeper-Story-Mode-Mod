@@ -72,6 +72,7 @@ func modInit():
 		"content/techtree/TechTreePopup.gd",
 		"content/map/Map.gd",
 		"content/map/tile/Tile.gd",
+		"content/map/tile/DirtParticle.gd",
 		"content/dome/Dome.gd",
 		"content/map/generation/TileDataGenerator.gd",
 	]:
@@ -83,6 +84,8 @@ func modInit():
 		"res://content/techtree/TechTreePopup.tscn",
 		"res://content/map/Map.tscn",
 		"res://content/map/tile/Tile.tscn",
+		"res://content/map/tile/DirtParticle.tscn",
+		"res://content/map/tile/TileBreakParticles.tscn",
 		"res://content/dome/Dome.tscn",
 		"res://content/map/generation/TileDataGenerator.tscn",
 	]:
@@ -97,6 +100,7 @@ func modInit():
 # for an unknown mode id, so Story Mode does its own level preparation here.
 func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 	Prices.apply(modeId == Story.MODE_ID)
+	Minerals.use_story_iron(modeId == Story.MODE_ID)
 	if modeId != Story.MODE_ID:
 		return
 	levelStartData.loadout.modeConfig[Story.MODE_FLAG] = true

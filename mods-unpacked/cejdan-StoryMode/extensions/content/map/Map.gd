@@ -23,6 +23,10 @@ func revealTile(coord: Vector2):
 func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 	var type: String = tile.type
 	var richness: float = tile.richness
+	# Vanilla counts iron per biome at map start and assumes every iron tile was
+	# counted. Story Mode biomes can hold iron vanilla never counted there.
+	if type == CONST.IRON and not currentIronCountByLayer.has(tile.layer):
+		currentIronCountByLayer[tile.layer] = 1
 	super(teamId, keeperTechId, tile)
 	if not Minerals.is_mod_mineral(type):
 		return
@@ -57,6 +61,15 @@ func updateBorderSprite(x: int, y: int):
 	var tileMeta = borderSprites[key]
 	var overlays: Dictionary = tileMeta[2]
 	var has_empty: bool = r_tl == Data.TILE_EMPTY or r_tr == Data.TILE_EMPTY or r_br == Data.TILE_EMPTY or r_bl == Data.TILE_EMPTY
+	if overlays.has(Data.TILE_IRON):
+		# Story Mode iron is grey: same overlay node, the mod's sheet, whose border
+		# block sits at the sheet origin (vanilla's iron block is 8 rows down).
+		var iron_sheet: Texture2D = Minerals.sheet_for_type("iron")
+		if iron_sheet != null:
+			var io = overlays[Data.TILE_IRON]
+			io.texture = iron_sheet
+			io.set_frame_coords(layouts[tileMeta[0]])
+			io.material.set_shader_parameter("frame_coords", layouts[tileMeta[0]])
 	for typeId: int in [r_tl, r_tr, r_br, r_bl]:
 		var sheet: Texture2D = Minerals.sheet_for_tile_id(typeId)
 		if sheet == null:
