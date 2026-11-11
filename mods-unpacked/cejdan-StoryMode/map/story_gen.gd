@@ -22,6 +22,75 @@ static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
 	place_metal(map_data, rand)
 	place_pools(map_data, rand)
+	place_ocean(map_data, rand)
+
+
+# The lava ocean (#43): added below the generated map, under B8 (biome index 7).
+# Rows, top to bottom: one rock ceiling row; OCEAN_ROWS open rows across the
+# map's full width (the lava field fills them), with unobtainium clumps inside
+# and on the floor; OCEAN_FLOOR_ROWS of rock (just one, and soft, over the
+# chamber); and a sealed BOSS_CHAMBER inside rock walls. Vanilla's border pass
+# runs after this, so it wraps the new rows too. Meta: "story_ocean" (rows and
+# columns, ceiling row) and "story_boss_chamber" (Rect2i).
+static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
+	var cells: Array = map_data.get_used_biome_cells()
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	var yb: int = -(1 << 20)
+	for c: Vector2i in cells:
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+		yb = maxi(yb, c.y)
+	var biome: int = MapConfig.BIOMES - 1
+	var ceiling: int = yb + 1
+	var top: int = ceiling + 1
+	var bottom: int = top + LavaData.OCEAN_ROWS - 1
+	var floor_top: int = bottom + 1
+	var ch_w: int = LavaData.BOSS_CHAMBER.x
+	var ch_h: int = LavaData.BOSS_CHAMBER.y
+	var wall: int = LavaData.BOSS_CHAMBER_WALL
+	var ch_x0: int = -ch_w / 2
+	var ch_y0: int = floor_top + 1   # one soft floor row over the chamber
+	var deepest: int = maxi(floor_top + LavaData.OCEAN_FLOOR_ROWS - 1, ch_y0 + ch_h - 1 + wall)
+	for y in range(ceiling, deepest + 1):
+		for x in range(x0, x1 + 1):
+			var c := Vector2i(x, y)
+			map_data.set_biomev(c, biome)
+			if y == ceiling or y > bottom:
+				map_data.set_resourcev(c, Data.TILE_DIRT_START)
+				map_data.set_hardnessv(c, Data.HARDNESS_HARD)
+			else:
+				map_data.set_resourcev(c, Data.TILE_EMPTY)
+				map_data.set_hardnessv(c, Data.HARDNESS_MEDIUM)
+	# The floor right over the chamber is a single soft row.
+	for x in range(ch_x0, ch_x0 + ch_w):
+		map_data.set_hardnessv(Vector2i(x, floor_top), Data.HARDNESS_VERY_SOFT)
+	# The chamber itself.
+	for y in range(ch_y0, ch_y0 + ch_h):
+		for x in range(ch_x0, ch_x0 + ch_w):
+			map_data.set_resourcev(Vector2i(x, y), Data.TILE_EMPTY)
+			map_data.set_hardnessv(Vector2i(x, y), Data.HARDNESS_MEDIUM)
+	# Unobtainium: clumps in the ocean, some resting on its floor.
+	var unob: int = int(Minerals.TABLE["unobtainium"]["tile_id"])
+	var ocean_cells: int = (x1 - x0 + 1) * LavaData.OCEAN_ROWS
+	var want: int = int(round(ocean_cells / LavaData.OCEAN_UNOB_CELLS_PER_TILE))
+	var placed: int = 0
+	var guard: int = 0
+	while placed < want and guard < want * 20:
+		guard += 1
+		var c := Vector2i(rand.randi_range(x0 + 1, x1 - 1), rand.randi_range(top + 2, bottom))
+		if rand.randf() < 0.25:
+			c.y = bottom   # on the ocean floor
+		var n: int = rand.randi_range(int(LavaData.OCEAN_UNOB_CLUMP[0]), int(LavaData.OCEAN_UNOB_CLUMP[1]))
+		for i in n:
+			if map_data.get_resourcev(c) == Data.TILE_EMPTY and c.y >= top + 2 and c.y <= bottom and c.x > x0 and c.x < x1:
+				map_data.set_resourcev(c, unob)
+				placed += 1
+			c += [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)][rand.randi() % 3]
+	var info: Dictionary = {"top": top, "bottom": bottom, "x0": x0, "x1": x1, "ceiling": ceiling, "unobtainium": placed}
+	map_data.set_meta("story_ocean", info)
+	map_data.set_meta("story_boss_chamber", Rect2i(ch_x0, ch_y0, ch_w, ch_h))
+	return info
 
 
 # Open lava pools (#42): enclosed caverns in B5 and deeper, carved here as

@@ -94,12 +94,21 @@ func run(h) -> void:
 	h.check("10 rows below the start it overheats as the linear rule says (%.0f s; rule %.0f s; the ticket's target was ~300 s)" % [t_mid, want_mid], t_mid > 0 and absf(t_mid - want_mid) <= want_mid * 0.1, {"seconds": t_mid, "rule": want_mid})
 
 	# Just above the bottom.
-	var deep: Vector2i = await _room_at_row(h, bottom - 3, func(b): return b >= LavaData.PASSIVE_HEAT_START_BIOME)
+	# The deepest row (from 3 above the bottom up) where a 3 x 3 room fits; the
+	# map narrows at the bottom.
+	var deep: Vector2i = Vector2i(9999, 9999)
+	for up in range(3, 20):
+		deep = await _room_at_row(h, bottom - up, func(b): return b >= LavaData.PASSIVE_HEAT_START_BIOME)
+		if deep.x != 9999:
+			break
+	h.check("found a room near the bottom", deep.x != 9999, deep)
+	if deep.x == 9999:
+		return
 	var want_deep: float = 100.0 / maxf(0.0001, field.passive_rate_at(deep))
 	h.speed(4.0)
 	var t_deep: float = await _watch(h, deep, want_deep * 1.3, "near the bottom")
 	h.speed(1.0)
-	h.check("just above the bottom it overheats in about 45 s (%.0f s)" % t_deep, t_deep > 0 and absf(t_deep - 45.0) <= 45.0 * 0.2, {"seconds": t_deep, "rule": want_deep})
+	h.check("near the bottom (row %d of %d) it overheats in about 45 s (%.0f s)" % [deep.y, bottom, t_deep], t_deep > 0 and absf(t_deep - 45.0) <= 45.0 * 0.2, {"seconds": t_deep, "rule": want_deep})
 
 	# Back in the dome the suit cools to 0.
 	field.heat = 60.0

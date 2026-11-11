@@ -49,6 +49,17 @@ const POOL_ROCK_PER_POOL := 400.0      # one pool per this many plain rock cells
 const POOL_FREQ_BONUS_AT_BOTTOM := 0.5 # ... and 50% more often at the bottom
 const POOL_GAP := 2                    # rock tiles kept between a pool and anything open or special
 
+# --- lava ocean (#43) -------------------------------------------------------
+# Below B8: a rock ceiling row, then OCEAN_ROWS of open cells across the map's
+# full width, brim-full of lava from the start, with unobtainium scattered
+# inside; then the ocean floor and, centred under it, a sealed boss chamber.
+const OCEAN_ROWS := 50
+const OCEAN_UNOB_CELLS_PER_TILE := 60.0   # about one unobtainium tile per this many ocean cells
+const OCEAN_UNOB_CLUMP := [1, 3]
+const OCEAN_FLOOR_ROWS := 2               # rock under the ocean (1 row over the chamber)
+const BOSS_CHAMBER := Vector2i(20, 10)    # width x height, empty and sealed
+const BOSS_CHAMBER_WALL := 2
+
 # --- passive heat (#46) ----------------------------------------------------
 # The suit heats slowly from depth alone, out of lava, in B4 and deeper (a
 # per-tile biome check). The rate grows linearly from 0 at the top row of B4 to
@@ -66,7 +77,10 @@ const STEAM_SECONDS := 0.7
 # --- heat resistance (#44) -------------------------------------------------
 # Heat Shielding I-IV, sold in the Story Mode shop. Index = tier (0 = none).
 # The max tier still burns in lava (just slower) but blocks passive heat.
-const HEAT_SHIELD_LAVA_MULT := [1.0, 0.6, 0.35, 0.2, 0.1]
+# Tier IV's lava multiplier was tuned by #43's dive (ceiling to boss chamber,
+# base speed, ~24 s in lava): 0.06 gives 30 s of lava, so tier IV arrives under
+# 100% heat and tier III (9 s) doesn't.
+const HEAT_SHIELD_LAVA_MULT := [1.0, 0.6, 0.35, 0.2, 0.06]
 const HEAT_SHIELD_PASSIVE_MULT := [1.0, 0.6, 0.3, 0.1, 0.0]
 const HEAT_SHIELD_PRICES := [200, 1000, 4000, 25000]
 # The keeper's tier lives in Data under <team>.suit.heatshield (set by the upgrades).

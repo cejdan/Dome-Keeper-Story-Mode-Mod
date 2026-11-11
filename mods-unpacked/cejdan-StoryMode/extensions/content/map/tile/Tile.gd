@@ -10,6 +10,12 @@ const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 func setType(type: String):
 	var fresh: bool = health == 0
 	super(type)
+	if type == "dirt" and _is_chamber_crust():
+		# The ocean floor right over the boss chamber is a thin crust (#43): base
+		# health, no depth multiplier, so diving in is a heat test, not a drill test.
+		max_health = max(1, round(hardnessMultiplier * Data.of("map.tileBaseHealth")))
+		health = max_health if fresh else min(health, max_health)
+		return
 	if Metal.is_metal(type):
 		_set_metal(fresh)
 		return
@@ -88,3 +94,21 @@ func _clank() -> void:
 		hitTween.kill()
 	hitTween = create_tween()
 	hitTween.tween_property(res_sprite, "modulate", Color.WHITE, 0.15).from(Color(1.6, 1.6, 1.6, 1.0))
+
+
+# The chamber's rect, cached per map (tiles are made one at a time as they're revealed).
+static var _crust_map_id := 0
+static var _crust_rect := Rect2i()
+
+
+func _is_chamber_crust() -> bool:
+	if Level.map == null or not is_instance_valid(Level.map) or Level.map.tileData == null:
+		return false
+	var td = Level.map.tileData
+	if td.get_instance_id() != _crust_map_id:
+		_crust_map_id = td.get_instance_id()
+		var ch = td.get_meta("story_boss_chamber", null)
+		_crust_rect = ch if ch is Rect2i else Rect2i()
+	if _crust_rect.size == Vector2i.ZERO or int(coord.y) != _crust_rect.position.y - 1:
+		return false
+	return int(coord.x) >= _crust_rect.position.x and int(coord.x) < _crust_rect.end.x
