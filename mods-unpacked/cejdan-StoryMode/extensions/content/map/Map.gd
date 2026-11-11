@@ -96,3 +96,15 @@ func updateBorderSprite(x: int, y: int):
 		o.material.set_shader_parameter("hide_tr", float(r_tr != typeId or not has_empty))
 		o.material.set_shader_parameter("hide_bl", float(r_bl != typeId or not has_empty))
 		o.material.set_shader_parameter("hide_br", float(r_br != typeId or not has_empty))
+
+
+# Lava hardened by water (#47) becomes rock again: the opposite of
+# removeTileVisually's hole mark, so the map draws solid rock there.
+func restoreTileVisually(tileCoord: Vector2) -> void:
+	var c: Vector2 = tileCoord + MAP_TO_TEXTURE_OFFSET_COORD
+	var draw_pos_es = (Vector2(c.x, c.y) + Vector2(tilemap_size.x / 2, 0)) * edge_scaling
+	for x in edge_scaling:
+		for y in edge_scaling:
+			holeImage.set_pixelv(draw_pos_es + Vector2(x, y), Color.BLACK)
+	holeTextureIsDirty = true
+	updateDirtyTextures()

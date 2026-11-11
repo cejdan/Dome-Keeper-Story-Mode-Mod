@@ -57,6 +57,9 @@ var melt_timers: Dictionary = {}   # Vector2i -> seconds of lava contact
 var heat := 0.0
 var recalls := 0
 var last_penalty := 0
+var hardened := 0                 # lava cells water turned to rock this run
+var last_hardened: Array = []     # the cells of the latest hardening
+var _steam: Array = []            # [cell, seconds left] for the steam flash
 var breaches := 0
 var recall_pos = null
 var _acc := 0.0
@@ -233,7 +236,12 @@ func _physics_body(delta: float) -> void:
 		_acc -= TICK
 		_step()
 	_melt(delta)
+	_check_water()
 	_update_heat(delta)
+	if not _steam.is_empty():
+		for e in _steam:
+			e[1] -= delta
+		_steam = _steam.filter(func(e): return e[1] > 0.0)
 	# Smooth the drawn lava toward the simulated lava; once it has caught up and
 	# nothing is moving, skip the loop (a settled pool costs nothing).
 	if not _shown_settled or not _awake.is_empty() or _wake_all:
@@ -434,6 +442,68 @@ func _melt(delta: float) -> void:
 			melt_timers.erase(c)
 
 
+# --- water hardens lava (#47) ----------------------------------------------------
+
+# Only water drops are checked, against the cell each one is in.
+func _check_water() -> void:
+	if mass.is_empty() or Level.drops == null:
+		return
+	for d in Level.drops.get_children():
+		if not "type" in d or d.type != CONST.WATER or d.absorbed or not is_instance_valid(d):
+			continue
+		var c: Vector2i = map.getTileCoord(d.global_position)
+		if mass.get(c, 0.0) < BURN_MASS:
+			continue
+		var cells := _harden_from(c, LavaData.WATER_HARDENS_CELLS)
+		for k in Keepers.getAll():
+			if k.carriedCarryables.has(d):
+				k.dropCarry(d)
+		d.remove()
+		InputSystem.shake(6.0, 0.35, 20.0, d.global_position)
+		ModLoaderLog.info("Water hardened %d lava cells" % cells.size(), "cejdan-StoryMode")
+
+
+# Breadth-first from `start` through connected lava (>= BURN_MASS), nearest
+# first, up to `limit` cells; each becomes plain rock. Returns the cells.
+func _harden_from(start: Vector2i, limit: int) -> Array:
+	var out: Array = []
+	var seen := {start: true}
+	var open: Array = [start]
+	while not open.is_empty() and out.size() < limit:
+		var c: Vector2i = open.pop_front()
+		if mass.get(c, 0.0) < BURN_MASS:
+			continue
+		out.append(c)
+		for d in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
+			var n: Vector2i = c + d
+			if not seen.has(n):
+				seen[n] = true
+				open.append(n)
+	for c in out:
+		_harden(c)
+	last_hardened = out
+	hardened += out.size()
+	return out
+
+
+# One lava cell becomes an ordinary rock tile: no resource, drillable, the cell's
+# own hardness (or medium in a dug cell that had none).
+func _harden(c: Vector2i) -> void:
+	mass.erase(c)
+	shown.erase(c)
+	_wake(c)
+	var td = map.tileData
+	if td.get_hardnessv(c) < 0 or td.get_hardnessv(c) >= Data.HARDNESS_INDESTRUCTIBLE:
+		td.set_hardnessv(c, Data.HARDNESS_MEDIUM)
+	td.set_resourcev(c, Data.TILE_DIRT_START)
+	map.visibleTileCoords.erase(Vector2(c))
+	map.revealTile(Vector2(c))
+	if map.has_method("restoreTileVisually"):
+		map.restoreTileVisually(Vector2(c))
+	map.updateBorderSpriteOfTileCoord(Vector2(c))
+	_steam.append([c, LavaData.STEAM_SECONDS])
+
+
 # --- suit heat -----------------------------------------------------------------
 
 func lava_at(world_pos: Vector2) -> float:
@@ -618,6 +688,11 @@ func _draw() -> void:
 				var ex: float = floor(_noise(c, i + 60 + int(_time * 0.5)) * (TILE - 1.0))
 				draw_rect(Rect2(o + Vector2(ex, top - t * 14.0), Vector2(1, 1)), Color(COL_CORE, 1.0 - t))
 
+	# Steam where water just hardened lava: a white-grey puff that fades.
+	for e in _steam:
+		var a: float = clampf(e[1] / LavaData.STEAM_SECONDS, 0.0, 1.0)
+		var o := _cell_origin(e[0])
+		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.75 * a))
 	_draw_heat_bar()
 
 
