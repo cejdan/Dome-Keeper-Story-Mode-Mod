@@ -10,6 +10,10 @@ extends Node2D
 # melts, and teleporting the keeper on a recall.
 #
 # All numbers below are first-pass values. They are game-design calls for the user.
+# Newer ones live in data/lava.gd.
+
+const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
+const SAVE_KEY := "story.lava"
 
 # --- pockets -------------------------------------------------------------------
 const POCKET_MIN_DEPTH := 7            # first tile row that may hold magma
@@ -29,7 +33,7 @@ const MAX_FLOW := 0.42                 # per step; keeps lava thick and slow
 const SIDE_FLOW_DIVISOR := 5.0
 const STICKY_MASS := 0.05              # a film this thin stops spreading sideways
 const SOURCE_RATE := 0.36              # mass per step a breached magma cell emits
-const COOL_PER_SECOND := 0.004         # lava slowly cools away (a full cell lasts ~4 min)
+const COOL_PER_SECOND := 0.004         # a cooling cell loses this (a full one lasts ~4 min); see _cools()
 const FILM_MASS := 0.12                # films thinner than this cool much faster
 const FILM_COOL_PER_SECOND := 0.03
 const MIN_Y := 1                       # lava never rises above this tile row
@@ -62,6 +66,8 @@ var _acc := 0.0
 var _time := 0.0
 var _glow: Node2D
 var _glow_tex: GradientTexture2D
+# Dev only: the old rule (every cell cools), for timing comparisons.
+var legacy_cooling := false
 
 
 func setup(p_map) -> void:
@@ -86,8 +92,11 @@ func setup(p_map) -> void:
 	_glow_tex.height = 64
 	_glow.draw.connect(_draw_glow)
 	add_child(_glow)
-	_place_pockets()
+	# A loaded run brings its lava back from the save; a new run places pockets.
+	if not _restore(str(Data.ofOr(SAVE_KEY, ""))):
+		_place_pockets()
 	map.tile_destroyed.connect(_on_tile_destroyed)
+	add_to_group("saveable")
 
 
 # --- pocket placement ----------------------------------------------------------
@@ -231,9 +240,78 @@ func _step() -> void:
 	mass.clear()
 	for c in next:
 		var m: float = next[c]
-		m -= (FILM_COOL_PER_SECOND if m < FILM_MASS else COOL_PER_SECOND) * TICK
+		if legacy_cooling or _cools(c, m, next):
+			m -= (FILM_COOL_PER_SECOND if m < FILM_MASS else COOL_PER_SECOND) * TICK
+		# MIN_MASS only prunes numerical dust.
 		if m > MIN_MASS:
 			mass[c] = m
+
+
+# Lava cools only at a thin, open surface (#41): nothing below it, and its top
+# open to air (open space above with no lava, or the cell itself not full). So
+# a brim-full pool under rock keeps its lava for good; a thinned-out layer with
+# air above it cools away.
+func _cools(c: Vector2i, m: float, cells: Dictionary) -> bool:
+	if cells.get(c + Vector2i.DOWN, 0.0) >= LavaData.HOLDS_MASS:
+		return false
+	var above: Vector2i = c + Vector2i.UP
+	if cells.get(above, 0.0) >= LavaData.HOLDS_MASS:
+		return false
+	return _is_open(above) or m < LavaData.FULL_MASS
+
+
+# The cells that would cool this step (for playtests).
+func cooling_cells() -> Array:
+	var out: Array = []
+	for c in mass:
+		if _cools(c, mass[c], mass):
+			out.append(c)
+	out.sort()
+	return out
+
+
+# --- save and load ---------------------------------------------------------------
+# Vanilla saves every node in group "saveable" before it saves Data. This node's
+# serialize() puts the lava into Data (SAVE_KEY), and vanilla's loader skips its
+# own entry (an unknown kind). Data is cleared for every new run, so the key is
+# only there when a saved run is loaded.
+
+func serialize() -> Dictionary:
+	var cells: Array = []
+	for c in mass:
+		cells.append([c.x, c.y, snappedf(mass[c], 0.0001)])
+	var src: Array = []
+	for c in sources:
+		src.append([c.x, c.y, snappedf(sources[c], 0.0001)])
+	var rock: Array = []
+	for c in magma:
+		rock.append([c.x, c.y])
+	Data.apply(SAVE_KEY, JSON.stringify({"seed": Level.levelSeed, "mass": cells, "sources": src, "magma": rock,
+		"heat": heat, "breaches": breaches, "recalls": recalls}))
+	return {"meta.priority": 9000, "meta.kind": "storylava"}
+
+
+func _restore(blob: String) -> bool:
+	if blob == "":
+		return false
+	var d = JSON.parse_string(blob)
+	if not d is Dictionary or int(d.get("seed", -1)) != Level.levelSeed:
+		return false
+	mass.clear()
+	sources.clear()
+	magma.clear()
+	for e in d.get("mass", []):
+		mass[Vector2i(int(e[0]), int(e[1]))] = float(e[2])
+	for e in d.get("sources", []):
+		sources[Vector2i(int(e[0]), int(e[1]))] = float(e[2])
+	for e in d.get("magma", []):
+		magma[Vector2i(int(e[0]), int(e[1]))] = true
+	shown = mass.duplicate()
+	heat = float(d.get("heat", 0.0))
+	breaches = int(d.get("breaches", 0))
+	recalls = int(d.get("recalls", 0))
+	ModLoaderLog.info("Lava restored from save: %d cells, %d magma" % [mass.size(), magma.size()], "cejdan-StoryMode")
+	return true
 
 
 func _melt(delta: float) -> void:

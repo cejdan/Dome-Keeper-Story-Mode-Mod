@@ -9,6 +9,7 @@ extends Node
 # `-- --lava` (dev switch).
 
 const LavaField = preload("res://mods-unpacked/cejdan-StoryMode/lava/lava_field.gd")
+const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const MODE_FLAG := "cejdan-storymode"
 const FIELD_NAME := "StoryLavaField"
 
@@ -31,4 +32,5 @@ func _process(_delta: float) -> void:
 func _wants_lava() -> bool:
 	if "--lava" in OS.get_cmdline_user_args():
 		return true
-	return Level.loadout != null and Level.loadout.modeConfig.get(MODE_FLAG, false)
+	# A loaded save brings back the mode id but not the start-time flag.
+	return Story.is_story() or (Level.loadout != null and Level.loadout.modeConfig.get(MODE_FLAG, false))
