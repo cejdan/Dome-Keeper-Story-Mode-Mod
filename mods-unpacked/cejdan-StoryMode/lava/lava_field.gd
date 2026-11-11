@@ -80,7 +80,10 @@ var pools_skipped := 0             # pools left empty because something opened t
 # a neighbour's changes, or a tile next to it is destroyed.
 var _awake: Dictionary = {}
 var _wake_all := true
-var _shown_settled := false
+var _shown_all := true            # every drawn cell needs smoothing (after a fill or load)
+var _shown_dirty: Dictionary = {}  # cells whose drawn lava hasn't caught up yet
+var _melt_check: Dictionary = {}   # magma cells that lava may be touching
+var _melt_full := true             # scan all magma once (after a fill, load or direct edit)
 const WAKE_EPS := 0.00005
 
 
@@ -106,6 +109,10 @@ func setup(p_map) -> void:
 	_glow_tex.height = 64
 	_glow.draw.connect(_draw_glow)
 	add_child(_glow)
+	# Map facts the generator left (read once; they don't change during a run).
+	_ocean = map.tileData.get_meta("story_ocean", {})
+	var ch = map.tileData.get_meta("story_boss_chamber", null)
+	_chamber = ch if ch is Rect2i else Rect2i()
 	# A loaded run brings its lava back from the save; a new run places pockets.
 	if not _restore(str(Data.ofOr(SAVE_KEY, ""))):
 		_place_pockets()
@@ -144,49 +151,59 @@ func _fill_pools() -> void:
 		var top: int = 1 << 20
 		for c in cells:
 			top = mini(top, c.y)
-		for c in cells:
-			var m: float = MAX_MASS + MAX_COMPRESS * float(c.y - top)
-			mass[c] = m
-			shown[c] = m
+		_fill_hydrostatic(cells, top)
 		pools.append(cells)
 	wake_all()
+
+
+# Fills `cells` brim-full and settled: a cell k rows below `top` holds
+# 1 + MAX_COMPRESS x k, exactly where the flow balances.
+func _fill_hydrostatic(cells: Array, top: int) -> void:
+	for c in cells:
+		var m: float = MAX_MASS + MAX_COMPRESS * float(c.y - top)
+		mass[c] = m
+		shown[c] = m
 
 
 # The lava ocean the generator added (#43): every open cell in its rows, brim-full
 # and hydrostatic like the pools, so it sits settled under its rock ceiling.
 var ocean_cells := 0
 var boss_chamber_reached := false
+var _ocean: Dictionary = {}       # the generator's "story_ocean" meta (rows, columns, ceiling)
+var _chamber: Rect2i = Rect2i()   # the boss chamber; lava never enters it
+
+
+func _in_ocean(c: Vector2i) -> bool:
+	if _ocean.is_empty():
+		return false
+	return c.y >= int(_ocean["top"]) and c.y <= int(_ocean["bottom"]) and c.x >= int(_ocean["x0"]) and c.x <= int(_ocean["x1"])
 
 
 func _fill_ocean() -> void:
-	var info: Dictionary = map.tileData.get_meta("story_ocean", {})
-	if info.is_empty():
+	if _ocean.is_empty():
 		return
-	for y in range(int(info["top"]), int(info["bottom"]) + 1):
-		for x in range(int(info["x0"]), int(info["x1"]) + 1):
-			var c := Vector2i(x, y)
-			if _is_open(c):
-				var m: float = MAX_MASS + MAX_COMPRESS * float(y - int(info["top"]))
-				mass[c] = m
-				shown[c] = m
-				ocean_cells += 1
+	var cells: Array = []
+	for y in range(int(_ocean["top"]), int(_ocean["bottom"]) + 1):
+		for x in range(int(_ocean["x0"]), int(_ocean["x1"]) + 1):
+			if _is_open(Vector2i(x, y)):
+				cells.append(Vector2i(x, y))
+	_fill_hydrostatic(cells, int(_ocean["top"]))
+	ocean_cells = cells.size()
 	wake_all()
 
 
 func ocean_mass() -> float:
-	var info: Dictionary = map.tileData.get_meta("story_ocean", {})
 	var t := 0.0
-	if info.is_empty():
-		return t
 	for c in mass:
-		if c.y >= int(info["top"]) and c.y <= int(info["bottom"]) and c.x >= int(info["x0"]) and c.x <= int(info["x1"]):
+		if _in_ocean(c):
 			t += mass[c]
 	return t
 
 
 func wake_all() -> void:
 	_wake_all = true
-	_shown_settled = false
+	_shown_all = true
+	_melt_full = true
 
 
 func _wake(c: Vector2i) -> void:
@@ -207,7 +224,9 @@ func _place_pockets() -> void:
 					near_pool[Vector2i(c) + Vector2i(ox, oy)] = true
 	var rock_set := {}
 	for c in map.tileData.get_resource_cells_by_id(Data.TILE_DIRT_START):
-		if c.y >= POCKET_MIN_DEPTH and map.tileData.get_hardnessv(c) < Data.HARDNESS_INDESTRUCTIBLE and not near_pool.has(c):
+		# Nothing in the ocean's ceiling or below it: lava touches that rock.
+		var by_ocean: bool = not _ocean.is_empty() and c.y >= int(_ocean["ceiling"])
+		if c.y >= POCKET_MIN_DEPTH and map.tileData.get_hardnessv(c) < Data.HARDNESS_INDESTRUCTIBLE and not near_pool.has(c) and not by_ocean:
 			rock_set[c] = true
 	var rng := RandomNumberGenerator.new()
 	for s in rock_set:
@@ -248,8 +267,10 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 	InputSystem.shake(6.0, 0.5, 20.0, world_pos)
 
 
+# The boss chamber counts as closed for lava, so drilling into it from the
+# ocean doesn't flood the arena; the lava rests on its ceiling (#43).
 func _is_open(c: Vector2i) -> bool:
-	return c.y >= MIN_Y and map.is_tile_empty(c)
+	return c.y >= MIN_Y and map.is_tile_empty(c) and not _chamber.has_point(c)
 
 
 # --- simulation ----------------------------------------------------------------
@@ -282,21 +303,25 @@ func _physics_body(delta: float) -> void:
 		for e in _steam:
 			e[1] -= delta
 		_steam = _steam.filter(func(e): return e[1] > 0.0)
-	# Smooth the drawn lava toward the simulated lava; once it has caught up and
-	# nothing is moving, skip the loop (a settled pool costs nothing).
-	if not _shown_settled or not _awake.is_empty() or _wake_all:
-		var gap := 0.0
+	# Smooth the drawn lava toward the simulated lava. Only cells that changed are
+	# walked (a settled ocean costs nothing), unless something touched every cell.
+	var k: float = min(1.0, delta * 9.0)
+	if _shown_all:
+		_shown_all = false
 		for c in mass:
-			var v: float = lerp(shown.get(c, 0.0), mass[c], min(1.0, delta * 9.0))
-			gap = maxf(gap, absf(v - mass[c]))
+			_shown_dirty[c] = true
+		for c in shown:
+			_shown_dirty[c] = true
+	for c in _shown_dirty.keys():
+		var target: float = mass.get(c, 0.0)
+		var v: float = lerp(shown.get(c, 0.0), target, k)
+		if absf(v - target) < 0.002:
+			_shown_dirty.erase(c)
+			v = target
+		if v < 0.01 and not mass.has(c):
+			shown.erase(c)
+		else:
 			shown[c] = v
-		for c in shown.keys():
-			if not mass.has(c):
-				shown[c] = lerp(shown[c], 0.0, min(1.0, delta * 9.0))
-				gap = maxf(gap, shown[c])
-				if shown[c] < 0.01:
-					shown.erase(c)
-		_shown_settled = gap < 0.002 and _awake.is_empty()
 	queue_redraw()
 	_glow.queue_redraw()
 
@@ -327,10 +352,11 @@ func _step() -> void:
 	# Nothing moving anywhere: a settled field costs nothing.
 	if not all_awake and _awake.is_empty():
 		return
-	var next: Dictionary = mass.duplicate()
-	for c in mass:
-		if not all_awake and not _awake.has(c):
-			continue
+	# Flows are worked out from this step's masses and collected as deltas, so a
+	# step touches only the cells that move, not every lava cell on the map.
+	var work: Array = mass.keys() if all_awake else _awake.keys().filter(func(c): return mass.has(c))
+	var dm: Dictionary = {}
+	for c in work:
 		var m: float = mass[c]
 		if m <= 0.0:
 			continue
@@ -344,8 +370,8 @@ func _step() -> void:
 				flow *= 0.6
 			flow = clamp(flow, 0.0, min(MAX_FLOW, remaining))
 			if flow > 0.0:
-				next[c] -= flow
-				next[below] = next.get(below, 0.0) + flow
+				dm[c] = dm.get(c, 0.0) - flow
+				dm[below] = dm.get(below, 0.0) + flow
 				remaining -= flow
 		if remaining <= 0.0:
 			continue
@@ -353,14 +379,14 @@ func _step() -> void:
 		var resting: bool = not below_open or mass.get(below, 0.0) >= MAX_MASS * 0.9
 		if resting and remaining > STICKY_MASS:
 			for side in [Vector2i.LEFT, Vector2i.RIGHT]:
-				var s: Vector2i = c + side
-				if not _is_open(s):
+				var sc: Vector2i = c + side
+				if not _is_open(sc):
 					continue
-				var flow: float = (m - mass.get(s, 0.0)) / SIDE_FLOW_DIVISOR
+				var flow: float = (m - mass.get(sc, 0.0)) / SIDE_FLOW_DIVISOR
 				flow = clamp(flow, 0.0, min(MAX_FLOW, remaining))
 				if flow > MIN_FLOW:
-					next[c] -= flow
-					next[s] = next.get(s, 0.0) + flow
+					dm[c] = dm.get(c, 0.0) - flow
+					dm[sc] = dm.get(sc, 0.0) + flow
 					remaining -= flow
 		if remaining <= MAX_MASS:
 			continue
@@ -370,22 +396,40 @@ func _step() -> void:
 			var flow: float = remaining - _stable_split(remaining + mass.get(above, 0.0))
 			flow = clamp(flow * 0.6, 0.0, min(MAX_FLOW, remaining))
 			if flow > MIN_FLOW:
-				next[c] -= flow
-				next[above] = next.get(above, 0.0) + flow
+				dm[c] = dm.get(c, 0.0) - flow
+				dm[above] = dm.get(above, 0.0) + flow
 
-	var old: Dictionary = mass
-	mass = {}
-	var woke: Dictionary = {}
-	for c in next:
-		var m: float = next[c]
+	# The cells that may change: those that flowed, and the awake ones (cooling).
+	var nv: Dictionary = {}
+	for c in work:
+		nv[c] = mass[c] + dm.get(c, 0.0)
+	for c in dm:
+		if not nv.has(c):
+			nv[c] = mass.get(c, 0.0) + dm[c]
+	# Cooling is decided on the flowed masses, then applied.
+	var cool: Array = []
+	for c in nv:
 		# A sleeping cell's neighbours didn't change, so neither did its cooling.
-		if (all_awake or _awake.has(c)) and (legacy_cooling or _cools(c, m, next)):
-			m -= (FILM_COOL_PER_SECOND if m < FILM_MASS else COOL_PER_SECOND) * TICK
+		if (all_awake or _awake.has(c)) and (legacy_cooling or _cools(c, nv[c], nv, mass)):
+			cool.append(c)
+	for c in cool:
+		nv[c] -= (FILM_COOL_PER_SECOND if nv[c] < FILM_MASS else COOL_PER_SECOND) * TICK
+	var woke: Dictionary = {}
+	for c in nv:
+		var m: float = nv[c]
+		var had: bool = mass.has(c)
+		var o: float = mass.get(c, 0.0)
 		# MIN_MASS only prunes numerical dust.
 		if m > MIN_MASS:
 			mass[c] = m
-		if absf(m - old.get(c, 0.0)) > WAKE_EPS or (m <= MIN_MASS and old.has(c)):
+		elif had:
+			mass.erase(c)
+		if absf(m - o) > WAKE_EPS or (m <= MIN_MASS and had):
 			woke[c] = true
+			_shown_dirty[c] = true
+			for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.UP]:
+				if magma.has(c + d):
+					_melt_check[c + d] = true
 	_awake = {}
 	for c in woke:
 		_wake(c)
@@ -395,11 +439,13 @@ func _step() -> void:
 # open to air (open space above with no lava, or the cell itself not full). So
 # a brim-full pool under rock keeps its lava for good; a thinned-out layer with
 # air above it cools away.
-func _cools(c: Vector2i, m: float, cells: Dictionary) -> bool:
-	if cells.get(c + Vector2i.DOWN, 0.0) >= LavaData.HOLDS_MASS:
+func _cools(c: Vector2i, m: float, cells: Dictionary, base: Dictionary = {}) -> bool:
+	# `cells` holds this step's new masses; `base` the rest (cells that didn't move).
+	var below: Vector2i = c + Vector2i.DOWN
+	if (cells[below] if cells.has(below) else base.get(below, 0.0)) >= LavaData.HOLDS_MASS:
 		return false
 	var above: Vector2i = c + Vector2i.UP
-	if cells.get(above, 0.0) >= LavaData.HOLDS_MASS:
+	if (cells[above] if cells.has(above) else base.get(above, 0.0)) >= LavaData.HOLDS_MASS:
 		return false
 	return _is_open(above) or m < LavaData.FULL_MASS
 
@@ -431,7 +477,7 @@ func serialize() -> Dictionary:
 	for c in magma:
 		rock.append([c.x, c.y])
 	Data.apply(SAVE_KEY, JSON.stringify({"seed": Level.levelSeed, "mass": cells, "sources": src, "magma": rock,
-		"heat": heat, "breaches": breaches, "recalls": recalls}))
+		"heat": heat, "breaches": breaches, "recalls": recalls, "ocean_cells": ocean_cells, "boss_chamber_reached": boss_chamber_reached}))
 	return {"meta.priority": 9000, "meta.kind": "storylava"}
 
 
@@ -455,6 +501,8 @@ func _restore(blob: String) -> bool:
 	heat = float(d.get("heat", 0.0))
 	breaches = int(d.get("breaches", 0))
 	recalls = int(d.get("recalls", 0))
+	ocean_cells = int(d.get("ocean_cells", 0))
+	boss_chamber_reached = bool(d.get("boss_chamber_reached", false))
 	ModLoaderLog.info("Lava restored from save: %d cells, %d magma" % [mass.size(), magma.size()], "cejdan-StoryMode")
 	return true
 
@@ -462,14 +510,28 @@ func _restore(blob: String) -> bool:
 func _melt(delta: float) -> void:
 	# Lava resting against magma rock melts it, which releases that rock's lava too.
 	if magma.is_empty() or mass.is_empty():
+		_melt_check.clear()
 		return
-	# Walk the magma (a few hundred cells), not the lava (thousands with the ocean).
+	# Only magma next to lava that moved can start touching it, so only those
+	# cells are watched (_step adds them); after a fill or load, scan it all once.
+	if _melt_full:
+		_melt_full = false
+		for m in magma:
+			_melt_check[m] = true
 	var touched := {}
-	for m in magma:
+	for m in _melt_check.keys():
+		if not magma.has(m):
+			_melt_check.erase(m)
+			continue
+		var hot := false
 		for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.UP]:
 			if mass.get(m + d, 0.0) >= 0.1:
-				touched[m] = true
+				hot = true
 				break
+		if hot:
+			touched[m] = true
+		else:
+			_melt_check.erase(m)
 	for c in melt_timers.keys():
 		if not touched.has(c):
 			melt_timers.erase(c)
@@ -565,9 +627,8 @@ func _heat_rows() -> void:
 		_heat_bottom = maxi(_heat_bottom, c.y)
 		if map.tileData.get_biomev(c) >= LavaData.PASSIVE_HEAT_START_BIOME:
 			_heat_top = mini(_heat_top, c.y)
-	var ocean: int = int(map.tileData.get_meta("story_ocean_top", -1))
-	if ocean > 0:
-		_heat_bottom = ocean
+	if not _ocean.is_empty():
+		_heat_bottom = int(_ocean["ceiling"])
 
 
 # Passive heat per second at a tile, before Heat Shielding: 0 above B4.
@@ -605,9 +666,8 @@ func _update_heat(delta: float) -> void:
 		heat = max(0.0, heat - COOL_MINE_PER_SECOND * delta)
 	if heat >= HEAT_MAX:
 		_recall(keeper)
-	if not boss_chamber_reached:
-		var ch = map.tileData.get_meta("story_boss_chamber", null)
-		if ch is Rect2i and ch.has_point(map.getTileCoord(keeper.global_position)):
+	if not boss_chamber_reached and _chamber.size != Vector2i.ZERO:
+		if _chamber.has_point(map.getTileCoord(keeper.global_position)):
 			boss_chamber_reached = true
 			ModLoaderLog.info("boss chamber reached", "cejdan-StoryMode")
 
@@ -667,7 +727,20 @@ func _noise(c: Vector2i, i: int) -> float:
 
 # The lava cells on screen (plus a margin), so drawing costs the same however
 # much lava the map holds. Falls back to every cell if the view can't be read.
+var _vis_frame := -1
+var _vis_cache: Array = []
+
+
+# Both draw passes (lava and glow) share one list per frame.
 func _visible_cells() -> Array:
+	var f := Engine.get_process_frames()
+	if f != _vis_frame:
+		_vis_frame = f
+		_vis_cache = _visible_cells_now()
+	return _vis_cache
+
+
+func _visible_cells_now() -> Array:
 	var vp := get_viewport()
 	if vp == null:
 		return shown.keys()

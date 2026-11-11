@@ -83,7 +83,10 @@ func run(h) -> void:
 	td = Level.map.tileData
 	o = td.get_meta("story_ocean", {})
 	h.check("the run has a lava ocean", not o.is_empty() and field.ocean_cells > 1000, {"ocean": o, "cells": field.ocean_cells})
-	field.magma.clear()
+	# Magma pockets stay out of the ocean's ceiling and everything below it (the
+	# rock there touches lava and would melt open at once).
+	var by_ocean: Array = field.magma.keys().filter(func(c): return c.y >= int(o["ceiling"]))
+	h.check("no magma pocket in the ocean ceiling, floor or chamber walls", by_ocean.is_empty(), by_ocean.slice(0, 10))
 
 	# ---- sealed for 10 minutes
 	var m0: float = field.ocean_mass()
@@ -120,7 +123,8 @@ func run(h) -> void:
 	var own_w: float = (w[0][1] + w[1][1]) / 2.0
 	var own_wo: float = (wo[0][1] + wo[1][1]) / 2.0
 	h.note("physics ms [whole scene, lava field's own]", {"ocean settled": w, "no ocean": wo})
-	h.check("the lava field's own physics time with the ocean is within 15% of without", own_w <= own_wo * 1.15 + 0.005, [own_w, own_wo])
+	# On a ~0.03 ms base, 15% is a few microseconds; allow 0.02 ms of absolute slack.
+	h.check("the lava field's own physics time with the ocean is within 15% (or 0.02 ms) of without", own_w <= maxf(own_wo * 1.15, own_wo + 0.02), [own_w, own_wo])
 
 	# ---- break the ceiling at x = 0
 	await _open_ceiling(h, 0)
@@ -199,4 +203,10 @@ func run(h) -> void:
 	await h.wait(0.5)
 	await h.shot("boss_chamber")
 	h.check("tier IV: the dive reaches the boss chamber under 100% heat", d4[1] and not d4[3], d4)
+	await h.wait(3.0)
+	var ch_lava: float = 0.0
+	for c in field.mass:
+		if ch.has_point(c):
+			ch_lava += field.mass[c]
+	h.check("the boss chamber stays dry after the crust is broken", ch_lava == 0.0, ch_lava)
 	h.check("tier III: the same dive overheats before the floor", not d3[1] and d3[3], d3)

@@ -31,7 +31,7 @@ static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void
 # and on the floor; OCEAN_FLOOR_ROWS of rock (just one, and soft, over the
 # chamber); and a sealed BOSS_CHAMBER inside rock walls. Vanilla's border pass
 # runs after this, so it wraps the new rows too. Meta: "story_ocean" (rows and
-# columns), "story_ocean_top" (the ceiling row), "story_boss_chamber" (Rect2i).
+# columns, ceiling row) and "story_boss_chamber" (Rect2i).
 static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 	var cells: Array = map_data.get_used_biome_cells()
 	var x0: int = 1 << 20
@@ -89,7 +89,6 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 			c += [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)][rand.randi() % 3]
 	var info: Dictionary = {"top": top, "bottom": bottom, "x0": x0, "x1": x1, "ceiling": ceiling, "unobtainium": placed}
 	map_data.set_meta("story_ocean", info)
-	map_data.set_meta("story_ocean_top", ceiling)
 	map_data.set_meta("story_boss_chamber", Rect2i(ch_x0, ch_y0, ch_w, ch_h))
 	return info
 
