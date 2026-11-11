@@ -445,7 +445,8 @@ func _update_heat(delta: float) -> void:
 	if recall_pos == null and Level.stage != null and Level.stage.keeperInputStarted:
 		recall_pos = keeper.global_position
 	if lava_at(keeper.global_position) >= BURN_MASS and not keeper.disabled:
-		heat = min(HEAT_MAX, heat + HEAT_PER_SECOND * delta)
+		# Heat Shielding (#44) slows lava heat but never stops it.
+		heat = min(HEAT_MAX, heat + HEAT_PER_SECOND * LavaData.lava_heat_mult(keeper.teamId) * delta)
 		if heat >= HEAT_MAX:
 			_recall(keeper)
 	elif keeper.isInsideDome:

@@ -47,6 +47,25 @@ func _ready():
 		var rr: ImageTexture = ImageTexture.create_from_image(sq2)
 		rr.take_over_path("res://content/icons/storyretirerich.png")
 		_held.append(rr)
+	# Heat Shielding I-IV: the carry (suit) icon pushed hotter along palette
+	# row 12, as a placeholder until art exists.
+	var suit: Texture2D = load("res://content/icons/jetpackstrength1.png")
+	if suit != null:
+		var hot: Image = suit.get_image().duplicate()
+		if hot.is_compressed():
+			hot.decompress()
+		hot.convert(Image.FORMAT_RGBA8)
+		for y in hot.get_height():
+			for x in hot.get_width():
+				var px: Color = hot.get_pixel(x, y)
+				var col: int = int(round(px.r8 / 8.0))
+				if px.a > 0.0 and col >= 18:
+					px.r8 = mini(31, col + 3) * 8
+					hot.set_pixel(x, y, px)
+		for i in 4:
+			var t: ImageTexture = ImageTexture.create_from_image(hot)
+			t.take_over_path("res://content/icons/storyheatshield%d.png" % (i + 1))
+			_held.append(t)
 	# Gadget slot entries borrow a vanilla gadget's icon (as a copy).
 	for pair: Array in [["storygadgetcellar", "drillbot"], ["storygadgetmineshaft", "lift"], ["storygadgetdomesurface", "autocannon"],
 			["storygadgetdomeback", "spire"], ["storygadgetactive", "shockwave"]]:
@@ -99,6 +118,7 @@ func modInit():
 		"stages/loadout/MultiplayerloadoutStage.gd",
 		"content/hud/inventory/Inventory.gd",
 		"content/techtree/Tech2.gd",
+		"content/techtree/TechTree.gd",
 		"content/techtree/TechTreePopup.gd",
 		"content/map/Map.gd",
 		"content/map/tile/Tile.gd",
@@ -116,6 +136,7 @@ func modInit():
 	# so their nodes pick up the extension.
 	for scene_path: String in [
 		"res://content/techtree/Tech2.tscn",
+		"res://content/techtree/TechTree.tscn",
 		"res://content/techtree/TechTreePopup.tscn",
 		"res://content/map/Map.tscn",
 		"res://content/map/tile/Tile.tscn",
@@ -138,6 +159,12 @@ func modInit():
 	# The parser stores an entry only when it reaches a blank line, so every
 	# entry in that file, the last one too, must be followed by one.
 	Data.parseUpgradesYaml(Story.MOD_DIR + "data/upgrades.yaml")
+	# Heat Shielding prices come from the shared lava data file.
+	var LavaData = load(Story.MOD_DIR + "data/lava.gd")
+	for i in LavaData.HEAT_SHIELD_PRICES.size():
+		var hs: Dictionary = Data.upgrades.get("storyheatshield%d" % (i + 1), {})
+		if not hs.is_empty():
+			hs["cost"] = {"money": int(LavaData.HEAT_SHIELD_PRICES[i])}
 	Data.registerGameMode(Story.MODE_ID)
 	GameWorld.unlockElement(Story.MODE_ID)
 

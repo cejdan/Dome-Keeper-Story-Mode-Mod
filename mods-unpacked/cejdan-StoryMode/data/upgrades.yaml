@@ -31,3 +31,27 @@ storyRetireRich:
   cost: money=1000000
   predecessors: [storymode]
 
+storyHeatShield1:
+  cost: money=0
+  predecessors: [storymode]
+  propertyChanges:
+    - suit.heatshield = 1
+
+storyHeatShield2:
+  cost: money=0
+  predecessors: [storyHeatShield1]
+  propertyChanges:
+    - suit.heatshield = 2
+
+storyHeatShield3:
+  cost: money=0
+  predecessors: [storyHeatShield2]
+  propertyChanges:
+    - suit.heatshield = 3
+
+storyHeatShield4:
+  cost: money=0
+  predecessors: [storyHeatShield3]
+  propertyChanges:
+    - suit.heatshield = 4
+
