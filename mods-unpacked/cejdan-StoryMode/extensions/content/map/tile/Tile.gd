@@ -74,10 +74,7 @@ func hit(dir: Vector2, dmg: float, teamId: String = "", keeperTechId: String = "
 	if _metal_refuses():
 		_clank()
 		return
-	var blast: Dictionary = Metal.blast_covering(coord) if type == Metal.GATE_TYPE and exploded else {}
 	super(dir, dmg, teamId, keeperTechId)
-	if not blast.is_empty() and health <= 0:
-		Metal.break_behind(coord, blast, teamId)
 
 
 func remote_hit(dir: Vector2, dmg: float, teamId: String, keeperTechId: String = ""):

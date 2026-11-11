@@ -14,10 +14,8 @@ const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
 
 const TYPE := "metal"
 const TILE_ID := 48
-# Gate tiles: metal that sits in a gate wall. Same look and rules, plus one:
-# when a Suit Blaster blast breaks a gate tile, the gate tile right behind it
-# (farther from the blast) breaks too, so one base 3x3 blast gets through a
-# 2-thick wall. A keeper standing on the wall only reaches its first layer.
+# Gate tiles: metal that sits in a gate wall, with the same look and rules. Its
+# own id only lets map reports tell the gate from scattered metal.
 const GATE_TYPE := "metalgate"
 const GATE_ID := 49
 const SHEET := "res://mods-unpacked/cejdan-StoryMode/art/tiles/sheet_metal.png"
@@ -67,72 +65,22 @@ static func record_line(centre: Vector2, dir: Vector2, distance: int) -> void:
 	_blasts.append({"centre": centre, "radius": 0.0, "dir": dir, "distance": distance, "until": Time.get_ticks_msec() + BLAST_TTL_MS})
 
 
-# Gate tiles behind a broken one, let through once each: coord -> expiry ms.
-static var _pass: Dictionary = {}
-
-
-# Is the tile at `coord` inside a Suit Blaster blast that is still going off,
-# or a gate tile let through behind one?
+# Is the tile at `coord` inside a Suit Blaster blast that is still going off?
 static func suit_blast_covers(coord: Vector2) -> bool:
-	if _pass.has(coord):
-		if int(_pass[coord]) > Time.get_ticks_msec():
-			return true
-		_pass.erase(coord)
-	return not blast_covering(coord).is_empty()
-
-
-# The recorded blast covering `coord`, or {}.
-static func blast_covering(coord: Vector2) -> Dictionary:
 	_prune()
 	for b: Dictionary in _blasts:
 		var c: Vector2 = b["centre"]
 		if b["dir"] == Vector2.ZERO:
 			if (coord - c).length() <= float(b["radius"]) + 0.01:
-				return b
+				return true
 		else:
 			var d: Vector2 = b["dir"]
 			for i in int(b["distance"]):
 				if coord == c + d * (i + 1):
-					return b
-	return {}
+					return true
+	return false
 
 
 static func _prune() -> void:
 	var now: int = Time.get_ticks_msec()
 	_blasts = _blasts.filter(func(b): return int(b["until"]) > now)
-
-
-# A gate tile at `coord` was just broken by `blast`: break the gate tiles next
-# to it that lie farther from the blast (straight on along a line blast). They
-# are revealed first, since only revealed tiles exist as nodes.
-static func break_behind(coord: Vector2, blast: Dictionary, teamId: String) -> void:
-	var map = Level.map
-	if map == null:
-		return
-	var c: Vector2 = blast["centre"]
-	var behind: Array = []
-	if blast["dir"] != Vector2.ZERO:
-		behind.append(coord + Vector2(blast["dir"]))
-	else:
-		var d: float = (coord - c).length()
-		for off: Vector2 in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
-			var n: Vector2 = coord + off
-			if (n - c).length() > d + 0.01:
-				behind.append(n)
-	var targets: Array = []
-	for n: Vector2 in behind:
-		if map.tileData.get_resourcev(Vector2i(n)) == GATE_ID:
-			targets.append(n)
-			_pass[n] = Time.get_ticks_msec() + BLAST_TTL_MS
-	if targets.is_empty():
-		return
-	await map.get_tree().create_timer(0.1).timeout
-	if not is_instance_valid(map):
-		return
-	map.tileCoordsToReveal.append_array(targets)
-	map.floodRevealTiles()
-	for n: Vector2 in targets:
-		var t = map.getTile(n)
-		if t != null and t.health > 0:
-			t.exploded = true
-			t.hit(n - coord, t.max_health + 1, teamId)
