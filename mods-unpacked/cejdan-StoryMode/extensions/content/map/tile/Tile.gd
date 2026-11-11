@@ -10,7 +10,7 @@ const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 func setType(type: String):
 	var fresh: bool = health == 0
 	super(type)
-	if type == Metal.TYPE:
+	if Metal.is_metal(type):
 		_set_metal(fresh)
 		return
 	var sheet: Texture2D = Minerals.sheet_for_type(type)
@@ -56,7 +56,7 @@ func _set_metal(fresh: bool) -> void:
 
 
 func _metal_refuses() -> bool:
-	if type != Metal.TYPE:
+	if not Metal.is_metal(type):
 		return false
 	if exploded and Metal.suit_blast_covers(coord):
 		return false
@@ -68,7 +68,10 @@ func hit(dir: Vector2, dmg: float, teamId: String = "", keeperTechId: String = "
 	if _metal_refuses():
 		_clank()
 		return
+	var blast: Dictionary = Metal.blast_covering(coord) if type == Metal.GATE_TYPE and exploded else {}
 	super(dir, dmg, teamId, keeperTechId)
+	if not blast.is_empty() and health <= 0:
+		Metal.break_behind(coord, blast, teamId)
 
 
 func remote_hit(dir: Vector2, dmg: float, teamId: String, keeperTechId: String = ""):

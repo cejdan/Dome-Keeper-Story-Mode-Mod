@@ -19,7 +19,7 @@ func revealTile(coord: Vector2):
 	if Minerals.is_mod_mineral(tile.type):
 		tile.richness = float(Minerals.TABLE[tile.type]["richness"])
 		revealTileVisually(coord)
-	elif tile.type == Metal.TYPE:
+	elif Metal.is_metal(tile.type):
 		revealTileVisually(coord)
 
 

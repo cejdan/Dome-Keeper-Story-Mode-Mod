@@ -8,7 +8,7 @@ const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 
 
 func _ready():
-	var tex: Texture2D = Metal.particle() if type == Metal.TYPE else Minerals.particle_for_type(type)
+	var tex: Texture2D = Metal.particle() if Metal.is_metal(type) else Minerals.particle_for_type(type)
 	if tex == null:
 		super._ready()
 		return
