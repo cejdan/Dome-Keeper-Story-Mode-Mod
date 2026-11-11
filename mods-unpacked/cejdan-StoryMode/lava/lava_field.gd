@@ -110,6 +110,7 @@ func setup(p_map) -> void:
 	if not _restore(str(Data.ofOr(SAVE_KEY, ""))):
 		_place_pockets()
 		_fill_pools()
+		_fill_ocean()
 	map.tile_destroyed.connect(_on_tile_destroyed)
 	add_to_group("saveable")
 
@@ -149,6 +150,38 @@ func _fill_pools() -> void:
 			shown[c] = m
 		pools.append(cells)
 	wake_all()
+
+
+# The lava ocean the generator added (#43): every open cell in its rows, brim-full
+# and hydrostatic like the pools, so it sits settled under its rock ceiling.
+var ocean_cells := 0
+var boss_chamber_reached := false
+
+
+func _fill_ocean() -> void:
+	var info: Dictionary = map.tileData.get_meta("story_ocean", {})
+	if info.is_empty():
+		return
+	for y in range(int(info["top"]), int(info["bottom"]) + 1):
+		for x in range(int(info["x0"]), int(info["x1"]) + 1):
+			var c := Vector2i(x, y)
+			if _is_open(c):
+				var m: float = MAX_MASS + MAX_COMPRESS * float(y - int(info["top"]))
+				mass[c] = m
+				shown[c] = m
+				ocean_cells += 1
+	wake_all()
+
+
+func ocean_mass() -> float:
+	var info: Dictionary = map.tileData.get_meta("story_ocean", {})
+	var t := 0.0
+	if info.is_empty():
+		return t
+	for c in mass:
+		if c.y >= int(info["top"]) and c.y <= int(info["bottom"]) and c.x >= int(info["x0"]) and c.x <= int(info["x1"]):
+			t += mass[c]
+	return t
 
 
 func wake_all() -> void:
@@ -430,13 +463,13 @@ func _melt(delta: float) -> void:
 	# Lava resting against magma rock melts it, which releases that rock's lava too.
 	if magma.is_empty() or mass.is_empty():
 		return
+	# Walk the magma (a few hundred cells), not the lava (thousands with the ocean).
 	var touched := {}
-	for c in mass:
-		if mass[c] < 0.1:
-			continue
+	for m in magma:
 		for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.UP]:
-			if magma.has(c + d):
-				touched[c + d] = true
+			if mass.get(m + d, 0.0) >= 0.1:
+				touched[m] = true
+				break
 	for c in melt_timers.keys():
 		if not touched.has(c):
 			melt_timers.erase(c)
@@ -572,6 +605,11 @@ func _update_heat(delta: float) -> void:
 		heat = max(0.0, heat - COOL_MINE_PER_SECOND * delta)
 	if heat >= HEAT_MAX:
 		_recall(keeper)
+	if not boss_chamber_reached:
+		var ch = map.tileData.get_meta("story_boss_chamber", null)
+		if ch is Rect2i and ch.has_point(map.getTileCoord(keeper.global_position)):
+			boss_chamber_reached = true
+			ModLoaderLog.info("boss chamber reached", "cejdan-StoryMode")
 
 
 func _recall(keeper) -> void:
@@ -625,6 +663,31 @@ func _cell_origin(c: Vector2i) -> Vector2:
 
 func _noise(c: Vector2i, i: int) -> float:
 	return fposmod(sin(float(c.x * 127 + c.y * 311 + i * 74)) * 43758.5453, 1.0)
+
+
+# The lava cells on screen (plus a margin), so drawing costs the same however
+# much lava the map holds. Falls back to every cell if the view can't be read.
+func _visible_cells() -> Array:
+	var vp := get_viewport()
+	if vp == null:
+		return shown.keys()
+	var inv: Transform2D = get_global_transform_with_canvas().affine_inverse()
+	var vr: Rect2 = vp.get_visible_rect()
+	var a: Vector2 = inv * vr.position
+	var b: Vector2 = inv * vr.end
+	var lo: Vector2 = Vector2(minf(a.x, b.x), minf(a.y, b.y))
+	var hi: Vector2 = Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
+	var c0: Vector2i = map.getTileCoord(to_global(lo)) - Vector2i(2, 2)
+	var c1: Vector2i = map.getTileCoord(to_global(hi)) + Vector2i(2, 2)
+	if (c1.x - c0.x) * (c1.y - c0.y) > shown.size():
+		return shown.keys()
+	var out: Array = []
+	for y in range(c0.y, c1.y + 1):
+		for x in range(c0.x, c1.x + 1):
+			var c := Vector2i(x, y)
+			if shown.has(c):
+				out.append(c)
+	return out
 
 
 # Lava in a cell the player hasn't revealed yet (an unopened pool) stays hidden.
@@ -700,7 +763,7 @@ func _draw() -> void:
 			draw_rect(Rect2(o + p, size), Color(COL_HOT, 0.35 + 0.65 * pulse))
 			draw_rect(Rect2(o + p, Vector2(1, 1)), Color(COL_CORE, pulse))
 
-	for c in shown:
+	for c in _visible_cells():
 		var f := _fill_of(c)
 		if f <= 0.02 or not _seen(c):
 			continue
@@ -774,7 +837,7 @@ func _draw_heat_bar() -> void:
 
 func _draw_glow() -> void:
 	# Soft additive light around lava and around magma rock the player can see.
-	for c in shown:
+	for c in _visible_cells():
 		var f := _fill_of(c)
 		if f <= 0.05 or not _seen(c):
 			continue
@@ -798,4 +861,4 @@ func stats() -> Dictionary:
 		pool_cells += p.size()
 	return {"cells": mass.size(), "total": total, "magma": magma.size(), "sources": sources.size(),
 		"heat": heat, "recalls": recalls, "breaches": breaches, "pools": pools.size(), "pool_cells": pool_cells,
-		"pools_skipped": pools_skipped, "awake": _awake.size()}
+		"pools_skipped": pools_skipped, "awake": _awake.size(), "ocean_cells": ocean_cells}

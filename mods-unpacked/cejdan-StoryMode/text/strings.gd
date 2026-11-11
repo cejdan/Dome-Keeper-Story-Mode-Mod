@@ -15,7 +15,7 @@ const EN := {
 	"upgrades.storyheatshield3.title": "Heat Shielding III",
 	"upgrades.storyheatshield3.desc": "Ceramic plates. Lava heats you 80% slower, depth heat 90% slower.",
 	"upgrades.storyheatshield4.title": "Heat Shielding IV",
-	"upgrades.storyheatshield4.desc": "The best suit money can buy. Depth heat can't touch you. Lava still can, ten times slower.",
+	"upgrades.storyheatshield4.desc": "The best suit money can buy. Depth heat can't touch you. Lava still can, about 17 times slower.",
 	"upgrades.storyretirerich.title": "Retire Rich",
 	"upgrades.storyretirerich.desc": "Sell the dome, buy an island, never dig again. Ends the run as a win.",
 	"upgrades.storygadgetcellar.title": "Cellar Gadget",
