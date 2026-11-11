@@ -440,21 +440,61 @@ func lava_at(world_pos: Vector2) -> float:
 	return mass.get(map.getTileCoord(world_pos), 0.0)
 
 
+# Rows between which passive heat ramps from 0 to its full rate (cached).
+var _heat_top := -1
+var _heat_bottom := -1
+var passive_rate := 0.0            # passive heat per second right now (after Heat Shielding)
+
+
+func _heat_rows() -> void:
+	_heat_top = 1 << 20
+	_heat_bottom = -(1 << 20)
+	for c in map.tileData.get_used_biome_cells():
+		if map.tileData.get_resourcev(c) == Data.TILE_BORDER:
+			continue
+		_heat_bottom = maxi(_heat_bottom, c.y)
+		if map.tileData.get_biomev(c) >= LavaData.PASSIVE_HEAT_START_BIOME:
+			_heat_top = mini(_heat_top, c.y)
+	var ocean: int = int(map.tileData.get_meta("story_ocean_top", -1))
+	if ocean > 0:
+		_heat_bottom = ocean
+
+
+# Passive heat per second at a tile, before Heat Shielding: 0 above B4.
+func passive_rate_at(tile: Vector2i) -> float:
+	if _heat_top < 0:
+		_heat_rows()
+	if map.tileData.get_biomev(tile) < LavaData.PASSIVE_HEAT_START_BIOME:
+		return 0.0
+	var f: float = clampf(float(tile.y - _heat_top) / maxf(1.0, float(_heat_bottom - _heat_top)), 0.0, 1.0)
+	return LavaData.PASSIVE_HEAT_RATE_AT_BOTTOM * f
+
+
 func _update_heat(delta: float) -> void:
 	var keeper = Keepers.first()
 	if keeper == null or not is_instance_valid(keeper) or keeper.killed:
 		return
 	if recall_pos == null and Level.stage != null and Level.stage.keeperInputStarted:
 		recall_pos = keeper.global_position
+	# Passive heat from depth (#46), out of the dome, scaled by Heat Shielding.
+	passive_rate = 0.0
+	var passive_zone := false
+	if not keeper.isInsideDome and not keeper.disabled:
+		var raw: float = passive_rate_at(map.getTileCoord(keeper.global_position))
+		passive_zone = raw > 0.0 or map.tileData.get_biomev(map.getTileCoord(keeper.global_position)) >= LavaData.PASSIVE_HEAT_START_BIOME
+		passive_rate = raw * LavaData.passive_heat_mult(keeper.teamId)
 	if lava_at(keeper.global_position) >= BURN_MASS and not keeper.disabled:
 		# Heat Shielding (#44) slows lava heat but never stops it.
-		heat = min(HEAT_MAX, heat + HEAT_PER_SECOND * LavaData.lava_heat_mult(keeper.teamId) * delta)
-		if heat >= HEAT_MAX:
-			_recall(keeper)
+		heat = min(HEAT_MAX, heat + (HEAT_PER_SECOND * LavaData.lava_heat_mult(keeper.teamId) + passive_rate) * delta)
 	elif keeper.isInsideDome:
 		heat = max(0.0, heat - COOL_DOME_PER_SECOND * delta)
+	elif passive_zone and LavaData.passive_heat_mult(keeper.teamId) > 0.0:
+		# Deep and out of lava: heat only rises.
+		heat = min(HEAT_MAX, heat + passive_rate * delta)
 	else:
 		heat = max(0.0, heat - COOL_MINE_PER_SECOND * delta)
+	if heat >= HEAT_MAX:
+		_recall(keeper)
 
 
 func _recall(keeper) -> void:
@@ -582,7 +622,8 @@ func _draw() -> void:
 
 
 func _draw_heat_bar() -> void:
-	if heat <= 0.5:
+	# Shown whenever there is heat, and while passive heat is building.
+	if heat <= 0.5 and passive_rate <= 0.0:
 		return
 	var keeper = Keepers.first()
 	if keeper == null or not is_instance_valid(keeper):
