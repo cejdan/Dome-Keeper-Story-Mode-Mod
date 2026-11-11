@@ -27,3 +27,7 @@ storyGadgetActive:
   cost: money=50
   predecessors: [storymode]
 
+storyRetireRich:
+  cost: money=1000000
+  predecessors: [storymode]
+

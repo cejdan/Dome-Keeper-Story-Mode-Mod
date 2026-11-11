@@ -47,3 +47,9 @@ _Avoid_: Barrier, door
 **Lava ocean**:
 The solid band of lava below the last biome, the only place unobtainium is found.
 _Avoid_: Lava lake, lava floor
+
+### Winning
+
+**Retire Rich**:
+The $1,000,000 shop item that ends a Story Mode run as a win the moment it is bought. Until the boss exists it is the only way to win; Story Mode has no relic.
+_Avoid_: Victory item, buyout

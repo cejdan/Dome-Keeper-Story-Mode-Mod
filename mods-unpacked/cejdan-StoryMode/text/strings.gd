@@ -8,6 +8,8 @@ const EN := {
 	"upgrades.storymode.desc": "Dig deep. Sell what you find. Something down there is waiting.",
 	"loadout.storymode.headline": "Story Mode",
 	"upgrades.storysuitblaster.title": "Suit Blaster",
+	"upgrades.storyretirerich.title": "Retire Rich",
+	"upgrades.storyretirerich.desc": "Sell the dome, buy an island, never dig again. Ends the run as a win.",
 	"upgrades.storygadgetcellar.title": "Cellar Gadget",
 	"upgrades.storygadgetcellar.desc": "Pick one of three gadgets for a cellar slot. Paid when you pick.",
 	"upgrades.storygadgetmineshaft.title": "Mineshaft Gadget",

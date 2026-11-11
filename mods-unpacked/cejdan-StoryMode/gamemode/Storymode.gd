@@ -39,10 +39,17 @@ func afterInitialized() -> void:
 # The shop's Suit Blaster entry is a stand-in: buying it grants the real gadget
 # to the team's keepers the way a gadget chest does (research on #18).
 const SUITBLASTER_ENTRY := "storysuitblaster"
+# Retire Rich (#31, #54): the only way to win a Story Mode run until the boss.
+const RETIRE_ENTRY := "storyretirerich"
 
 
 func _on_upgrade_bought(id: String, teamId: String, _playerId: String) -> void:
-	if not multiplayer.is_server() or id != teamId + "." + SUITBLASTER_ENTRY:
+	if not multiplayer.is_server():
+		return
+	if id == teamId + "." + RETIRE_ENTRY:
+		_win()
+		return
+	if id != teamId + "." + SUITBLASTER_ENTRY:
 		return
 	for keeper in Keepers.getAllOfTeam(teamId):
 		var gid: String = keeper.playerId + ".suitblaster"
@@ -67,6 +74,25 @@ func propertyChanged(property: String, oldValue, newValue) -> void:
 				if Data.ofOr("team1.inventory.sand", 0) > 0 and Data.ofOr("team1.dome.autorepair", false):
 					return
 				_lose()
+
+
+# Vanilla Relic Hunt's win, minus the relic and the final wave.
+func _win() -> void:
+	if GameWorld.won or GameWorld.lost:
+		return
+	ModLoaderLog.info("Retire Rich bought: the run is won", Story.LOG)
+	Level.stage.stopKeeperInput()
+	for mm in get_tree().get_nodes_in_group("monster-manager"):
+		mm.disabled = true
+	GameWorld.handleGameWon()
+	Audio.stopBattleMusic()
+	await get_tree().create_timer(2.5).timeout
+	Audio.startEnding()
+	await get_tree().create_timer(4.0).timeout
+	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
+	popup.init(multiplayer.is_server())
+	Level.stage.showEndingPanel(popup)
+	SaveGame.delete_autosave()
 
 
 func _lose() -> void:

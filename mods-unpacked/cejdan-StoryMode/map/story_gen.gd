@@ -103,11 +103,16 @@ static func _near_special(map_data, cell: Vector2i) -> bool:
 
 # Story Mode sells gadgets in the shop and never hides them in chambers (#51):
 # vanilla builds a gadget chamber around each gadget tile, so those go back to rock.
+# Story Mode has no relic either (#54): Retire Rich is the only way to win, so
+# relic and relic switch tiles go back to rock too, and no relic chamber is built.
 static func remove_gadget_chambers(map_data) -> int:
-	var cells: Array = map_data.get_resource_cells_by_id(Data.TILE_GADGET).duplicate()
-	for c: Vector2i in cells:
-		map_data.set_resourcev(c, Data.TILE_DIRT_START)
-	return cells.size()
+	var n: int = 0
+	for id: int in [Data.TILE_GADGET, Data.TILE_RELIC, Data.TILE_RELIC_SWITCH]:
+		var cells: Array = map_data.get_resource_cells_by_id(id).duplicate()
+		for c: Vector2i in cells:
+			map_data.set_resourcev(c, Data.TILE_DIRT_START)
+		n += cells.size()
+	return n
 
 
 # Lays a metal gate along the boundary under biome index `above` (B3 is 2):
