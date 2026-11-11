@@ -7,6 +7,8 @@ const EN := {
 	"upgrades.storymode.title": "Story Mode",
 	"upgrades.storymode.desc": "Dig deep. Sell what you find. Something down there is waiting.",
 	"loadout.storymode.headline": "Story Mode",
+	"upgrades.storysuitblaster.title": "Suit Blaster",
+	"upgrades.storysuitblaster.desc": "Install a mining blaster into your suit. Its blast breaks rock, and the metal that no drill can touch.",
 }
 
 
