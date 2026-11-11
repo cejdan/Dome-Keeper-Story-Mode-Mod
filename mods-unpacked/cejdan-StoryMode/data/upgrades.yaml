@@ -7,4 +7,23 @@ storySuitblaster:
   shadowing-desc: storysuitblaster
   predecessors: [storymode]
 
+storyGadgetCellar:
+  cost: money=50
+  predecessors: [storymode]
+
+storyGadgetMineshaft:
+  cost: money=50
+  predecessors: [storymode]
+
+storyGadgetDomesurface:
+  cost: money=50
+  predecessors: [storymode]
+
+storyGadgetDomeback:
+  cost: money=50
+  predecessors: [storymode]
+
+storyGadgetActive:
+  cost: money=50
+  predecessors: [storymode]
 

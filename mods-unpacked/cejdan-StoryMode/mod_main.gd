@@ -36,6 +36,14 @@ func _ready():
 		var icon: ImageTexture = ImageTexture.create_from_image(sq)
 		icon.take_over_path("res://content/icons/storymode.png")
 		_held.append(icon)
+	# Gadget slot entries borrow a vanilla gadget's icon (as a copy).
+	for pair: Array in [["storygadgetcellar", "drillbot"], ["storygadgetmineshaft", "lift"], ["storygadgetdomesurface", "autocannon"],
+			["storygadgetdomeback", "spire"], ["storygadgetactive", "shockwave"]]:
+		var vt: Texture2D = load("res://content/icons/%s.png" % pair[1])
+		if vt != null:
+			var copy: ImageTexture = ImageTexture.create_from_image(vt.get_image())
+			copy.take_over_path("res://content/icons/%s.png" % pair[0])
+			_held.append(copy)
 
 	# Living lava: the director gives each Story Mode run's map a LavaField.
 	var lava = load("res://mods-unpacked/cejdan-StoryMode/lava/lava_director.gd").new()
@@ -87,6 +95,7 @@ func modInit():
 		"content/dome/Dome.gd",
 		"content/map/generation/TileDataGenerator.gd",
 		"content/gadgets/suitblaster/SuitblasterExplosion.gd",
+		"stages/level/LevelStage.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	# Scenes that were already loaded still hold the vanilla script; reload them
@@ -101,6 +110,7 @@ func modInit():
 		"res://content/dome/Dome.tscn",
 		"res://content/map/generation/TileDataGenerator.tscn",
 		"res://content/gadgets/suitblaster/SuitblasterExplosion.tscn",
+		"res://stages/level/LevelStage.tscn",
 	]:
 		if ResourceLoader.has_cached(scene_path):
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
