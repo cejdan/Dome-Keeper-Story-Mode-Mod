@@ -48,3 +48,24 @@ const POOL_SIZE_BOTTOM := 40           # ... growing linearly to this at the map
 const POOL_ROCK_PER_POOL := 400.0      # one pool per this many plain rock cells at the top ...
 const POOL_FREQ_BONUS_AT_BOTTOM := 0.5 # ... and 50% more often at the bottom
 const POOL_GAP := 2                    # rock tiles kept between a pool and anything open or special
+
+# --- heat resistance (#44) -------------------------------------------------
+# Heat Shielding I-IV, sold in the Story Mode shop. Index = tier (0 = none).
+# The max tier still burns in lava (just slower) but blocks passive heat.
+const HEAT_SHIELD_LAVA_MULT := [1.0, 0.6, 0.35, 0.2, 0.1]
+const HEAT_SHIELD_PASSIVE_MULT := [1.0, 0.6, 0.3, 0.1, 0.0]
+const HEAT_SHIELD_PRICES := [200, 1000, 4000, 25000]
+# The keeper's tier lives in Data under <team>.suit.heatshield (set by the upgrades).
+const HEAT_SHIELD_KEY := "suit.heatshield"
+
+
+static func shield_tier(teamId: String = "team1") -> int:
+	return clampi(int(Data.ofOr(teamId + "." + HEAT_SHIELD_KEY, 0)), 0, HEAT_SHIELD_LAVA_MULT.size() - 1)
+
+
+static func lava_heat_mult(teamId: String = "team1") -> float:
+	return float(HEAT_SHIELD_LAVA_MULT[shield_tier(teamId)])
+
+
+static func passive_heat_mult(teamId: String = "team1") -> float:
+	return float(HEAT_SHIELD_PASSIVE_MULT[shield_tier(teamId)])
