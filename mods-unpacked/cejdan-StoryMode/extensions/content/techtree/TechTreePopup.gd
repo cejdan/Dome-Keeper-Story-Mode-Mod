@@ -7,9 +7,13 @@ extends "res://content/techtree/TechTreePopup.gd"
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
+const GadgetShop = preload("res://mods-unpacked/cejdan-StoryMode/gamemode/gadget_shop.gd")
 
 
 func _ready():
+	if Story.is_story():
+		# Gadget slot entries: ladder price now, and empty slots off the shop.
+		GadgetShop.refresh_entries(teamId, playerId)
 	super()
 	if not Story.is_story():
 		return
@@ -66,3 +70,16 @@ func updateCostLabels():
 			continue
 		label.text = Minerals.dollars(int(cost)).substr(1) if costType == "money" else "%s" % cost
 		label.label_settings.font_color = color
+
+
+# A gadget slot entry is never bought itself: it opens that slot's offers
+# (paid on pick, see extensions/stages/level/LevelStage.gd).
+func buyUpgrade():
+	if Story.is_story() and animationDone:
+		var tree = find_child("TechTree")
+		var panel = tree.focussedTechPanel if tree else null
+		if panel and GadgetShop.is_entry(panel.techId):
+			if panel.state == 1:
+				Level.stage.openStoryGadgetSlot(GadgetShop.slot_of(panel.techId), teamId, playerId)
+			return
+	super()

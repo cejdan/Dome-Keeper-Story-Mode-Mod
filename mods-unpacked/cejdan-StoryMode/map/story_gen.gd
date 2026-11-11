@@ -17,6 +17,7 @@ const DIRS: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0
 
 static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void:
 	place_minerals(map_data, rand)
+	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
 	place_metal(map_data, rand)
 
@@ -98,6 +99,15 @@ static func _near_special(map_data, cell: Vector2i) -> bool:
 			if (r >= Data.TILE_GADGET and r <= Data.TILE_CAVE) or r == Data.TILE_DIRT_MARK_BLOCKED_FOR_CHAMBER:
 				return true
 	return false
+
+
+# Story Mode sells gadgets in the shop and never hides them in chambers (#51):
+# vanilla builds a gadget chamber around each gadget tile, so those go back to rock.
+static func remove_gadget_chambers(map_data) -> int:
+	var cells: Array = map_data.get_resource_cells_by_id(Data.TILE_GADGET).duplicate()
+	for c: Vector2i in cells:
+		map_data.set_resourcev(c, Data.TILE_DIRT_START)
+	return cells.size()
 
 
 # Lays a metal gate along the boundary under biome index `above` (B3 is 2):
