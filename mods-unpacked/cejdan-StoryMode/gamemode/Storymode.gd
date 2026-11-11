@@ -15,6 +15,7 @@ var _lost: bool = false
 
 func init() -> void:
 	Data.listen(self, "team1.dome.health")
+	GameWorld.upgradeBought.connect(_on_upgrade_bought)
 	ModLoaderLog.info("Story Mode run started (seed %d)" % Level.levelSeed, Story.LOG)
 
 
@@ -33,6 +34,21 @@ func afterInitialized() -> void:
 			Data.apply("team1.inventory." + m, 0)
 		Data.listen(self, "team1.inventory." + m)
 	Level.addHudElement(load(Story.MOD_DIR + "hud/MoneyHud.tscn"), "team1")
+
+
+# The shop's Suit Blaster entry is a stand-in: buying it grants the real gadget
+# to the team's keepers the way a gadget chest does (research on #18).
+const SUITBLASTER_ENTRY := "storysuitblaster"
+
+
+func _on_upgrade_bought(id: String, teamId: String, _playerId: String) -> void:
+	if not multiplayer.is_server() or id != teamId + "." + SUITBLASTER_ENTRY:
+		return
+	for keeper in Keepers.getAllOfTeam(teamId):
+		var gid: String = keeper.playerId + ".suitblaster"
+		if not GameWorld.boughtUpgrades.has(gid):
+			GameWorld.serverAddUpgrade(gid, teamId)
+			ModLoaderLog.info("Suit Blaster granted to " + keeper.playerId, Story.LOG)
 
 
 func propertyChanged(property: String, oldValue, newValue) -> void:

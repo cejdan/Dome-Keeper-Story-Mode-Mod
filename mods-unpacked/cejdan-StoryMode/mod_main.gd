@@ -27,6 +27,15 @@ func _ready():
 	scene.take_over_path("res://content/gamemode/storymode/Storymode.tscn")
 	_held.append(scene)
 	Assets.provide(Story.MOD_DIR + "art/loadout_storymode.png", "res://content/icons/loadout_storymode.png")
+	# Icon of the Story Mode track's root in the shop: the loadout icon, centred
+	# on a square like the other tech icons. A copy, so the loadout keeps its path.
+	var src: Image = Assets.image(Story.MOD_DIR + "art/loadout_storymode.png")
+	if src != null:
+		var sq: Image = Image.create(72, 72, false, src.get_format())
+		sq.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), (Vector2i(72, 72) - src.get_size()) / 2)
+		var icon: ImageTexture = ImageTexture.create_from_image(sq)
+		icon.take_over_path("res://content/icons/storymode.png")
+		_held.append(icon)
 
 	# Living lava: the director gives each Story Mode run's map a LavaField.
 	var lava = load("res://mods-unpacked/cejdan-StoryMode/lava/lava_director.gd").new()
@@ -97,6 +106,12 @@ func modInit():
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
 	Minerals.register()
 	Metal.register()
+	# The mod's own shop entries (data/upgrades.yaml), through vanilla's parser.
+	# Its root `storymode` is a gamemode upgrade: vanilla adds it to a run only
+	# when the run's mode id is "storymode", so vanilla modes never see them.
+	# The parser stores an entry only when it reaches a blank line, so every
+	# entry in that file, the last one too, must be followed by one.
+	Data.parseUpgradesYaml(Story.MOD_DIR + "data/upgrades.yaml")
 	Data.registerGameMode(Story.MODE_ID)
 	GameWorld.unlockElement(Story.MODE_ID)
 
