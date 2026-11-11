@@ -3,6 +3,7 @@ extends Node
 const STORYMODE_LOG = "cejdan-StoryMode"
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
+const Prices = preload("res://mods-unpacked/cejdan-StoryMode/data/prices.gd")
 const Strings = preload("res://mods-unpacked/cejdan-StoryMode/text/strings.gd")
 
 const EXT := "res://mods-unpacked/cejdan-StoryMode/extensions/"
@@ -61,8 +62,17 @@ func modInit():
 	for path: String in [
 		"stages/loadout/MultiplayerloadoutStage.gd",
 		"content/hud/inventory/Inventory.gd",
+		"content/techtree/Tech2.gd",
+		"content/techtree/TechTreePopup.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
+	# Scenes that were already loaded still hold the vanilla script; reload them
+	# so their nodes pick up the extension.
+	for scene_path: String in [
+		"res://content/techtree/Tech2.tscn",
+		"res://content/techtree/TechTreePopup.tscn",
+	]:
+		_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
 	Data.registerGameMode(Story.MODE_ID)
 	GameWorld.unlockElement(Story.MODE_ID)
 
@@ -70,6 +80,7 @@ func modInit():
 # Called by GameWorld.prepareLevelStart for every mode; vanilla sets nothing up
 # for an unknown mode id, so Story Mode does its own level preparation here.
 func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
+	Prices.apply(modeId == Story.MODE_ID)
 	if modeId != Story.MODE_ID:
 		return
 	levelStartData.loadout.modeConfig[Story.MODE_FLAG] = true
