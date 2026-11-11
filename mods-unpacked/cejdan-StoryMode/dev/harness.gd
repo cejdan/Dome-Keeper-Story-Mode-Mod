@@ -319,6 +319,17 @@ func deliver(type: String, count: int = 1) -> void:
 		await frames(6)
 
 
-func buy(upgrade_id: String) -> void:
-	GameWorld.buyUpgrade(upgrade_id, "team1", keeper().playerId)
+# Buys an upgrade the way the shop does. Returns false when it is unknown or
+# cannot be afforded (vanilla refuses it the same way).
+func buy(upgrade_id: String) -> bool:
+	var id: String = upgrade_id.to_lower()
+	if not GameWorld.upgrades.has(id):
+		for prefix: String in ["team1.", "player1."]:
+			if GameWorld.upgrades.has(prefix + id):
+				id = prefix + id
+				break
+	var ok: bool = GameWorld.upgrades.has(id) and GameWorld.canAfford(GameWorld.upgrades[id].get("cost", {}), "team1")
+	GameWorld.buyUpgrade(id, "team1", keeper().playerId)
 	await frames(3)
+	note("buy " + id, {"ok": ok, "cost": GameWorld.upgrades.get(id, {}).get("cost", {})})
+	return ok

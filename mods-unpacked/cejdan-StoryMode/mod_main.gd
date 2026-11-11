@@ -60,6 +60,7 @@ func modInit():
 	# some of them then fail to parse.
 	for path: String in [
 		"stages/loadout/MultiplayerloadoutStage.gd",
+		"content/hud/inventory/Inventory.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	Data.registerGameMode(Story.MODE_ID)
