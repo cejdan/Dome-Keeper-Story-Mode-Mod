@@ -49,6 +49,14 @@ const POOL_ROCK_PER_POOL := 400.0      # one pool per this many plain rock cells
 const POOL_FREQ_BONUS_AT_BOTTOM := 0.5 # ... and 50% more often at the bottom
 const POOL_GAP := 2                    # rock tiles kept between a pool and anything open or special
 
+# --- passive heat (#46) ----------------------------------------------------
+# The suit heats slowly from depth alone, out of lava, in B4 and deeper (a
+# per-tile biome check). The rate grows linearly from 0 at the top row of B4 to
+# PASSIVE_HEAT_RATE_AT_BOTTOM at the lava ocean's ceiling (the map's last row
+# until the ocean exists). Heat Shielding's passive multiplier scales it.
+const PASSIVE_HEAT_START_BIOME := 3
+const PASSIVE_HEAT_RATE_AT_BOTTOM := 2.2
+
 # --- heat resistance (#44) -------------------------------------------------
 # Heat Shielding I-IV, sold in the Story Mode shop. Index = tier (0 = none).
 # The max tier still burns in lava (just slower) but blocks passive heat.
