@@ -18,6 +18,86 @@ const DIRS: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0
 static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void:
 	place_minerals(map_data, rand)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
+	place_metal(map_data, rand)
+
+
+# Scatters clumps of metal through the plain rock of the deep biomes
+# (MapConfig.METAL_SHARE). Metal replaces only plain rock, never a mineral,
+# water, cobalt, the gate or the border, and keeps off cells next to chamber,
+# relic or cave tiles. Returns {biome: [rock before, metal placed]}.
+static func place_metal(map_data, rand: RandomNumberGenerator) -> Dictionary:
+	var rock: Dictionary = {}
+	for b: int in MapConfig.METAL_SHARE:
+		rock[b] = []
+	var cells: Array = map_data.get_used_biome_cells()
+	cells.sort()
+	for cell: Vector2i in cells:
+		var b: int = map_data.get_biomev(cell)
+		if rock.has(b) and map_data.get_resourcev(cell) == Data.TILE_DIRT_START and not _near_special(map_data, cell):
+			rock[b].append(cell)
+	var out: Dictionary = {}
+	for b: int in rock:
+		var all_rock: int = 0
+		for cell: Vector2i in cells:
+			if map_data.get_biomev(cell) == b and map_data.get_resourcev(cell) == Data.TILE_DIRT_START:
+				all_rock += 1
+		var want: int = int(round(float(MapConfig.METAL_SHARE[b]) * all_rock))
+		var seeds: Array = rock[b].duplicate()
+		_shuffle(seeds, rand)
+		var free: Dictionary = {}
+		for c: Vector2i in rock[b]:
+			free[c] = true
+		var placed: int = 0
+		for start: Vector2i in seeds:
+			if placed >= want:
+				break
+			if not free.has(start) or _touches_metal(map_data, start, []):
+				continue
+			var lo: int = int(MapConfig.METAL_CLUMP[0])
+			# The last clump may overshoot the share by a tile rather than be a lone tile.
+			var size: int = clampi(rand.randi_range(lo, int(MapConfig.METAL_CLUMP[1])), lo, maxi(lo, want - placed))
+			var clump: Array = [start]
+			free.erase(start)
+			for attempt in 30:
+				if clump.size() >= size:
+					break
+				var from: Vector2i = clump[rand.randi() % clump.size()]
+				var d: Vector2i = DIRS[rand.randi() % DIRS.size()]
+				var n: Vector2i = from + d
+				if free.has(n) and not _touches_metal(map_data, n, clump):
+					free.erase(n)
+					clump.append(n)
+			if clump.size() < lo:
+				for c: Vector2i in clump:
+					free[c] = true
+				continue  # no room for a clump here; its cells stay rock
+			for c: Vector2i in clump:
+				map_data.set_resourcev(c, Metal.TILE_ID)
+			placed += clump.size()
+		out[b] = [all_rock, placed]
+	map_data.set_meta("metal_placed", out)
+	return out
+
+
+# Would `c` touch (4-neighbour) metal already placed outside `clump`? Keeps
+# clumps apart, so each stays 2-5 tiles.
+static func _touches_metal(map_data, c: Vector2i, clump: Array) -> bool:
+	for d: Vector2i in DIRS:
+		var n: Vector2i = c + d
+		if map_data.get_resourcev(n) == Metal.TILE_ID and not clump.has(n):
+			return true
+	return false
+
+
+# Next to (8-neighbour) a gadget, relic, relic switch, power core, nest or cave
+# tile, or a cell vanilla keeps for a chamber.
+static func _near_special(map_data, cell: Vector2i) -> bool:
+	for ox in range(-1, 2):
+		for oy in range(-1, 2):
+			var r: int = map_data.get_resourcev(cell + Vector2i(ox, oy))
+			if (r >= Data.TILE_GADGET and r <= Data.TILE_CAVE) or r == Data.TILE_DIRT_MARK_BLOCKED_FOR_CHAMBER:
+				return true
+	return false
 
 
 # Lays a metal gate along the boundary under biome index `above` (B3 is 2):

@@ -8,6 +8,11 @@ extends RefCounted
 const GATE_BELOW_BIOME: int = 2
 const GATE_THICKNESS: int = 2
 
+# Scattered metal: share of a biome's plain rock that becomes metal, by biome
+# index (5 = B6), placed in clumps of METAL_CLUMP tiles. None anywhere else.
+const METAL_SHARE: Dictionary = {5: 0.03, 6: 0.08, 7: 0.15}
+const METAL_CLUMP: Array = [2, 5]
+
 # Overrides on vanilla's prestige-10k archetype (about 80 wide, 10,000 tiles).
 # Sizes 600, 800, ... capped at 1,800 give eight biomes, B1 to B8.
 const ARCHETYPE: Dictionary = {
