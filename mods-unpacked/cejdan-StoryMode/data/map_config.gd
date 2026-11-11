@@ -3,6 +3,11 @@ extends RefCounted
 # The Story Mode map: its size and biomes, and which minerals sit where.
 # All numbers are starting values for the user to tune.
 
+# The one gate: a metal wall this many tiles thick under biome index
+# GATE_BELOW_BIOME (2 = B3), i.e. along the B3/B4 boundary.
+const GATE_BELOW_BIOME: int = 2
+const GATE_THICKNESS: int = 2
+
 # Overrides on vanilla's prestige-10k archetype (about 80 wide, 10,000 tiles).
 # Sizes 600, 800, ... capped at 1,800 give eight biomes, B1 to B8.
 const ARCHETYPE: Dictionary = {
