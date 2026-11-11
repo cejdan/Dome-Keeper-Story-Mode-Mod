@@ -68,6 +68,7 @@ var _acc := 0.0
 var _time := 0.0
 var _glow: Node2D
 var _glow_tex: GradientTexture2D
+var _barrier_glow_tex: GradientTexture2D
 # Dev only: the old rule (every cell cools), for timing comparisons.
 var legacy_cooling := false
 # Dev only: hold the lava still (no flow or cooling) so a playtest can stand next to a fixed shape.
@@ -107,6 +108,16 @@ func setup(p_map) -> void:
 	_glow_tex.fill_to = Vector2(1.0, 0.5)
 	_glow_tex.width = 64
 	_glow_tex.height = 64
+	var vgrad := Gradient.new()
+	vgrad.set_color(0, Color(0.45, 0.38, 1.0, 1.0))
+	vgrad.set_color(1, Color(0.3, 0.2, 1.0, 0.0))
+	_barrier_glow_tex = GradientTexture2D.new()
+	_barrier_glow_tex.gradient = vgrad
+	_barrier_glow_tex.fill = GradientTexture2D.FILL_RADIAL
+	_barrier_glow_tex.fill_from = Vector2(0.5, 0.5)
+	_barrier_glow_tex.fill_to = Vector2(1.0, 0.5)
+	_barrier_glow_tex.width = 64
+	_barrier_glow_tex.height = 64
 	_glow.draw.connect(_draw_glow)
 	add_child(_glow)
 	# Map facts the generator left (read once; they don't change during a run).
@@ -883,12 +894,58 @@ func _draw() -> void:
 		var a: float = clampf(e[1] / LavaData.STEAM_SECONDS, 0.0, 1.0)
 		var o := _cell_origin(e[0])
 		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.75 * a))
+	_draw_barrier()
 	_draw_heat_bar()
 	if debug_boxes:
 		var k = Keepers.first()
 		if k != null and is_instance_valid(k):
 			var r := keeper_rect(k)
 			draw_rect(Rect2(to_local(r.position), r.size), Color(0.3, 1.0, 0.4, 0.9), false, 1.0)
+
+
+# --- the boss chamber's energy barrier (#82) ------------------------------------
+# Lava never enters the boss chamber. Where the crust over it is broken, a
+# violet-blue membrane across the chamber's top edge shows what holds the lava
+# back. It only stops lava; the keeper passes through. Violet-blue, so it reads
+# apart from the bright purple unobtainium in the ocean above.
+const COL_BARRIER_DEEP := Color("2e1f8f")
+const COL_BARRIER_MID := Color("6b5cff")
+const COL_BARRIER_LIGHT := Color("b8b0ff")
+const COL_BARRIER_SPARK := Color("eeeaff")
+
+
+# The chamber columns whose crust is gone (the barrier shows there).
+func barrier_columns() -> Array:
+	var out: Array = []
+	if _chamber.size == Vector2i.ZERO:
+		return out
+	for x in range(_chamber.position.x, _chamber.end.x):
+		if map.is_tile_empty(Vector2i(x, _chamber.position.y - 1)):
+			out.append(x)
+	return out
+
+
+func _draw_barrier() -> void:
+	for x in barrier_columns():
+		var cell := Vector2i(x, _chamber.position.y)
+		if not (_seen(cell) or _seen(cell + Vector2i.UP)):
+			continue
+		var o := _cell_origin(cell)
+		var pulse: float = 0.75 + 0.25 * sin(_time * 3.2 + x * 0.6)
+		# Haze above and below the membrane.
+		draw_rect(Rect2(o + Vector2(0, -6), Vector2(TILE, 14)), Color(COL_BARRIER_MID, 0.16 * pulse))
+		draw_rect(Rect2(o + Vector2(0, -4), Vector2(TILE, 10)), Color(COL_BARRIER_MID, 0.16 * pulse))
+		# The membrane: a deep band with a bright core line.
+		draw_rect(Rect2(o + Vector2(0, -3), Vector2(TILE, 6)), Color(COL_BARRIER_DEEP, 0.92))
+		draw_rect(Rect2(o + Vector2(0, -2), Vector2(TILE, 3)), Color(COL_BARRIER_MID, pulse))
+		# A light ripple running along it, and sparks drifting across.
+		for px in range(0, int(TILE), 2):
+			var w: float = sin(_time * 5.0 + (x * TILE + px) * 0.45)
+			if w > 0.55:
+				draw_rect(Rect2(o + Vector2(px, -1 + round(w)), Vector2(2, 1)), Color(COL_BARRIER_LIGHT, pulse))
+		for i in 2:
+			var sx: float = fposmod(_time * (9.0 + 5.0 * _noise(cell, i)) + _noise(cell, i + 7) * TILE, TILE)
+			draw_rect(Rect2(o + Vector2(floor(sx), -1), Vector2(1, 1)), COL_BARRIER_SPARK)
 
 
 func _draw_heat_bar() -> void:
@@ -923,6 +980,14 @@ func _draw_glow() -> void:
 			var center := _cell_origin(c) + Vector2(TILE, TILE) * 0.5
 			var pulse: float = 0.5 + 0.5 * sin(_time * 3.0 + c.x * 1.7 + c.y * 0.9)
 			_glow.draw_texture_rect(_glow_tex, Rect2(center - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 1, 1, 0.10 + 0.14 * pulse))
+	# The chamber barrier's violet glow.
+	for x in barrier_columns():
+		var cell := Vector2i(x, _chamber.position.y)
+		if not (_seen(cell) or _seen(cell + Vector2i.UP)):
+			continue
+		var p := _cell_origin(cell) + Vector2(TILE * 0.5, 0)
+		var pulse: float = 0.75 + 0.25 * sin(_time * 3.2 + x * 0.6)
+		_glow.draw_texture_rect(_barrier_glow_tex, Rect2(p - Vector2(30, 24), Vector2(60, 48)), false, Color(1, 1, 1, 0.55 * pulse))
 
 
 func stats() -> Dictionary:
