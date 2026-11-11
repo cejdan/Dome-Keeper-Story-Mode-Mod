@@ -3,6 +3,7 @@ extends Node
 const STORYMODE_LOG = "cejdan-StoryMode"
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
+const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const Palette = preload("res://mods-unpacked/cejdan-StoryMode/util/palette.gd")
 const Prices = preload("res://mods-unpacked/cejdan-StoryMode/data/prices.gd")
@@ -105,7 +106,5 @@ func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 		return
 	levelStartData.loadout.modeConfig[Story.MODE_FLAG] = true
 	levelStartData.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
-	if not levelStartData.mapArchetype:
-		levelStartData.mapArchetype = load("res://content/map/generation/archetypes/prestige-10k.tres").duplicate()
-	levelStartData.mapArchetype.set_meta("story_map", true)
+	levelStartData.mapArchetype = MapConfig.make_archetype()
 	GameWorld.prepareRegularLevelStart(levelStartData)

@@ -333,3 +333,43 @@ func buy(upgrade_id: String) -> bool:
 	await frames(3)
 	note("buy " + id, {"ok": ok, "cost": GameWorld.upgrades.get(id, {}).get("cost", {})})
 	return ok
+
+
+# ---------------------------------------------------------------- map generation reports
+
+# Generates a map's tile data from an archetype and seed without starting a run.
+# Returns the MapData (free it with queue_free when done), or null on failure.
+func generate_map(archetype: MapArchetype, gen_seed: int):
+	var gen = load("res://content/map/generation/TileDataGenerator.tscn").instantiate()
+	add_child(gen)
+	gen.init(archetype, gen_seed, "team1")
+	gen.generate()
+	var ok: bool = gen.finishedSuccessful
+	var td = gen.popTileData()
+	gen.queue_free()
+	if not ok:
+		td.queue_free()
+		return null
+	return td
+
+
+# Connected groups (4-neighbour) of cells holding resource `id`.
+func deposits_of(td, id: int) -> Array:
+	var left: Dictionary = {}
+	for c: Vector2i in td.get_resource_cells_by_id(id):
+		left[c] = true
+	var groups: Array = []
+	while left.size() > 0:
+		var start: Vector2i = left.keys()[0]
+		left.erase(start)
+		var open: Array = [start]
+		var group: Array = []
+		while open.size() > 0:
+			var c: Vector2i = open.pop_back()
+			group.append(c)
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if left.has(c + d):
+					left.erase(c + d)
+					open.append(c + d)
+		groups.append(group)
+	return groups
