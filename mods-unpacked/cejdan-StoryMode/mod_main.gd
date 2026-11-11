@@ -107,6 +107,9 @@ func modInit():
 		"content/map/generation/TileDataGenerator.gd",
 		"content/gadgets/suitblaster/SuitblasterExplosion.gd",
 		"stages/level/LevelStage.gd",
+		"content/caves/treecave/Iron.gd",
+		"content/gadgets/mineraltree/FruitGrowth.gd",
+		"content/gadgets/mineraltree/MineralTree.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	# Scenes that were already loaded still hold the vanilla script; reload them
@@ -122,6 +125,8 @@ func modInit():
 		"res://content/map/generation/TileDataGenerator.tscn",
 		"res://content/gadgets/suitblaster/SuitblasterExplosion.tscn",
 		"res://stages/level/LevelStage.tscn",
+		"res://content/caves/treecave/IronTreeCave.tscn",
+		"res://content/gadgets/mineraltree/MineralTree.tscn",
 	]:
 		if ResourceLoader.has_cached(scene_path):
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
