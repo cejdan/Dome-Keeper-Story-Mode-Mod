@@ -5,6 +5,9 @@ extends Node
 # and calls init(), afterInitialized() and getRunWeight().
 
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
+const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
+
+const MONEY := "team1.inventory.money"
 
 var runWeightOverride: int = -1
 var _lost: bool = false
@@ -16,10 +19,32 @@ func init() -> void:
 
 
 func afterInitialized() -> void:
-	pass
+	if not multiplayer.is_server():
+		return
+	# Vanilla dev mode hands out 500 iron, 50 water and 20 cobalt; a Story Mode
+	# run starts with empty pockets either way. A loaded save keeps its values.
+	if not Data.has(MONEY):
+		Data.apply(MONEY, 0)
+		Data.apply("team1.inventory.iron", 0)
+		Data.apply("team1.inventory.water", 0)
+		Data.apply("team1.inventory.sand", 0)
+	for m: String in Minerals.ORDER:
+		if not Data.has("team1.inventory." + m):
+			Data.apply("team1.inventory." + m, 0)
+		Data.listen(self, "team1.inventory." + m)
+	Level.addHudElement(load(Story.MOD_DIR + "hud/MoneyHud.tscn"), "team1")
 
 
-func propertyChanged(property: String, _oldValue, newValue) -> void:
+func propertyChanged(property: String, oldValue, newValue) -> void:
+	# A mineral delivered to the dome pays its dollar value. Inventory counts only
+	# ever rise from deliveries; Story Mode never spends minerals.
+	if property.begins_with("team1.inventory."):
+		var type: String = property.substr(16)
+		if Minerals.is_mineral(type) and oldValue != null and newValue > oldValue:
+			var pieces: int = int(newValue - oldValue)
+			Data.changeByInt(MONEY, pieces * Minerals.value_of(type))
+			Data.changeByInt("team1.story.pieces", pieces)
+		return
 	match property:
 		"team1.dome.health":
 			if newValue <= 0 and not GameWorld.lost and not _lost and not Data.ofOr("team1.dome.healthlocked", false):
