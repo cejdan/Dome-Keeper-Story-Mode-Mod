@@ -91,7 +91,9 @@ func getRunWeight(teamId: String) -> float:
 	if runWeightOverride != -1:
 		return float(runWeightOverride)
 	var weight: float = 10.0 + float(Data.ofOr(teamId + ".monsters.additionalwaveweight", 0))
-	weight += Data.ofOr("inventory.totaliron", 0) * 0.6
+	# Relic Hunt's run weight, except that every delivered mineral piece (bronze
+	# through unobtainium, iron included) counts as one iron (#30, #53).
+	weight += Data.ofOr(teamId + ".story.pieces", 0) * 0.6
 	weight += Data.ofOr("inventory.totalsand", 0) * 2.2
 	weight += Data.ofOr("inventory.totalwater", 0) * 1.2
 	weight += Data.ofOr(teamId + ".inventory.gadget", 0) * 8
