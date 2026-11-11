@@ -9,41 +9,36 @@ extends Node2D
 # Nothing here edits vanilla state except: destroying magma rock tiles that lava
 # melts, and teleporting the keeper on a recall.
 #
-# All numbers below are first-pass values. They are game-design calls for the user.
-# Newer ones live in data/lava.gd.
+# Its tuning numbers are first-pass values, game-design calls for the user, and
+# live in data/lava.gd.
 
 const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
 const SAVE_KEY := "story.lava"
 
-# --- pockets -------------------------------------------------------------------
-const POCKET_MIN_DEPTH := 7            # first tile row that may hold magma
-const POCKET_CELLS_PER_POCKET := 150   # one pocket per this many plain rock cells
-const POCKET_SIZE_MIN := 3
-const POCKET_SIZE_MAX := 6
-const VOLUME_PER_MAGMA_CELL := 4.5     # cells of lava released by one magma tile
-const MELT_SECONDS := 0.7              # lava contact time before magma rock melts
-
-# --- fluid ---------------------------------------------------------------------
-const TICK := 0.09                     # seconds per simulation step
-const MAX_MASS := 1.0
-const MAX_COMPRESS := 0.25
-const MIN_MASS := 0.004
-const MIN_FLOW := 0.004
-const MAX_FLOW := 0.42                 # per step; keeps lava thick and slow
-const SIDE_FLOW_DIVISOR := 5.0
-const STICKY_MASS := 0.05              # a film this thin stops spreading sideways
-const SOURCE_RATE := 0.36              # mass per step a breached magma cell emits
-const COOL_PER_SECOND := 0.004         # a cooling cell loses this (a full one lasts ~4 min); see _cools()
-const FILM_MASS := 0.12                # films thinner than this cool much faster
-const FILM_COOL_PER_SECOND := 0.03
-const MIN_Y := 1                       # lava never rises above this tile row
-
-# --- suit heat -----------------------------------------------------------------
-const BURN_MASS := 0.18                # lava this deep in the keeper's cell burns
-const HEAT_PER_SECOND := 55.0
-const COOL_MINE_PER_SECOND := 9.0
-const COOL_DOME_PER_SECOND := 45.0
-const HEAT_MAX := 100.0
+const POCKET_MIN_DEPTH := LavaData.POCKET_MIN_DEPTH
+const POCKET_CELLS_PER_POCKET := LavaData.POCKET_CELLS_PER_POCKET
+const POCKET_SIZE_MIN := LavaData.POCKET_SIZE_MIN
+const POCKET_SIZE_MAX := LavaData.POCKET_SIZE_MAX
+const VOLUME_PER_MAGMA_CELL := LavaData.VOLUME_PER_MAGMA_CELL
+const MELT_SECONDS := LavaData.MELT_SECONDS
+const TICK := LavaData.TICK
+const MAX_MASS := LavaData.MAX_MASS
+const MAX_COMPRESS := LavaData.MAX_COMPRESS
+const MIN_MASS := LavaData.MIN_MASS
+const MIN_FLOW := LavaData.MIN_FLOW
+const MAX_FLOW := LavaData.MAX_FLOW
+const SIDE_FLOW_DIVISOR := LavaData.SIDE_FLOW_DIVISOR
+const STICKY_MASS := LavaData.STICKY_MASS
+const SOURCE_RATE := LavaData.SOURCE_RATE
+const COOL_PER_SECOND := LavaData.COOL_PER_SECOND
+const FILM_MASS := LavaData.FILM_MASS
+const FILM_COOL_PER_SECOND := LavaData.FILM_COOL_PER_SECOND
+const MIN_Y := LavaData.MIN_Y
+const BURN_MASS := LavaData.BURN_MASS
+const HEAT_PER_SECOND := LavaData.HEAT_PER_SECOND
+const COOL_MINE_PER_SECOND := LavaData.COOL_MINE_PER_SECOND
+const COOL_DOME_PER_SECOND := LavaData.COOL_DOME_PER_SECOND
+const HEAT_MAX := LavaData.HEAT_MAX
 
 const TILE := 24.0
 const COL_CORE := Color("ffd23e")
@@ -68,6 +63,14 @@ var _glow: Node2D
 var _glow_tex: GradientTexture2D
 # Dev only: the old rule (every cell cools), for timing comparisons.
 var legacy_cooling := false
+var pools: Array = []              # Array of Array[Vector2i]: open pools filled at run start
+var pools_skipped := 0             # pools left empty because something opened their wall
+# Sleeping: only cells in _awake run the flow math. A cell wakes when its mass or
+# a neighbour's changes, or a tile next to it is destroyed.
+var _awake: Dictionary = {}
+var _wake_all := true
+var _shown_settled := false
+const WAKE_EPS := 0.00005
 
 
 func setup(p_map) -> void:
@@ -95,19 +98,72 @@ func setup(p_map) -> void:
 	# A loaded run brings its lava back from the save; a new run places pockets.
 	if not _restore(str(Data.ofOr(SAVE_KEY, ""))):
 		_place_pockets()
+		_fill_pools()
 	map.tile_destroyed.connect(_on_tile_destroyed)
 	add_to_group("saveable")
 
 
 # --- pocket placement ----------------------------------------------------------
 
+# Fills the open pools the map generator carved (map/story_gen.gd) brim-full.
+# A pool whose wall something else opened (a cave placed at run start) is left
+# empty rather than spilled.
+func _fill_pools() -> void:
+	var all = map.tileData.get_meta("story_pools", [])
+	for pool in all:
+		var set := {}
+		for c in pool:
+			set[Vector2i(c)] = true
+		var sealed := true
+		for c in set:
+			for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				var n: Vector2i = c + d
+				if not set.has(n) and _is_open(n):
+					sealed = false
+		if not sealed or not _is_open(Vector2i(pool[0])):
+			pools_skipped += 1
+			continue
+		# Brim-full and already settled: hydrostatic, a cell k rows below the
+		# pool's top row holds 1 + MAX_COMPRESS x k. That is exactly where the
+		# flow balances (a cell under another holds MAX_COMPRESS more; cells side
+		# by side hold the same), so nothing moves, no top cell sinks under
+		# FULL_MASS and cools, and the pool sleeps from the first step.
+		var cells: Array = set.keys()
+		var top: int = 1 << 20
+		for c in cells:
+			top = mini(top, c.y)
+		for c in cells:
+			var m: float = MAX_MASS + MAX_COMPRESS * float(c.y - top)
+			mass[c] = m
+			shown[c] = m
+		pools.append(cells)
+	wake_all()
+
+
+func wake_all() -> void:
+	_wake_all = true
+	_shown_settled = false
+
+
+func _wake(c: Vector2i) -> void:
+	_awake[c] = true
+	for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		_awake[c + d] = true
+
+
 func _place_pockets() -> void:
 	# Each plain rock cell decides for itself, from the level seed and its own
 	# coordinates, whether it seeds a pocket. So the same seed gives the same
 	# pockets however much of the mine has been dug (for example after a reload).
+	var near_pool := {}
+	for pool in map.tileData.get_meta("story_pools", []):
+		for c in pool:
+			for ox in range(-1, 2):
+				for oy in range(-1, 2):
+					near_pool[Vector2i(c) + Vector2i(ox, oy)] = true
 	var rock_set := {}
 	for c in map.tileData.get_resource_cells_by_id(Data.TILE_DIRT_START):
-		if c.y >= POCKET_MIN_DEPTH and map.tileData.get_hardnessv(c) < Data.HARDNESS_INDESTRUCTIBLE:
+		if c.y >= POCKET_MIN_DEPTH and map.tileData.get_hardnessv(c) < Data.HARDNESS_INDESTRUCTIBLE and not near_pool.has(c):
 			rock_set[c] = true
 	var rng := RandomNumberGenerator.new()
 	for s in rock_set:
@@ -131,12 +187,14 @@ func _place_pockets() -> void:
 func add_pocket(cells: Array) -> void:
 	for c in cells:
 		magma[Vector2i(c)] = true
+	wake_all()
 
 
 # --- breaching -----------------------------------------------------------------
 
 func _on_tile_destroyed(world_pos: Vector2) -> void:
 	var c: Vector2i = map.getTileCoord(world_pos)
+	_wake(c)
 	if not magma.has(c):
 		return
 	magma.erase(c)
@@ -152,7 +210,19 @@ func _is_open(c: Vector2i) -> bool:
 
 # --- simulation ----------------------------------------------------------------
 
+# Time spent in this node's _physics_process (dev timing).
+var phys_us := 0
+var phys_frames := 0
+
+
 func _physics_process(delta: float) -> void:
+	var t0 := Time.get_ticks_usec()
+	_physics_body(delta)
+	phys_us += Time.get_ticks_usec() - t0
+	phys_frames += 1
+
+
+func _physics_body(delta: float) -> void:
 	if map == null or GameWorld.paused:
 		return
 	_time += delta
@@ -162,13 +232,21 @@ func _physics_process(delta: float) -> void:
 		_step()
 	_melt(delta)
 	_update_heat(delta)
-	for c in mass:
-		shown[c] = lerp(shown.get(c, 0.0), mass[c], min(1.0, delta * 9.0))
-	for c in shown.keys():
-		if not mass.has(c):
-			shown[c] = lerp(shown[c], 0.0, min(1.0, delta * 9.0))
-			if shown[c] < 0.01:
-				shown.erase(c)
+	# Smooth the drawn lava toward the simulated lava; once it has caught up and
+	# nothing is moving, skip the loop (a settled pool costs nothing).
+	if not _shown_settled or not _awake.is_empty() or _wake_all:
+		var gap := 0.0
+		for c in mass:
+			var v: float = lerp(shown.get(c, 0.0), mass[c], min(1.0, delta * 9.0))
+			gap = maxf(gap, absf(v - mass[c]))
+			shown[c] = v
+		for c in shown.keys():
+			if not mass.has(c):
+				shown[c] = lerp(shown[c], 0.0, min(1.0, delta * 9.0))
+				gap = maxf(gap, shown[c])
+				if shown[c] < 0.01:
+					shown.erase(c)
+		_shown_settled = gap < 0.002 and _awake.is_empty()
 	queue_redraw()
 	_glow.queue_redraw()
 
@@ -190,11 +268,19 @@ func _step() -> void:
 		if out > 0.0:
 			mass[c] = mass.get(c, 0.0) + out
 			sources[c] -= out
+			_wake(c)
 		if sources[c] <= 0.001:
 			sources.erase(c)
 
+	var all_awake: bool = _wake_all or legacy_cooling
+	_wake_all = false
+	# Nothing moving anywhere: a settled field costs nothing.
+	if not all_awake and _awake.is_empty():
+		return
 	var next: Dictionary = mass.duplicate()
 	for c in mass:
+		if not all_awake and not _awake.has(c):
+			continue
 		var m: float = mass[c]
 		if m <= 0.0:
 			continue
@@ -237,14 +323,22 @@ func _step() -> void:
 				next[c] -= flow
 				next[above] = next.get(above, 0.0) + flow
 
-	mass.clear()
+	var old: Dictionary = mass
+	mass = {}
+	var woke: Dictionary = {}
 	for c in next:
 		var m: float = next[c]
-		if legacy_cooling or _cools(c, m, next):
+		# A sleeping cell's neighbours didn't change, so neither did its cooling.
+		if (all_awake or _awake.has(c)) and (legacy_cooling or _cools(c, m, next)):
 			m -= (FILM_COOL_PER_SECOND if m < FILM_MASS else COOL_PER_SECOND) * TICK
 		# MIN_MASS only prunes numerical dust.
 		if m > MIN_MASS:
 			mass[c] = m
+		if absf(m - old.get(c, 0.0)) > WAKE_EPS or (m <= MIN_MASS and old.has(c)):
+			woke[c] = true
+	_awake = {}
+	for c in woke:
+		_wake(c)
 
 
 # Lava cools only at a thin, open surface (#41): nothing below it, and its top
@@ -307,6 +401,7 @@ func _restore(blob: String) -> bool:
 	for e in d.get("magma", []):
 		magma[Vector2i(int(e[0]), int(e[1]))] = true
 	shown = mass.duplicate()
+	wake_all()
 	heat = float(d.get("heat", 0.0))
 	breaches = int(d.get("breaches", 0))
 	recalls = int(d.get("recalls", 0))
@@ -383,6 +478,11 @@ func _noise(c: Vector2i, i: int) -> float:
 	return fposmod(sin(float(c.x * 127 + c.y * 311 + i * 74)) * 43758.5453, 1.0)
 
 
+# Lava in a cell the player hasn't revealed yet (an unopened pool) stays hidden.
+func _seen(c: Vector2i) -> bool:
+	return map.visibleTileCoords.has(Vector2(c)) or map.visibleTileCoords.has(c)
+
+
 func _fill_of(c: Vector2i) -> float:
 	return clamp(shown.get(c, 0.0), 0.0, 1.0)
 
@@ -404,7 +504,7 @@ func _draw() -> void:
 
 	for c in shown:
 		var f := _fill_of(c)
-		if f <= 0.02:
+		if f <= 0.02 or not _seen(c):
 			continue
 		var o := _cell_origin(c)
 		var above_has: bool = shown.get(c + Vector2i.UP, 0.0) > 0.05
@@ -469,7 +569,7 @@ func _draw_glow() -> void:
 	# Soft additive light around lava and around magma rock the player can see.
 	for c in shown:
 		var f := _fill_of(c)
-		if f <= 0.05:
+		if f <= 0.05 or not _seen(c):
 			continue
 		var center := _cell_origin(c) + Vector2(TILE, TILE) * 0.5
 		var flick: float = 0.85 + 0.15 * sin(_time * 6.0 + c.x * 2.1 + c.y)
@@ -486,5 +586,9 @@ func stats() -> Dictionary:
 	var total := 0.0
 	for c in mass:
 		total += mass[c]
+	var pool_cells := 0
+	for p in pools:
+		pool_cells += p.size()
 	return {"cells": mass.size(), "total": total, "magma": magma.size(), "sources": sources.size(),
-		"heat": heat, "recalls": recalls, "breaches": breaches}
+		"heat": heat, "recalls": recalls, "breaches": breaches, "pools": pools.size(), "pool_cells": pool_cells,
+		"pools_skipped": pools_skipped, "awake": _awake.size()}
