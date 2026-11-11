@@ -32,6 +32,21 @@ This folder is the decompiled Dome Keeper project (Godot 4.3.1, custom build). W
 - **Dev runs don't report to the developers' Sentry.** `project.godot` holds Bippinbits' Sentry DSN, and the SDK starts and sends even with `allowCrashReports: false` in the dev `options.txt`. `override.cfg` sets `[sentry] options/enabled=false`, so godot.log shows `Sentry SDK is disabled in the project settings.` and no `envelope` requests. Keep that key in `override.cfg`; if a run's godot.log shows `starting Sentry SDK`, stop and fix it before launching again.
 - Mod loaded? `modloader.log` should show `cejdan-StoryMode: Init` and `Done`. The title-screen Modding button is hidden in this game version.
 
+## Playtest harness
+
+Dev-only code in `mods-unpacked/cejdan-StoryMode/dev/` (left out of release builds). It runs one scenario in the real game and exits.
+
+- **Run:** `& "<...>\Dome Keeper\mods-unpacked\cejdan-StoryMode\dev\playtest.ps1" <scenario> [-Timeout 300] [-Res 1280x720] [-Extra "--foo=1"]` from PowerShell. It refuses to launch without `override.cfg`, kills a hung run after the timeout, and prints the exit code (0 = every check passed), script errors found in the log, and each PASS/FAIL line.
+- **Output:** `..\playtest_out\<scenario>\` (outside the repo): numbered screenshots (`NNN_<label>.png`), frame bursts (`NNN_<label>_fNN.png`), map overviews, `log.json` (events, state snapshots, checks) and `godot.log`. Look at the screenshots before calling something done.
+- **Write a scenario:** add `dev/scenarios/<name>.gd` extending `dev/scenario.gd`. `boot()` returns what to start: `mode` (default `storymode`; `relichunt` for vanilla checks), `seed`, `gadget`, `difficulty`, `world`, `palette`, or `loadout: true` for the loadout screen. `run(h)` is a coroutine that drives the game through the harness `h` (`dev/harness.gd`):
+  - input: `await h.hold("ui_down", 3.0)`, `await h.press("ui_select")`, `h.down(action)` / `h.up(action)` (real key events built from `InputMap`)
+  - time: `await h.wait(sec)`, `await h.frames(n)`, `h.speed(scale)`, `await h.until(callable, timeout)`
+  - capture: `await h.shot(label)`, `await h.burst(label, frames, every)`, `h.snap(label, extra_data_keys)`, `h.map_png(label, colors)` (whole-map picture from tile data), `h.note(label, data)`
+  - checks: `h.check(label, ok, data)`; any failed check makes the run exit 1
+  - setup: `h.disable_waves()`, `await h.reveal_all()`, `await h.dig_room(a, b)`, `await h.teleport_tile(coord)`, `h.set_inv(type, n)`, `await h.deliver(type, n)`, `await h.buy(upgrade_id)`, or any direct `Data` / `Level` / `GameWorld` call
+- **Dev boot without a scenario:** `-- --story` boots straight into a Story Mode run, `-- --mode=relichunt` a vanilla run, `-- --loadout` the loadout screen; `--seed=`, `--gadget=`, `--difficulty=` as above (`dev/dev_boot.gd`).
+- Scenarios are named `tNN_<what>.gd` after the ticket they verify; keep them, they are the regression suite.
+
 ## Agent skills
 
 ### Issue tracker
