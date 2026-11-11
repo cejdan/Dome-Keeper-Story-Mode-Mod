@@ -36,6 +36,17 @@ func _ready():
 		var icon: ImageTexture = ImageTexture.create_from_image(sq)
 		icon.take_over_path("res://content/icons/storymode.png")
 		_held.append(icon)
+	# Retire Rich: the money coin, blown up to a tech icon.
+	var coin: Image = Assets.image(Story.MOD_DIR + "art/icon_money.png")
+	if coin != null:
+		coin = coin.duplicate()
+		var f: int = maxi(1, 72 / maxi(coin.get_width(), coin.get_height()))
+		coin.resize(coin.get_width() * f, coin.get_height() * f, Image.INTERPOLATE_NEAREST)
+		var sq2: Image = Image.create(72, 72, false, coin.get_format())
+		sq2.blit_rect(coin, Rect2i(Vector2i.ZERO, coin.get_size()), (Vector2i(72, 72) - coin.get_size()) / 2)
+		var rr: ImageTexture = ImageTexture.create_from_image(sq2)
+		rr.take_over_path("res://content/icons/storyretirerich.png")
+		_held.append(rr)
 	# Gadget slot entries borrow a vanilla gadget's icon (as a copy).
 	for pair: Array in [["storygadgetcellar", "drillbot"], ["storygadgetmineshaft", "lift"], ["storygadgetdomesurface", "autocannon"],
 			["storygadgetdomeback", "spire"], ["storygadgetactive", "shockwave"]]:
