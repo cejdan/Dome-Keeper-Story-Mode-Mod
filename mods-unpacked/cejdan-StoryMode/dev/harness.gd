@@ -55,11 +55,12 @@ func _process(_delta: float) -> void:
 
 
 func _run() -> void:
-	# Story beats pause the game, so scenarios that don't test them start with
-	# every beat marked played. boot() returns `beats: true` to keep them.
+	# Story beats and miners' logs (#94) pause the game, so scenarios that don't
+	# test them start with every one marked played. boot() returns
+	# `beats: true` to keep them.
 	if not scenario.boot().get("beats", false) and Story.is_story():
 		var ids: PackedStringArray = []
-		for b: Dictionary in load(Story.MOD_DIR + "data/beats.gd").BEATS:
+		for b: Dictionary in load(Story.MOD_DIR + "data/beats.gd").BEATS + load(Story.MOD_DIR + "data/logs.gd").LOGS:
 			ids.append(b["id"])
 		Data.apply("team1.story.beatsplayed", ",".join(ids))
 		note("story beats muted (boot has no beats: true)")
