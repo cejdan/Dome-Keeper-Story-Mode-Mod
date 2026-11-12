@@ -24,6 +24,8 @@ func _process_custom_fx(c: CharFXTransform) -> bool:
 	if not burst(c.elapsed_time, rate):
 		return true
 	var r: float = _rand(int(c.elapsed_time * 10.0) * 131 + c.relative_index * 977)
+	if r > 0.32 and r < 0.62:
+		return true  # about a third of the letters stay put
 	c.offset += Vector2((r - 0.5) * 22.0, (fmod(r * 7.0, 1.0) - 0.5) * 9.0)
 	if r > 0.78:
 		c.color = Color(1.0, 0.28, 0.42, c.color.a)

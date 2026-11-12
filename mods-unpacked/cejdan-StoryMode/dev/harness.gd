@@ -348,6 +348,39 @@ func buy(upgrade_id: String) -> bool:
 	return ok
 
 
+# ---------------------------------------------------------------- story beats
+
+# The open beat's box (not one still fading out), or null.
+func beat_box():
+	for n in get_tree().get_nodes_in_group("story-beat-box"):
+		if is_instance_valid(n) and not n._closing:
+			return n
+	return null
+
+
+# Waits for a story beat to open, lets each page type out, shoots every page
+# (`<label>_p<n>`), and turns pages with select until the box is gone. Returns
+# the beat's id ("" if none opened within `timeout`).
+func read_beat(label: String, timeout: float = 10.0, shots: bool = true) -> String:
+	var sb = load(Story.MOD_DIR + "beats/story_beats.gd")
+	if not await until(func(): return sb.is_open(), timeout):
+		return ""
+	var id: String = sb.instance().open_id
+	var page: int = 0
+	while sb.is_open() and page < 12:
+		var box = beat_box()
+		await until(func(): return box == null or not is_instance_valid(box) or not box.is_revealing(), 12.0)
+		await wait(0.5)
+		if shots:
+			await shot("%s_p%d" % [label, page])
+		page += 1
+		await press("ui_select")
+		await wait(0.4)
+	await until(func(): return not sb.is_open(), 3.0)
+	note("beat read", {"id": id, "pages": page})
+	return id
+
+
 # ---------------------------------------------------------------- map generation reports
 
 # Generates a map's tile data from an archetype and seed without starting a run.
