@@ -18,6 +18,10 @@ var _lost: bool = false
 func init() -> void:
 	# The horror's story beats (#23); fired through beats/story_beats.gd.
 	add_child(load(Story.MOD_DIR + "beats/story_beats.gd").new())
+	# The story endings (#96, #97).
+	var endings = load(Story.MOD_DIR + "endings/ending_director.gd").new()
+	endings.name = "StoryEndings"
+	add_child(endings)
 	# The monsters' pleas during waves (#91).
 	add_child(load(Story.MOD_DIR + "pleas/plea_director.gd").new())
 	Data.listen(self, "team1.dome.health")
@@ -93,14 +97,28 @@ func propertyChanged(property: String, oldValue, newValue) -> void:
 				_lose()
 
 
-# Vanilla Relic Hunt's win, minus the relic and the final wave.
+var _ending: bool = false
+
+
+# Retire Rich: the doom ending (#96), then vanilla Relic Hunt's win, minus the
+# relic and the final wave. Still a won run with the $1M.
 func _win() -> void:
-	if GameWorld.won or GameWorld.lost:
+	if GameWorld.won or GameWorld.lost or _ending:
 		return
+	_ending = true
 	ModLoaderLog.info("Retire Rich bought: the run is won", Story.LOG)
 	Level.stage.stopKeeperInput()
 	for mm in get_tree().get_nodes_in_group("monster-manager"):
 		mm.disabled = true
+		if mm.has_method("instantlyKillWave"):
+			mm.instantlyKillWave()
+	# stopKeeperInput clears every input processor (the shop's too) on the input
+	# system's next frame; the ending's own boxes integrate after that.
+	for i in 3:
+		await get_tree().process_frame
+	var endings = get_node_or_null("StoryEndings")
+	if endings != null:
+		await endings.play_doom()
 	GameWorld.handleGameWon()
 	Audio.stopBattleMusic()
 	await get_tree().create_timer(2.5).timeout
@@ -108,6 +126,8 @@ func _win() -> void:
 	await get_tree().create_timer(4.0).timeout
 	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
 	popup.init(multiplayer.is_server())
+	var Endings = load(Story.MOD_DIR + "data/endings.gd")
+	load(Story.MOD_DIR + "endings/ending_director.gd").retitle(popup, Endings.DOOM_TITLE, Endings.DOOM_SUBTITLE)
 	Level.stage.showEndingPanel(popup)
 	SaveGame.delete_autosave()
 

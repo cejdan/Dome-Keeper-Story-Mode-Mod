@@ -60,6 +60,23 @@ static func trigger(trigger_name: String) -> int:
 	return count
 
 
+# Shows the beat `id` now, ahead of the queue, and waits until it is closed
+# (nothing if it already played). For the endings, which must play their beat
+# before the run ends.
+func play_now(id: String) -> void:
+	if has_played(id):
+		return
+	while open_id != "":
+		await beat_closed
+	var q: Array = _list(QUEUED)
+	if not q.has(id):
+		q.push_front(id)
+		_store(QUEUED, q)
+	_show(id)
+	while open_id == id:
+		await beat_closed
+
+
 static func has_played(id: String) -> bool:
 	return _list(PLAYED).has(id)
 

@@ -111,9 +111,15 @@ func _ready() -> void:
 		_text.add_theme_color_override("font_outline_color", Color("221f1f"))
 	_text.add_theme_constant_override("line_separation", 10 if tier < 4 else 22)
 	col.add_child(_text)
-	var lines: PackedStringArray = lines_text().split("\n", false)
-	for i in range(0, lines.size(), PAGE_LINES):
-		_pages.append("\n".join(lines.slice(i, i + PAGE_LINES)))
+	# Pages: a "---" line breaks the page; otherwise every PAGE_LINES lines.
+	var group: PackedStringArray = []
+	for l: String in lines_text().split("\n", false) + PackedStringArray(["---"]):
+		if l.strip_edges() == "---" or group.size() == PAGE_LINES:
+			if not group.is_empty():
+				_pages.append("\n".join(group))
+			group = []
+		if l.strip_edges() != "---":
+			group.append(l)
 	_set_page(0)
 	_hint = Label.new()
 	_hint.name = "BeatHint"
