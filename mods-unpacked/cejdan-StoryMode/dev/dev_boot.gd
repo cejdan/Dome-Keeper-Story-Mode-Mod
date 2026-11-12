@@ -12,6 +12,8 @@ extends Node
 #   --mapsize=<id>       vanilla archetype for vanilla modes (default regular-medium)
 #   --load=<slot>        load the save in that slot (singleplayer folder), e.g. one a
 #                        scenario wrote with SaveGame.saveGame(..., slot, true)
+#   --horror-defeated    with --story: play the saved ending (#97) once the keeper
+#                        can move (handled by gamemode/Storymode.gd)
 # A playtest scenario's boot() dictionary can give the same keys.
 #
 # How: Game.gd cannot be script-extended safely (loading it early enough breaks
