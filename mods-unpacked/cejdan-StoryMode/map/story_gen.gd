@@ -14,17 +14,45 @@ const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
 const KEEP_IDS: Array = [3, 4, 6, 7]  # Data.TILE_GADGET, TILE_RELIC, TILE_RELIC_SWITCH, TILE_SUPPLEMENT
 
 const DIRS: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+const DIRS8: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
 
 
 static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void:
 	place_minerals(map_data, rand)
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
-	place_translators(map_data, rand)
-	place_bones(map_data, rand)
 	place_metal(map_data, rand)
 	place_pools(map_data, rand)
+	# The story's own tiles (#93, #94) go in after metal and pools, each with
+	# its own random generator seeded from the map's, so every feature placed
+	# with `rand` (minerals, metal, pools, ocean) is the same as without them.
+	place_translators(map_data, _sub_rand(rand, "translators"))
+	place_bones(map_data, _sub_rand(rand, "bones"))
 	place_ocean(map_data, rand)
+
+
+# A generator of its own for one placement step, seeded from the map's.
+static func _sub_rand(rand: RandomNumberGenerator, what: String) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([rand.seed, what])
+	return r
+
+
+# Any lava pool cell (meta "story_pools") within `gap` tiles of `cell`?
+static func _near_pool(pools: Dictionary, cell: Vector2i, gap: int) -> bool:
+	for ox in range(-gap, gap + 1):
+		for oy in range(-gap, gap + 1):
+			if pools.has(cell + Vector2i(ox, oy)):
+				return true
+	return false
+
+
+static func _pool_cells(map_data) -> Dictionary:
+	var out: Dictionary = {}
+	for pool: Array in map_data.get_meta("story_pools", []):
+		for c: Vector2i in pool:
+			out[c] = true
+	return out
 
 
 # The lava ocean (#43): added below the generated map, under B8 (biome index 7).
@@ -480,8 +508,8 @@ static func _nearest_plain(map_data, from: Vector2i, deep: Dictionary, gate: Dic
 # and B6 (biome indices 1, 3, 5). Story Mode has no gadget chambers of its own
 # any more, so the Map extension turns this id into the translator chamber.
 # The block and a 1-tile ring around it must be plain rock or ore, all in the
-# biome, so nothing (gate, metal, border, holes, other chambers) touches it;
-# metal and pools placed later keep clear of special tiles by themselves.
+# biome, so nothing (gate, metal, border, holes, other chambers) touches it,
+# and no lava pool may be within POOL_GAP tiles (placed after metal and pools).
 # The block sits in the middle half of the biome's depth, within the middle
 # 60% of the map's width. Meta "story_translators": [[x, y, biome], ...]
 # (top-left cells).
@@ -504,6 +532,7 @@ static func place_translators(map_data, rand: RandomNumberGenerator) -> Array:
 		x0 = mini(x0, c.x)
 		x1 = maxi(x1, c.x)
 	var span: int = x1 - x0
+	var pools: Dictionary = _pool_cells(map_data)
 	var placed: Array = []
 	for b: int in TRANSLATOR_BIOMES:
 		if not ys.has(b):
@@ -513,7 +542,7 @@ static func place_translators(map_data, rand: RandomNumberGenerator) -> Array:
 		var cands: Array = []
 		for y in range(top, bottom):
 			for x in range(x0 + span / 5, x1 - span / 5):
-				if _translator_fits(map_data, Vector2i(x, y), b, ore):
+				if _translator_fits(map_data, Vector2i(x, y), b, ore, pools):
 					cands.append(Vector2i(x, y))
 		if cands.is_empty():
 			continue
@@ -525,10 +554,12 @@ static func place_translators(map_data, rand: RandomNumberGenerator) -> Array:
 	return placed
 
 
-static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary) -> bool:
+static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary, pools: Dictionary) -> bool:
 	for oy in range(-1, 3):
 		for ox in range(-1, 3):
 			var c: Vector2i = at + Vector2i(ox, oy)
+			if _near_pool(pools, c, LavaData.POOL_GAP - 1):
+				return false
 			if map_data.get_biomev(c) != b:
 				return false
 			var r: int = map_data.get_resourcev(c)
@@ -541,10 +572,10 @@ static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary) ->
 
 
 # Miner bones (#94): one tile in each biome, B1 to B8, in plain rock with rock or
-# ore on all four sides (so it sits in the rock, not in a cave or the gate), in
-# the middle half of the biome's depth and the middle 70% of the map's width,
-# above the lava ocean. Metal and pools placed later keep clear of it
-# (_near_special). Meta "story_bones": [[x, y, biome], ...].
+# ore on all eight sides (so it sits in the rock, not in a cave, the gate or
+# metal), no lava pool within POOL_GAP tiles, in the middle half of the biome's
+# depth and the middle 70% of the map's width, above the lava ocean.
+# Placed after metal and pools. Meta "story_bones": [[x, y, biome], ...].
 const BONES_ID := 50
 
 
@@ -564,6 +595,7 @@ static func place_bones(map_data, rand: RandomNumberGenerator) -> Array:
 		x0 = mini(x0, c.x)
 		x1 = maxi(x1, c.x)
 	var span: int = x1 - x0
+	var pools: Dictionary = _pool_cells(map_data)
 	var placed: Array = []
 	for b in range(0, MapConfig.BIOMES):
 		if not ys.has(b):
@@ -576,8 +608,8 @@ static func place_bones(map_data, rand: RandomNumberGenerator) -> Array:
 				var c: Vector2i = Vector2i(x, y)
 				if map_data.get_biomev(c) != b or map_data.get_resourcev(c) != Data.TILE_DIRT_START:
 					continue
-				var ok: bool = true
-				for d: Vector2i in DIRS:
+				var ok: bool = not _near_pool(pools, c, LavaData.POOL_GAP)
+				for d: Vector2i in DIRS8:
 					if not ore.has(map_data.get_resourcev(c + d)) or map_data.get_biomev(c + d) != b:
 						ok = false
 				if ok and not _near_special(map_data, c):
