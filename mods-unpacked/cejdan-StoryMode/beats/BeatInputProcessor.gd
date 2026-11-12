@@ -1,10 +1,12 @@
 extends InputProcessor
 
 # Input for an open story beat: it swallows every key, so the keeper and the
-# dome stay still, and closes the box on select, accept, cancel, Escape or a
-# left click. Closing is ignored for a moment after the box opens, so a key the
-# player was already pressing doesn't dismiss the beat unread.
+# dome stay still. Select, accept, cancel, Escape or a left click first finish
+# the typing-out of the text, then close the box. Keys are ignored for a moment
+# after the box opens, and closing waits a little longer, so a key the player
+# was already pressing doesn't dismiss the beat unread.
 
+const IGNORE_MS := 300
 const MIN_OPEN_MS := 700
 
 var popup
@@ -21,15 +23,20 @@ func handleStop() -> void:
 
 
 func buttonEvent(event) -> bool:
-	if Time.get_ticks_msec() - _opened_at < MIN_OPEN_MS:
+	var age: int = Time.get_ticks_msec() - _opened_at
+	if age < IGNORE_MS:
 		return true
-	var close: bool = false
+	var hit: bool = false
 	for a: String in ["ui_select", "ui_accept", "ui_cancel", "escape"]:
 		if justPressed(event, a):
-			close = true
+			hit = true
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		close = true
-	if close:
+		hit = true
+	if not hit:
+		return true
+	if popup.is_revealing():
+		popup.finish_reveal()
+	elif age >= MIN_OPEN_MS:
 		Audio.sound("gui_confirm")
 		desintegrate()
 	return true

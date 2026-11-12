@@ -142,6 +142,10 @@ func _show(id: String) -> void:
 	i.connect("onStop", _on_closed.bind(id))
 	i.integrate(Level.stage)
 	Level.stage.pause()
+	# The beat is the pause's own signal: vanilla's "Paused" label stays hidden.
+	for n in get_tree().get_nodes_in_group("pauseL"):
+		if n.name == "PauseLabel" and n.has_method("moveOut"):
+			n.moveOut()
 	ModLoaderLog.info("Story beat open: " + id, Story.LOG)
 	beat_opened.emit(id)
 
