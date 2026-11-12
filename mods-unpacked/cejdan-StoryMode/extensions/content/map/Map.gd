@@ -59,6 +59,14 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 		spawnDrop(tile, teamId)
 
 
+# Story Mode has no gadget chambers; its gadget tile id holds a translator
+# chamber (#93, placed by map/story_gen.gd place_translators).
+func getSceneForTileType(tileType: int) -> PackedScene:
+	if tileType == Data.TILE_GADGET and Story.is_story():
+		return load("res://mods-unpacked/cejdan-StoryMode/map/TranslatorChamber.tscn")
+	return super(tileType)
+
+
 func updateBorderSprite(x: int, y: int):
 	super(x, y)
 	var key = Vector2(x, y)

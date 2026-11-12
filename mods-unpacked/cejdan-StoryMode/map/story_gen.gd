@@ -20,6 +20,7 @@ static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void
 	place_minerals(map_data, rand)
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
+	place_translators(map_data, rand)
 	place_metal(map_data, rand)
 	place_pools(map_data, rand)
 	place_ocean(map_data, rand)
@@ -472,3 +473,67 @@ static func _nearest_plain(map_data, from: Vector2i, deep: Dictionary, gate: Dic
 				next.append(n)
 		open = next
 	return null
+
+
+# Translator chambers (#93): one 2x2 of the gadget tile id in each of B2, B4
+# and B6 (biome indices 1, 3, 5). Story Mode has no gadget chambers of its own
+# any more, so the Map extension turns this id into the translator chamber.
+# The block and a 1-tile ring around it must be plain rock or ore, all in the
+# biome, so nothing (gate, metal, border, holes, other chambers) touches it;
+# metal and pools placed later keep clear of special tiles by themselves.
+# The block sits in the middle half of the biome's depth, within the middle
+# 60% of the map's width. Meta "story_translators": [[x, y, biome], ...]
+# (top-left cells).
+const TRANSLATOR_BIOMES: Array = [1, 3, 5]
+
+
+static func place_translators(map_data, rand: RandomNumberGenerator) -> Array:
+	var ore: Dictionary = {Data.TILE_DIRT_START: true, Data.TILE_IRON: true}
+	for m: String in Minerals.TABLE:
+		ore[int(Minerals.TABLE[m]["tile_id"])] = true
+	var ys: Dictionary = {}
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		var b: int = map_data.get_biomev(c)
+		if not ys.has(b):
+			ys[b] = [c.y, c.y]
+		ys[b][0] = mini(ys[b][0], c.y)
+		ys[b][1] = maxi(ys[b][1], c.y)
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+	var span: int = x1 - x0
+	var placed: Array = []
+	for b: int in TRANSLATOR_BIOMES:
+		if not ys.has(b):
+			continue
+		var top: int = ys[b][0] + (ys[b][1] - ys[b][0]) / 4
+		var bottom: int = ys[b][1] - (ys[b][1] - ys[b][0]) / 4
+		var cands: Array = []
+		for y in range(top, bottom):
+			for x in range(x0 + span / 5, x1 - span / 5):
+				if _translator_fits(map_data, Vector2i(x, y), b, ore):
+					cands.append(Vector2i(x, y))
+		if cands.is_empty():
+			continue
+		var at: Vector2i = cands[rand.randi_range(0, cands.size() - 1)]
+		for c: Vector2i in [at, at + Vector2i(1, 0), at + Vector2i(0, 1), at + Vector2i(1, 1)]:
+			map_data.set_resourcev(c, Data.TILE_GADGET)
+		placed.append([at.x, at.y, b])
+	map_data.set_meta("story_translators", placed)
+	return placed
+
+
+static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary) -> bool:
+	for oy in range(-1, 3):
+		for ox in range(-1, 3):
+			var c: Vector2i = at + Vector2i(ox, oy)
+			if map_data.get_biomev(c) != b:
+				return false
+			var r: int = map_data.get_resourcev(c)
+			var inner: bool = ox >= 0 and ox <= 1 and oy >= 0 and oy <= 1
+			if inner and r != Data.TILE_DIRT_START:
+				return false
+			if not ore.has(r):
+				return false
+	return true
