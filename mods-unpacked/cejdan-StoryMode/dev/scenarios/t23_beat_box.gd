@@ -11,7 +11,7 @@ const SLOT := 11
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	return {"seed": 12345, "beats": true}
 
 
 func _cd() -> float:

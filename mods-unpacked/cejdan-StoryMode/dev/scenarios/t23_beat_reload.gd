@@ -9,7 +9,7 @@ const CD := "team1.monsters.wavecooldown"
 
 
 func boot() -> Dictionary:
-	return {"load": 11}
+	return {"load": 11, "beats": true}
 
 
 func run(h) -> void:

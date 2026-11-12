@@ -55,6 +55,14 @@ func _process(_delta: float) -> void:
 
 
 func _run() -> void:
+	# Story beats pause the game, so scenarios that don't test them start with
+	# every beat marked played. boot() returns `beats: true` to keep them.
+	if not scenario.boot().get("beats", false) and Story.is_story():
+		var ids: PackedStringArray = []
+		for b: Dictionary in load(Story.MOD_DIR + "data/beats.gd").BEATS:
+			ids.append(b["id"])
+		Data.apply("team1.story.beatsplayed", ",".join(ids))
+		note("story beats muted (boot has no beats: true)")
 	note("scenario begin", {"seed": Level.levelSeed, "mode": Level.loadout.modeId if Level.loadout else ""})
 	await scenario.run(self)
 	finish()

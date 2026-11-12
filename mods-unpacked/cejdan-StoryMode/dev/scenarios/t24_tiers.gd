@@ -12,7 +12,7 @@ const BY_TIER := {1: "first_gem", 2: "gate_broken", 3: "biome_b7", 4: "unobtaini
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	return {"seed": 12345, "beats": true}
 
 
 func _box(h):
