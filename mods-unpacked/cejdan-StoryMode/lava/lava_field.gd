@@ -656,7 +656,7 @@ func _update_heat(delta: float) -> void:
 	var keeper = Keepers.first()
 	if keeper == null or not is_instance_valid(keeper) or keeper.killed:
 		return
-	if recall_pos == null and Level.stage != null and Level.stage.keeperInputStarted:
+	if recall_pos == null and Level.stage is LevelStage and Level.stage.keeperInputStarted:
 		recall_pos = keeper.global_position
 	# Passive heat from depth (#46), out of the dome, scaled by Heat Shielding.
 	passive_rate = 0.0

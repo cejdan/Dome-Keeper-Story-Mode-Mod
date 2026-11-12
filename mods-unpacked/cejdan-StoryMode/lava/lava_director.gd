@@ -20,6 +20,12 @@ func _process(_delta: float) -> void:
 		return
 	if not map.isMapReady() or map.has_node(FIELD_NAME):
 		return
+	# Only a run's map gets lava. The loadout screen has a small map of its own,
+	# and picking Story Mode there sets the mode id before any run exists; a field
+	# on that map reads run-only stage state every frame (a script error, which
+	# the editor's debugger stops the game on).
+	if not Level.stage is LevelStage:
+		return
 	if not _wants_lava():
 		return
 	var field := LavaField.new()
