@@ -375,7 +375,7 @@ func read_beat(label: String, timeout: float = 10.0, shots: bool = true) -> Stri
 		return ""
 	var id: String = sb.instance().open_id
 	var page: int = 0
-	while sb.is_open() and page < 12:
+	while sb.is_open() and sb.instance().open_id == id and page < 12:
 		var box = beat_box()
 		await until(func(): return box == null or not is_instance_valid(box) or not box.is_revealing(), 12.0)
 		await wait(0.5)
@@ -384,7 +384,7 @@ func read_beat(label: String, timeout: float = 10.0, shots: bool = true) -> Stri
 		page += 1
 		await press("ui_select")
 		await wait(0.4)
-	await until(func(): return not sb.is_open(), 3.0)
+	await until(func(): return not sb.is_open() or sb.instance().open_id != id, 3.0)
 	note("beat read", {"id": id, "pages": page})
 	return id
 

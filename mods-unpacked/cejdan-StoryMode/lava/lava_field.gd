@@ -681,6 +681,9 @@ func _update_heat(delta: float) -> void:
 		if _chamber.has_point(map.getTileCoord(keeper.global_position)):
 			boss_chamber_reached = true
 			ModLoaderLog.info("boss chamber reached", "cejdan-StoryMode")
+			# Breaking into the chamber wakes the horror (#95).
+			if Story.is_story():
+				load("res://mods-unpacked/cejdan-StoryMode/beats/awakening.gd").wake()
 
 
 func _recall(keeper) -> void:
