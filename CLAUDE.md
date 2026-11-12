@@ -45,6 +45,7 @@ Dev-only code in `mods-unpacked/cejdan-StoryMode/dev/` (left out of release buil
   - checks: `h.check(label, ok, data)`; any failed check makes the run exit 1
   - setup: `h.disable_waves()`, `await h.reveal_all()`, `await h.dig_room(a, b)`, `await h.teleport_tile(coord)`, `h.set_inv(type, n)`, `await h.deliver(type, n)`, `await h.buy(upgrade_id)`, or any direct `Data` / `Level` / `GameWorld` call
 - **Dev boot without a scenario:** `-- --story` boots straight into a Story Mode run, `-- --mode=relichunt` a vanilla run, `-- --loadout` the loadout screen; `--seed=`, `--gadget=`, `--difficulty=` as above (`dev/dev_boot.gd`).
+- **Waves in dev runs:** vanilla dev mode (every editor run) switches monster waves off. A hand-played Story Mode dev run turns them back on (#87); `-- --nowaves` keeps them off. Scenarios keep waves off unless `boot()` returns `waves: true`.
 - Scenarios are named `tNN_<what>.gd` after the ticket they verify; keep them, they are the regression suite.
 
 ## Agent skills

@@ -34,6 +34,30 @@ func afterInitialized() -> void:
 			Data.apply("team1.inventory." + m, 0)
 		Data.listen(self, "team1.inventory." + m)
 	Level.addHudElement(load(Story.MOD_DIR + "hud/MoneyHud.tscn"), "team1")
+	_dev_waves()
+
+
+# Vanilla dev mode (every editor run) switches monster waves off. A hand-played
+# Story Mode dev run turns them back on, so playtests feel like the real game.
+# Harness scenarios keep vanilla's waves-off default unless their boot asks for
+# `waves: true`; `-- --nowaves` keeps them off by hand.
+func _dev_waves() -> void:
+	if not GameWorld.devMode or Story.has_user_arg("nowaves"):
+		return
+	if Story.user_arg("scenario") != "" and not Story.has_user_arg("waves"):
+		return
+	# The stage's beforeStart() runs each manager's init(), which sets
+	# `disabled = devMode` and then the wave countdown (-1 until then). Wait for
+	# both that and keeper input, so nothing switches the waves back off.
+	while is_inside_tree() and not (Level.stage is LevelStage and Level.stage.keeperInputStarted \
+			and float(Data.ofOr("team1.monsters.waveCooldown", -1)) >= 0.0):
+		await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	for mm in Level.monstersByTeamId.values():
+		mm.disabled = false
+	ModLoaderLog.info("Dev run: monster waves on (vanilla dev mode turns them off)", Story.LOG)
 
 
 # The shop's Suit Blaster entry is a stand-in: buying it grants the real gadget
