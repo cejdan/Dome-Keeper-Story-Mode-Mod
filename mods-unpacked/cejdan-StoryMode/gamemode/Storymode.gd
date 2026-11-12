@@ -16,6 +16,8 @@ var _lost: bool = false
 func init() -> void:
 	# The horror's story beats (#23); fired through beats/story_beats.gd.
 	add_child(load(Story.MOD_DIR + "beats/story_beats.gd").new())
+	# The monsters' pleas during waves (#91).
+	add_child(load(Story.MOD_DIR + "pleas/plea_director.gd").new())
 	Data.listen(self, "team1.dome.health")
 	GameWorld.upgradeBought.connect(_on_upgrade_bought)
 	ModLoaderLog.info("Story Mode run started (seed %d)" % Level.levelSeed, Story.LOG)
