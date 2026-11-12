@@ -21,6 +21,7 @@ static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
 	place_translators(map_data, rand)
+	place_bones(map_data, rand)
 	place_metal(map_data, rand)
 	place_pools(map_data, rand)
 	place_ocean(map_data, rand)
@@ -248,7 +249,7 @@ static func _near_special(map_data, cell: Vector2i) -> bool:
 	for ox in range(-1, 2):
 		for oy in range(-1, 2):
 			var r: int = map_data.get_resourcev(cell + Vector2i(ox, oy))
-			if (r >= Data.TILE_GADGET and r <= Data.TILE_CAVE) or r == Data.TILE_DIRT_MARK_BLOCKED_FOR_CHAMBER:
+			if (r >= Data.TILE_GADGET and r <= Data.TILE_CAVE) or r == Data.TILE_DIRT_MARK_BLOCKED_FOR_CHAMBER or r == BONES_ID:
 				return true
 	return false
 
@@ -537,3 +538,54 @@ static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary) ->
 			if not ore.has(r):
 				return false
 	return true
+
+
+# Miner bones (#94): one tile in each biome, B1 to B8, in plain rock with rock or
+# ore on all four sides (so it sits in the rock, not in a cave or the gate), in
+# the middle half of the biome's depth and the middle 70% of the map's width,
+# above the lava ocean. Metal and pools placed later keep clear of it
+# (_near_special). Meta "story_bones": [[x, y, biome], ...].
+const BONES_ID := 50
+
+
+static func place_bones(map_data, rand: RandomNumberGenerator) -> Array:
+	var ore: Dictionary = {Data.TILE_DIRT_START: true, Data.TILE_IRON: true}
+	for m: String in Minerals.TABLE:
+		ore[int(Minerals.TABLE[m]["tile_id"])] = true
+	var ys: Dictionary = {}
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		var b: int = map_data.get_biomev(c)
+		if not ys.has(b):
+			ys[b] = [c.y, c.y]
+		ys[b][0] = mini(ys[b][0], c.y)
+		ys[b][1] = maxi(ys[b][1], c.y)
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+	var span: int = x1 - x0
+	var placed: Array = []
+	for b in range(0, MapConfig.BIOMES):
+		if not ys.has(b):
+			continue
+		var top: int = ys[b][0] + (ys[b][1] - ys[b][0]) / 4
+		var bottom: int = ys[b][1] - (ys[b][1] - ys[b][0]) / 4
+		var cands: Array = []
+		for y in range(top, bottom + 1):
+			for x in range(x0 + span * 3 / 20, x1 - span * 3 / 20):
+				var c: Vector2i = Vector2i(x, y)
+				if map_data.get_biomev(c) != b or map_data.get_resourcev(c) != Data.TILE_DIRT_START:
+					continue
+				var ok: bool = true
+				for d: Vector2i in DIRS:
+					if not ore.has(map_data.get_resourcev(c + d)) or map_data.get_biomev(c + d) != b:
+						ok = false
+				if ok and not _near_special(map_data, c):
+					cands.append(c)
+		if cands.is_empty():
+			continue
+		var at: Vector2i = cands[rand.randi_range(0, cands.size() - 1)]
+		map_data.set_resourcev(at, BONES_ID)
+		placed.append([at.x, at.y, b])
+	map_data.set_meta("story_bones", placed)
+	return placed
