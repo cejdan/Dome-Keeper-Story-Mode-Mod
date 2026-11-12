@@ -10,6 +10,8 @@ extends Node
 #   --difficulty=<n>     -2, -1, 0 or 2
 #   --world=<worldN>     fixed world; --palette=<name> fixed palette
 #   --mapsize=<id>       vanilla archetype for vanilla modes (default regular-medium)
+#   --load=<slot>        load the save in that slot (singleplayer folder), e.g. one a
+#                        scenario wrote with SaveGame.saveGame(..., slot, true)
 # A playtest scenario's boot() dictionary can give the same keys.
 #
 # How: Game.gd cannot be script-extended safely (loading it early enough breaks
@@ -28,7 +30,7 @@ var _done: bool = false
 static func wanted() -> bool:
 	if not OS.has_feature("editor"):
 		return false
-	for n: String in ["story", "scenario", "mode", "loadout"]:
+	for n: String in ["story", "scenario", "mode", "loadout", "load"]:
 		if Story.has_user_arg(n):
 			return true
 	return false
@@ -49,7 +51,20 @@ func _process(_delta: float) -> void:
 		return
 	_done = true
 	set_process(false)
-	if _mode_id == "":
+	if Story.has_user_arg("load"):
+		var slot: int = int(Story.user_arg("load"))
+		print("RUNNING IN DEV MODE (Story Mode dev boot: load slot %d)" % slot)
+		# Load from the title stage, as the Continue button does. With no stage
+		# running, StageManager starts the landing stage synchronously and
+		# loadGame() misses one of the two stage_started signals it waits for.
+		StageManager.startStage("stages/title/title")
+		while StageManager.currentStage == null or StageManager.isSwitchingStage():
+			await get_tree().process_frame
+		await get_tree().create_timer(0.5).timeout
+		var err = await SaveGame.loadGame("singleplayer", slot)
+		if err != OK:
+			push_error("Dev boot: loading save slot %d failed (%s)" % [slot, str(err)])
+	elif _mode_id == "":
 		StageManager.startStage("stages/loadout/multiplayerloadout")
 	else:
 		_start_run(_mode_id)

@@ -37,4 +37,8 @@ static func register() -> void:
 	t.locale = "en"
 	for k: String in EN:
 		t.add_message(k, EN[k])
+	# Story beats (data/beats.gd): story.beat.<id> holds the beat's lines.
+	t.add_message("story.beat.continue", "Continue")
+	for b: Dictionary in load("res://mods-unpacked/cejdan-StoryMode/data/beats.gd").BEATS:
+		t.add_message("story.beat." + str(b["id"]), "\n".join(PackedStringArray(b.get("lines", []))))
 	TranslationServer.add_translation(t)
