@@ -17,7 +17,8 @@ func run(h) -> void:
 	h.check("a Story Mode run came back from the save", Level.loadout != null and Level.loadout.modeId == "storymode")
 	h.enable_waves()
 	h.snap("loaded", ["team1.story.beatsqueued", "team1.story.beatsplayed"])
-	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
+	# The harness marks the keeper's welcome log played (#123); it isn't a beat here.
+	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false)).filter(func(id): return id != "keeper_welcome")
 	h.check("the played beats came back", played == ["first_gem", "biome_b2", "gate_broken"], played)
 	var opened: bool = await h.until(func(): return StoryBeats.is_open(), 10.0)
 	h.check("the beat open at save time opens again", opened and StoryBeats.instance().open_id == "translator_1")

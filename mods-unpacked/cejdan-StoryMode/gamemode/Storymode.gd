@@ -37,6 +37,10 @@ func afterInitialized() -> void:
 		return
 	# Vanilla dev mode hands out 500 iron, 50 water and 20 cobalt; a Story Mode
 	# run starts with empty pockets either way. A loaded save keeps its values.
+	# A new run: the company's welcome memo opens once the keeper can move (#123).
+	# A save restores Data after this runs, so a load is told apart by its flag.
+	if not SaveGame.currentLoadingSavegame:
+		_welcome()
 	if not Data.has(MONEY):
 		Data.apply(MONEY, 0)
 		Data.apply("team1.inventory.iron", 0)
@@ -51,6 +55,19 @@ func afterInitialized() -> void:
 	Level.addHudElement(load(Story.MOD_DIR + "hud/MoneyHud.tscn"), "team1")
 	if OS.has_feature("editor") and Story.has_user_arg("horror-defeated"):
 		_dev_horror_defeated()
+
+
+# The keeper's own log (#123): Halcyon's welcome memo, a moment after the run
+# hands the keeper control, so the dome is on screen first. New runs only; a
+# loaded save never shows it.
+const WELCOME_DELAY := 1.2
+
+
+func _welcome() -> void:
+	while Level.stage == null or not Level.stage.keeperInputStarted:
+		await get_tree().process_frame
+	await get_tree().create_timer(WELCOME_DELAY, false).timeout
+	StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").WELCOME)
 
 
 # The shop's Suit Blaster entry is a stand-in: buying it grants the real gadget

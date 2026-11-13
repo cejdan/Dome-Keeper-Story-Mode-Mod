@@ -142,4 +142,6 @@ func run(h) -> void:
 		if played.count(id) > 1:
 			dupes = true
 	h.check("no beat played twice", not dupes, played)
+	# The harness marks the keeper's welcome log played (#123); it isn't wired here.
+	played = played.filter(func(id): return id != "keeper_welcome")
 	h.check("all 11 wired beats played", played.size() == 11, played.size())

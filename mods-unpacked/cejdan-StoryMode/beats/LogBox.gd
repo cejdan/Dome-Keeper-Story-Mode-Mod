@@ -66,7 +66,8 @@ func _ready() -> void:
 	col.add_theme_constant_override("separation", 14)
 	_panel.add_child(col)
 	var mono: Font = load("res://gui/fonts/FontNormalMonospace.tres")
-	# Header: the pad icon and where the log was recovered.
+	# Header: the pad icon and where the log was recovered (or the log's own
+	# header line, for the keeper's company log).
 	var head: HBoxContainer = HBoxContainer.new()
 	head.add_theme_constant_override("separation", 16)
 	col.add_child(head)
@@ -79,7 +80,10 @@ func _ready() -> void:
 	head.add_child(icon)
 	Style.init(icon)
 	var where: Label = _label(mono, 20, GREEN)
-	where.text = "SALVAGED SUIT LOG  //  RECOVERED IN B%d  //  SIGNAL %d%%" % [int(log.get("biome", 0)) + 1, 91 - 9 * int(log.get("biome", 0))]
+	if log.has("header"):
+		where.text = str(log["header"])
+	else:
+		where.text = "SALVAGED SUIT LOG  //  RECOVERED IN B%d  //  SIGNAL %d%%" % [int(log.get("biome", 0)) + 1, 91 - 9 * int(log.get("biome", 0))]
 	where.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(where)
 	var title: Label = _label(mono, 26, GREEN_TEXT)
