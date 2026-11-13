@@ -27,15 +27,9 @@ func _ready():
 	scene.take_over_path("res://content/gamemode/storymode/Storymode.tscn")
 	_held.append(scene)
 	Assets.provide(Story.MOD_DIR + "art/loadout_storymode.png", "res://content/icons/loadout_storymode.png")
-	# Icon of the Story Mode track's root in the shop: the loadout icon, centred
-	# on a square like the other tech icons. A copy, so the loadout keeps its path.
-	var src: Image = Assets.image(Story.MOD_DIR + "art/loadout_storymode.png")
-	if src != null:
-		var sq: Image = Image.create(72, 72, false, src.get_format())
-		sq.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), (Vector2i(72, 72) - src.get_size()) / 2)
-		var icon: ImageTexture = ImageTexture.create_from_image(sq)
-		icon.take_over_path("res://content/icons/storymode.png")
-		_held.append(icon)
+	# The Story Mode track's root in the shop (#134): the same drawing,
+	# palette-encoded like vanilla tech icons (art/tools/make_horror_icon.py).
+	Assets.provide(Story.MOD_DIR + "art/icons/storymode.png", "res://content/icons/storymode.png")
 	# Retire Rich: the money coin, blown up to a tech icon.
 	var coin: Image = Assets.image(Story.MOD_DIR + "art/icon_money.png")
 	if coin != null:
