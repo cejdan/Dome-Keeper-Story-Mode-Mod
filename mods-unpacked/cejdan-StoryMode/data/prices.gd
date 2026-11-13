@@ -13,7 +13,7 @@ const DEFAULT_RATE: int = 14
 
 const PRICES: Dictionary = {
 	# Keeper
-	"drill1": 4, "drill2": 15, "drill3": 200, "drill4": 1400,
+	"drill1": 4, "drill2": 15, "drill3": 200, "drill4": 900,
 	"jetpackspeed1": 4, "jetpackspeed2": 15, "jetpackspeed3": 170, "jetpackspeed4": 1150,
 	"jetpackstrength1": 4, "jetpackstrength2": 15, "jetpackstrength3": 170, "jetpackstrength4": 1150,
 	# Laser dome
@@ -47,7 +47,7 @@ const PRICES: Dictionary = {
 }
 
 const REPEAT_ADD: Dictionary = {
-	"drill4": 8000,
+	"drill4": 3000,   # #148: Drill V $3,900, VI $6,900 (was $9,400, $17,400)
 	"droneyarddrones": 40,
 	"droneyarddronespeed1": 100,
 }

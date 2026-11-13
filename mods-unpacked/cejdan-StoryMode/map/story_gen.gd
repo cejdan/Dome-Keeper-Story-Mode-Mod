@@ -18,6 +18,7 @@ const DIRS8: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(
 
 
 static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void:
+	fill_bottom(map_data, _sub_rand(rand, "bottom"))
 	place_minerals(map_data, rand)
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
@@ -56,8 +57,44 @@ static func _pool_cells(map_data) -> Dictionary:
 	return out
 
 
+# A flat bottom (#149). Vanilla's map is a blob with a ragged, curved bottom,
+# and the lava ocean's ceiling sits under its single deepest cell, so almost
+# every column ended in border wall above the ocean. Each column whose lowest
+# map cell is within MapConfig.BOTTOM_FILL_ROWS of the deepest row is extended
+# with B8 rock down to that row, so digging straight down reaches the ocean.
+# Side arms that end higher up stay as they are. Runs before the minerals,
+# metal and pools, so the new rock gets B8's share of them.
+static func fill_bottom(map_data, rand: RandomNumberGenerator) -> int:
+	var low: Dictionary = {}   # x -> lowest map row
+	var yb: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		if map_data.get_biomev(c) < 0:
+			continue
+		low[c.x] = maxi(int(low.get(c.x, c.y)), c.y)
+		yb = maxi(yb, c.y)
+	var biome: int = MapConfig.BIOMES - 1
+	var added: int = 0
+	var xs: Array = low.keys()
+	xs.sort()
+	for x: int in xs:
+		var y0: int = int(low[x])
+		if yb - y0 > MapConfig.BOTTOM_FILL_ROWS:
+			continue
+		for y in range(y0 + 1, yb + 1):
+			var c := Vector2i(x, y)
+			map_data.set_biomev(c, biome)
+			map_data.set_resourcev(c, Data.TILE_DIRT_START)
+			# B8 is mostly hard rock; a little medium and very hard for texture.
+			var r: float = rand.randf()
+			map_data.set_hardnessv(c, Data.HARDNESS_MEDIUM if r < 0.3 else Data.HARDNESS_HARD if r < 0.85 else Data.HARDNESS_VERY_HARD)
+			added += 1
+	map_data.set_meta("story_bottom_fill", added)
+	return added
+
+
 # The lava ocean (#43): added below the generated map, under B8 (biome index 7).
-# Rows, top to bottom: one rock ceiling row; OCEAN_ROWS open rows across the
+# Rows, top to bottom: one rock ceiling row; OCEAN_AIR_ROWS of open air (#149);
+# OCEAN_ROWS open rows across the
 # map's full width (the lava field fills them), with unobtainium clumps inside
 # and on the floor; OCEAN_FLOOR_ROWS of rock (just one, and soft, over the
 # chamber); and a sealed BOSS_CHAMBER inside rock walls. Vanilla's border pass
@@ -74,7 +111,7 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 		yb = maxi(yb, c.y)
 	var biome: int = MapConfig.BIOMES - 1
 	var ceiling: int = yb + 1
-	var top: int = ceiling + 1
+	var top: int = ceiling + 1 + LavaData.OCEAN_AIR_ROWS
 	var bottom: int = top + LavaData.OCEAN_ROWS - 1
 	var floor_top: int = bottom + 1
 	var ch_w: int = LavaData.BOSS_CHAMBER.x

@@ -145,7 +145,7 @@ func _watch_depth() -> void:
 	var c: Vector2i = Level.map.getTileCoord(keeper.global_position)
 	var depth: int = -1
 	var ocean: Dictionary = td.get_meta("story_ocean", {})
-	if not ocean.is_empty() and c.y >= int(ocean["top"]) - 1 and c.x >= int(ocean["x0"]) and c.x <= int(ocean["x1"]):
+	if not ocean.is_empty() and c.y > int(ocean["ceiling"]) and c.x >= int(ocean["x0"]) and c.x <= int(ocean["x1"]):
 		depth = 8
 	else:
 		depth = td.get_biomev(c)

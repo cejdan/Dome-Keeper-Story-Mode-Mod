@@ -41,6 +41,7 @@ func run(h) -> void:
 	var unob: int = 0
 	var vanilla_iron_left: int = 0
 	var failed: int = 0
+	var fill_tiles: int = 0
 	var size_out_of_range: int = 0
 
 	for s in SEEDS:
@@ -59,6 +60,9 @@ func run(h) -> void:
 				biome_tiles[b] += 1
 				total_tiles += 1
 		biome_counts[max_biome + 1] = biome_counts.get(max_biome + 1, 0) + 1
+		# The flat bottom (#149) adds B8 rock on top of the archetype's size.
+		total_tiles -= int(td.get_meta("story_bottom_fill", 0))
+		fill_tiles += int(td.get_meta("story_bottom_fill", 0))
 		for m: String in Minerals.ORDER:
 			var id: int = int(Minerals.TABLE[m]["tile_id"])
 			if m == "unobtainium":
@@ -89,7 +93,7 @@ func run(h) -> void:
 	h.check("all %d seeds generated" % SEEDS, failed == 0, failed)
 	h.check("every map has 8 biomes", biome_counts.size() == 1 and biome_counts.has(8), biome_counts)
 	h.note("map size", {"avg_tiles": total_tiles / float(n), "avg_width": widths / float(n), "avg_depth_rows": depths / float(n)})
-	h.check("about 10,000 tiles", absf(total_tiles / float(n) - 10000.0) < 600.0, total_tiles / float(n))
+	h.check("about 10,000 tiles before the flat bottom", absf(total_tiles / float(n) - 10000.0) < 600.0, {"before fill": total_tiles / float(n), "bottom fill": fill_tiles / float(n)})
 	h.check("no unobtainium in any biome", unob == 0, unob)
 
 	for b in B:
