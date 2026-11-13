@@ -8,6 +8,7 @@ const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const Runes = preload("res://mods-unpacked/cejdan-StoryMode/pleas/runes.gd")
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
+const SalePops = preload("res://mods-unpacked/cejdan-StoryMode/hud/sale_pops.gd")
 
 const MONEY := "team1.inventory.money"
 
@@ -24,6 +25,8 @@ func init() -> void:
 	add_child(endings)
 	# The monsters' pleas during waves (#91).
 	add_child(load(Story.MOD_DIR + "pleas/plea_director.gd").new())
+	# "+$5" over the dome for each piece sold (#121).
+	add_child(SalePops.new())
 	Data.listen(self, "team1.dome.health")
 	GameWorld.upgradeBought.connect(_on_upgrade_bought)
 	ModLoaderLog.info("Story Mode run started (seed %d)" % Level.levelSeed, Story.LOG)
@@ -90,6 +93,8 @@ func propertyChanged(property: String, oldValue, newValue) -> void:
 			var pieces: int = int(newValue - oldValue)
 			Data.changeByInt(MONEY, pieces * Minerals.value_of(type))
 			Data.changeByInt("team1.story.pieces", pieces)
+			for _i in pieces:
+				SalePops.pop(Minerals.value_of(type))
 		return
 	match property:
 		"team1.dome.health":
