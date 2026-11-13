@@ -4,7 +4,8 @@ extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 # story order and captured page by page:
 #   B1 .. B8 by teleport (each biome's beat), with each biome's events where
 #   they sit: the first gem, the gate broken by a real Suit Blaster blast, the
-#   miners' bones (log uncovered, bones delivered for their value), the three
+#   miners' bones (uncovered, then delivered for their value, which opens
+#   the miner's log), the three
 #   translator chambers (opened, carried home, installed, the horror's reply,
 #   then a plea at the new translation stage), and an overheat death;
 #   the lava ocean, 10 unobtainium (the seal beats), the boss chamber (the
@@ -144,7 +145,6 @@ func _bones(h, p: Array) -> void:
 	await h.dig_room(at + Vector2i(-2, -3), at + Vector2i(2, -1))
 	await h.teleport_tile(at + Vector2i(0, -1))
 	await h.reveal([at])
-	await _expect(h, "log_b%d" % (b + 1), "log_b%d" % (b + 1), 5.0)
 	await h.shot("bones_b%d" % (b + 1))
 	var dome = Level.getDome("team1")
 	var m0: int = int(h.inv("money"))
@@ -159,6 +159,8 @@ func _bones(h, p: Array) -> void:
 		drop.linear_velocity = Vector2.ZERO
 		await h.until(func(): return int(h.inv("money")) > m0, 10.0)
 	h.check("B%d bones delivered: +$%d" % [b + 1, Bones.value_for(b)], drop != null and int(h.inv("money")) - m0 == Bones.value_for(b), int(h.inv("money")) - m0)
+	# Selling the bones opens the miner's log (#94).
+	await _expect(h, "log_b%d" % (b + 1), "log_b%d" % (b + 1), 5.0)
 
 
 func _translator(h, ch) -> void:
