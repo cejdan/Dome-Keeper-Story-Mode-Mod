@@ -49,8 +49,17 @@ const COL_HOT := Color("ff8a1c")
 const COL_BODY := Color("e8430e")
 const COL_DEEP := Color("9c1d0a")
 const COL_CRUST := Color("3a0d0a")
-# Slices a stream is drawn in per cell (4 px each).
-const STREAM_SLICES := 6
+# A stream is drawn in slices this tall (px).
+const STREAM_SLICE := 2.0
+# Goop (#135): blobs of lava ride down a stream, this far apart (px) and this
+# fast (px a second). A thick stream only swells a little at each blob; a thin
+# one necks down between them, and the thinnest breaks into separate drops.
+const GOOP_LENGTH := 34.0
+const GOOP_SPEED := 44.0
+# Steam (#135): puffs that rise off cooling lava. Drawn only; never saved.
+const PUFF_MAX := 260
+const COL_STEAM := Color(0.93, 0.95, 1.0)
+const COL_STEAM_LIT := Color(1.0, 0.84, 0.66)
 
 var map
 var mass: Dictionary = {}          # Vector2i -> float, cells holding lava
@@ -64,6 +73,13 @@ var last_penalty := 0
 var hardened := 0                 # lava cells water turned to rock this run
 var last_hardened: Array = []     # the cells of the latest hardening
 var _steam: Array = []            # [cell, seconds left] for the steam flash
+var _puffs: Array = []            # steam puffs: [x, y, time born, seconds to live, 0..1 seed], this node's space
+var _puff_rng := RandomNumberGenerator.new()
+var _anchors: Dictionary = {}     # stream cell -> the side its lava comes from: -1 left, 1 right, 0 neither
+var _stream_memo: Dictionary = {}  # stream cell -> _stream_params(), for one physics frame
+var _housekeep := 0
+var _view_c0 := Vector2i.ZERO      # the cells on screen at the last draw (steam only rises there)
+var _view_c1 := Vector2i.ZERO
 var breaches := 0
 var recall_pos = null
 var _acc := 0.0
@@ -295,6 +311,7 @@ var phys_frames := 0
 
 func _physics_process(delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
+	_stream_memo.clear()
 	_physics_body(delta)
 	phys_us += Time.get_ticks_usec() - t0
 	phys_frames += 1
@@ -316,6 +333,14 @@ func _physics_body(delta: float) -> void:
 		for e in _steam:
 			e[1] -= delta
 		_steam = _steam.filter(func(e): return e[1] > 0.0)
+	_housekeep += 1
+	if _housekeep >= 8:
+		_housekeep = 0
+		if not _puffs.is_empty():
+			_puffs = _puffs.filter(func(q): return _time - q[2] < q[3])
+		for c in _anchors.keys():
+			if shown.get(c, 0.0) <= 0.02:
+				_anchors.erase(c)
 	# Smooth the drawn lava toward the simulated lava. Only cells that changed are
 	# walked (a settled ocean costs nothing), unless something touched every cell.
 	var k: float = min(1.0, delta * 9.0)
@@ -426,7 +451,15 @@ func _step() -> void:
 		if (all_awake or _awake.has(c)) and (legacy_cooling or _cools(c, nv[c], nv, mass)):
 			cool.append(c)
 	for c in cool:
-		nv[c] -= (FILM_COOL_PER_SECOND if nv[c] < FILM_MASS else COOL_PER_SECOND) * TICK
+		var film: bool = nv[c] < FILM_MASS
+		nv[c] -= (FILM_COOL_PER_SECOND if film else COOL_PER_SECOND) * TICK
+		# Steam off the cooling lava: thick off a thin film (it cools fast), a wisp
+		# now and then off a deeper puddle, and a last hiss as a film hardens.
+		if _on_screen(c):
+			if nv[c] <= MIN_MASS:
+				_puff(c, 3)
+			elif _puff_rng.randf() < (0.3 if film else 0.035):
+				_puff(c, 1)
 	var woke: Dictionary = {}
 	for c in nv:
 		var m: float = nv[c]
@@ -617,6 +650,7 @@ func _harden(c: Vector2i) -> void:
 		map.restoreTileVisually(Vector2(c))
 	map.updateBorderSpriteOfTileCoord(Vector2(c))
 	_steam.append([c, LavaData.STEAM_SECONDS])
+	_puff(c, 6, true)
 
 
 # --- suit heat -----------------------------------------------------------------
@@ -771,6 +805,8 @@ func _visible_cells_now() -> Array:
 	var hi: Vector2 = Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
 	var c0: Vector2i = map.getTileCoord(to_global(lo)) - Vector2i(2, 2)
 	var c1: Vector2i = map.getTileCoord(to_global(hi)) + Vector2i(2, 2)
+	_view_c0 = c0
+	_view_c1 = c1
 	if (c1.x - c0.x) * (c1.y - c0.y) > shown.size():
 		return shown.keys()
 	var out: Array = []
@@ -790,8 +826,10 @@ func _seen(c: Vector2i) -> bool:
 # The lava in a cell as it is drawn, in this node's space: a pouring stream
 # (a column) or a body (a rect at the cell's bottom, f x TILE tall, or the full
 # cell under more lava). _draw() and the burn and water checks all use this, so
-# what burns is what the player sees (#48). A stream's rect is its extent at
-# the cell's middle; _draw() draws it in slices along stream_edges() (#122).
+# what burns is what the player sees (#48). A stream's rect is its steady
+# extent (without the goop's swelling); "ext" is the part of it that runs on
+# into the cell below, down to the lava it lands on. _draw() draws it in
+# slices along stream_edges() (#122).
 func _lava_shape(c: Vector2i) -> Dictionary:
 	var f := _fill_of(c)
 	var o := _cell_origin(c)
@@ -801,33 +839,47 @@ func _lava_shape(c: Vector2i) -> Dictionary:
 	if f <= 0.02:
 		return {"rect": Rect2(o, Vector2.ZERO), "stream": false, "above_has": above_has}
 	if _is_stream(c):
-		var e: Vector2 = stream_edges(c, 0.5)
-		return {"rect": Rect2(o + Vector2(e.x, 0), Vector2(e.y - e.x, TILE)), "stream": true, "above_has": above_has}
-	var h: float = TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
+		var p: Array = _stream_params(c)
+		var e: Vector2 = _edges(p, c, 0.5, false)
+		return {"rect": Rect2(o + Vector2(e.x, p[3]), Vector2(e.y - e.x, TILE - p[3])), "stream": true, "above_has": above_has,
+			"ext": Rect2(o + Vector2(e.x, TILE), Vector2(e.y - e.x, p[4]))}
+	var h: float = _body_height(c, above_has)
 	return {"rect": Rect2(o + Vector2(0, TILE - h), Vector2(TILE, h)), "stream": false, "above_has": above_has}
+
+
+# How tall a resting cell's lava is drawn (px).
+func _body_height(c: Vector2i, above_has: bool) -> float:
+	var f := _fill_of(c)
+	return TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
 
 
 # Falling lava (#122): the cell below is open and not yet full. It draws as a
 # stream whether or not lava falls into it from above, so a long column is one
 # stream all the way down. (It used to need an empty cell above, so a column's
 # cells drew as stacked full-width pool blocks, and film cells near the 0.05
-# threshold flickered between a thin stream and a full block.) A cell whose
-# side neighbour is resting lava is the bottom of a pool draining through a
-# hole, and stays a body, as does a near-full cell.
+# threshold flickered between a thin stream and a full block.) A cell with
+# resting lava on both sides is the bottom of a pool draining through a hole,
+# and stays a body, as does a near-full cell. With resting lava on one side
+# only it is the lip of a ledge: a stream that starts at that lava (#135).
 func _is_stream(c: Vector2i) -> bool:
 	var f := _fill_of(c)
 	if f >= 0.9 or not _falling(c):
 		return false
-	for side in [Vector2i.LEFT, Vector2i.RIGHT]:
-		var n: Vector2i = c + side
-		if shown.get(n, 0.0) > 0.2 and not _falling(n):
-			return false
-	return true
+	return not (_pool_beside(c + Vector2i.LEFT) and _pool_beside(c + Vector2i.RIGHT))
+
+
+func _pool_beside(n: Vector2i) -> bool:
+	return shown.get(n, 0.0) > 0.2 and not _falling(n)
 
 
 func _falling(c: Vector2i) -> bool:
 	var below: Vector2i = c + Vector2i.DOWN
 	return _is_open(below) and shown.get(below, 0.0) < 0.95
+
+
+# Lava lying in a cell (not falling through it): what a stream can pour from.
+func _rests(n: Vector2i) -> bool:
+	return shown.get(n, 0.0) > 0.05 and not _falling(n)
 
 
 # A stream's width: thicker with more lava, from the cell's fill averaged with
@@ -843,18 +895,92 @@ func _stream_width(c: Vector2i) -> float:
 	return clampf(6.0 + fs * 16.0, 4.0, TILE)
 
 
-# A stream's left and right edge (x from the cell's left side) at `t` of the
-# way down the cell (0 top, 1 bottom). The width blends into the next stream
-# cell's, and the wobble follows world height, so the column has no steps at
-# cell borders.
-func stream_edges(c: Vector2i, t: float) -> Vector2:
-	var w: float = _stream_width(c)
+# The side a stream's lava comes from (#135): -1 when it pours off lava resting
+# to its left, 1 to its right, 0 when it comes from straight above. The stream
+# is drawn against that side of its cells, so it leaves its source's edge and
+# runs down the rock face under it, instead of hanging in the middle of the
+# tile. The whole column takes the side of its top cell, and keeps it when the
+# source runs dry and the last of the stream falls away.
+func _stream_anchor(c: Vector2i) -> float:
+	var up: Vector2i = c + Vector2i.UP
+	var a: float
+	if shown.get(up, 0.0) > 0.02 and _is_stream(up):
+		a = _anchors[up] if _anchors.has(up) else _stream_anchor(up)
+	else:
+		var l: bool = _rests(c + Vector2i.LEFT)
+		var r: bool = _rests(c + Vector2i.RIGHT)
+		if l != r:
+			a = -1.0 if l else 1.0
+		else:
+			a = _anchors.get(c, 0.0)
+	_anchors[c] = a
+	return a
+
+
+# What _draw() and the contact checks need to know about a stream cell, worked
+# out once a physics frame:
+# [0] the side it hangs on (_stream_anchor), [1] its width, [2] its width at
+# the cell's bottom (the next stream cell's width), [3] where it starts, px
+# from the cell's top (the lip of a ledge starts at its source's surface),
+# [4] how far it runs on into the cell below (down to the lava it lands on),
+# [5] its lower end: 0 another stream cell, 1 it lands on lava, 2 a free tip,
+# [6] true when its top is a free end (nothing above, no source beside).
+func _stream_params(c: Vector2i) -> Array:
+	if _stream_memo.has(c):
+		return _stream_memo[c]
+	var a: float = _stream_anchor(c)
+	var w0: float = _stream_width(c)
+	var w1: float = w0
+	var ext := 0.0
+	var end := 2
 	var dn: Vector2i = c + Vector2i.DOWN
-	if shown.get(dn, 0.0) > 0.02 and _is_stream(dn):
-		w = lerpf(w, _stream_width(dn), t)
+	if shown.get(dn, 0.0) > 0.02:
+		if _is_stream(dn):
+			end = 0
+			w1 = _stream_width(dn)
+		else:
+			end = 1
+			ext = TILE - _body_height(dn, false)
+	var top := 0.0
+	var free_top := false
+	if shown.get(c + Vector2i.UP, 0.0) <= 0.02:
+		var n: Vector2i = c + (Vector2i.LEFT if a < 0.0 else Vector2i.RIGHT)
+		if a != 0.0 and _rests(n):
+			var n_up: Vector2i = n + Vector2i.UP
+			top = TILE - _body_height(n, shown.get(n_up, 0.0) > 0.05 and not _is_stream(n_up))
+		else:
+			free_top = true
+	var p: Array = [a, w0, w1, top, ext, end, free_top]
+	_stream_memo[c] = p
+	return p
+
+
+# A stream's left and right edge (x from the cell's left side) at `t` of the
+# way down the cell (0 top, 1 bottom; past 1 where it runs on into the cell
+# below). The width blends into the next stream cell's, and the goop and the
+# wobble follow world height, so the column has no steps at cell borders.
+func stream_edges(c: Vector2i, t: float) -> Vector2:
+	return _edges(_stream_params(c), c, t, true)
+
+
+func _edges(p: Array, c: Vector2i, t: float, goop: bool) -> Vector2:
+	var w: float = lerpf(p[1], p[2], clampf(t, 0.0, 1.0))
 	var y_px: float = (float(c.y) + t) * TILE
-	var mid: float = TILE * 0.5 + sin(_time * 5.0 - y_px * 0.054) * 1.5
-	return Vector2(round(mid - w * 0.5), round(mid + w * 0.5))
+	if goop:
+		# Blobs ride down the stream; each is a teardrop, fat at its lower end.
+		# (u runs 0..1 down one blob: a tail that widens slowly, a round end.)
+		var thin: float = 1.0 - smoothstep(6.4, 7.6, w)
+		var u: float = fposmod((y_px - _time * GOOP_SPEED) / GOOP_LENGTH + _noise(Vector2i(c.x, 0), 3), 1.0)
+		w = maxf(0.0, lerpf(w * (0.78 - 1.9 * thin), maxf(w * 1.18, 6.5), 3.079 * u * sqrt(u * (1.0 - u))))
+	var a: float = p[0]
+	var lo: float
+	if a < 0.0:
+		lo = 0.0
+	elif a > 0.0:
+		lo = TILE - w
+	else:
+		lo = TILE * 0.5 + sin(_time * 5.0 - y_px * 0.054) * 1.5 - w * 0.5
+	return Vector2(clampf(round(lo), 0.0, TILE), clampf(round(lo + w), 0.0, TILE))
 
 
 # Does a rect (world space) overlap drawn lava that is deep enough to burn
@@ -867,6 +993,12 @@ func lava_overlaps(world_rect: Rect2) -> bool:
 	for y in range(a.y, b.y + 1):
 		for x in range(a.x, b.x + 1):
 			var c := Vector2i(x, y)
+			# A stream pouring in from the cell above runs on down to this cell's lava.
+			var up: Vector2i = c + Vector2i.UP
+			if mass.get(up, 0.0) >= BURN_MASS and shown.get(up, 0.0) > 0.02 and _is_stream(up):
+				var ext: Rect2 = _lava_shape(up)["ext"].grow(-BURN_TOLERANCE)
+				if ext.size.x > 0.0 and ext.size.y > 0.0 and ext.intersects(local):
+					return true
 			if mass.get(c, 0.0) < BURN_MASS:
 				continue
 			var r: Rect2 = _lava_shape(c)["rect"].grow(-BURN_TOLERANCE)
@@ -912,21 +1044,16 @@ func _draw() -> void:
 		var sh: Dictionary = _lava_shape(c)
 		var above_has: bool = sh["above_has"]
 		if sh["stream"]:
-			# A pouring stream: a ribbon that wobbles, thicker with more lava,
-			# drawn in slices so it runs on unbroken from cell to cell (#122).
-			for i in STREAM_SLICES:
-				var e: Vector2 = stream_edges(c, (i + 0.5) / STREAM_SLICES)
-				var w: float = e.y - e.x
-				var y: float = i * TILE / STREAM_SLICES
-				var hgt: float = TILE / STREAM_SLICES
-				draw_rect(Rect2(o + Vector2(e.x, y), Vector2(w, hgt)), COL_BODY)
-				draw_rect(Rect2(o + Vector2(e.x + 1, y), Vector2(max(1.0, w - 2), hgt)), COL_HOT)
-				if w > 6:
-					draw_rect(Rect2(o + Vector2(e.x + round(w * 0.5) - 1, y), Vector2(2, hgt)), COL_CORE)
+			_draw_stream(c, o)
 			continue
 		var h: float = sh["rect"].size.y
 		var top: float = TILE - h
-		draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_BODY)
+		# A thin film with nothing under it is cooling away (#41): it dulls from
+		# bright to a dark crust as it goes.
+		var warm: float = 1.0
+		if f < FILM_MASS and not above_has and shown.get(c + Vector2i.DOWN, 0.0) < LavaData.HOLDS_MASS:
+			warm = clampf(f / FILM_MASS, 0.0, 1.0)
+		draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_CRUST.lerp(COL_BODY, warm))
 		# Darker toward the bottom of a deep pool.
 		if h > 10:
 			draw_rect(Rect2(o + Vector2(0, TILE - floor(h * 0.35)), Vector2(TILE, floor(h * 0.35))), COL_DEEP)
@@ -942,19 +1069,20 @@ func _draw() -> void:
 			# Bright rippling surface.
 			for x in range(0, int(TILE), 2):
 				var ripple: float = round(sin(_time * 4.0 + (c.x * TILE + x) * 0.35))
-				draw_rect(Rect2(o + Vector2(x, top + max(0.0, ripple)), Vector2(2, 2)), COL_CORE)
-			draw_rect(Rect2(o + Vector2(0, top + 2), Vector2(TILE, 1)), COL_HOT)
+				draw_rect(Rect2(o + Vector2(x, top + max(0.0, ripple)), Vector2(2, 2)), COL_DEEP.lerp(COL_CORE, warm))
+			draw_rect(Rect2(o + Vector2(0, top + 2), Vector2(TILE, 1)), COL_CRUST.lerp(COL_HOT, warm))
 			# Embers that pop off the surface.
-			for i in 2:
+			for i in (2 if warm > 0.6 else 0):
 				var t: float = fposmod(_time * (0.5 + _noise(c, i + 40)) + _noise(c, i + 50), 1.0)
 				var ex: float = floor(_noise(c, i + 60 + int(_time * 0.5)) * (TILE - 1.0))
 				draw_rect(Rect2(o + Vector2(ex, top - t * 14.0), Vector2(1, 1)), Color(COL_CORE, 1.0 - t))
 
-	# Steam where water just hardened lava: a white-grey puff that fades.
+	# Steam where water just hardened lava: a white-grey flash that fades.
 	for e in _steam:
 		var a: float = clampf(e[1] / LavaData.STEAM_SECONDS, 0.0, 1.0)
 		var o := _cell_origin(e[0])
-		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.75 * a))
+		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.45 * a))
+	_draw_puffs()
 	_draw_barrier()
 	_draw_heat_bar()
 	if debug_boxes:
@@ -962,6 +1090,107 @@ func _draw() -> void:
 		if k != null and is_instance_valid(k):
 			var r := keeper_rect(k)
 			draw_rect(Rect2(to_local(r.position), r.size), Color(0.3, 1.0, 0.4, 0.9), false, 1.0)
+
+
+# A pouring stream (#135): a ribbon of 2 px slices along stream_edges(), so it
+# runs on unbroken from cell to cell (#122). It starts at the surface of the
+# lava it pours from, with a rounded shoulder; runs on down to the lava it
+# lands on, where it spreads into a foot and throws sparks; and ends in a
+# rounded tip while it is still falling through empty space.
+func _draw_stream(c: Vector2i, o: Vector2) -> void:
+	var p: Array = _stream_params(c)
+	var a: float = p[0]
+	var top: float = p[3]
+	var end: int = p[5]
+	var bottom: float = TILE + p[4]
+	var y: float = top
+	var last_mid: float = TILE * 0.5
+	while y < bottom:
+		var hgt: float = minf(STREAM_SLICE, bottom - y)
+		var e: Vector2 = _edges(p, c, (y + hgt * 0.5) / TILE, true)
+		var w: float = e.y - e.x
+		# Rounded ends.
+		var k: float = 1.0
+		if top > 0.0 and y - top < 6.0:
+			k = sqrt(1.0 - pow(1.0 - (y - top + 2.0) / 8.0, 2.0))
+		elif p[6] and y < 8.0:
+			k = (y + 2.0) / 10.0
+		if end == 2 and y >= TILE - 6.0:
+			k *= sqrt(maxf(0.0, 1.0 - pow((y + hgt - (TILE - 6.0)) / 6.5, 2.0)))
+		if k < 1.0:
+			var nw: float = round(w * k)
+			if a < 0.0:
+				e.y = e.x + nw
+			elif a > 0.0:
+				e.x = e.y - nw
+			else:
+				e.x = round((e.x + e.y - nw) * 0.5)
+				e.y = e.x + nw
+		# The foot: the last few px spread out over the lava it lands on.
+		if end == 1 and w > 0.0 and bottom - y <= 4.0:
+			var spread: float = 1.0 if bottom - y > 2.0 else 2.0
+			if a <= 0.0:
+				e.y = minf(TILE, e.y + spread)
+			if a >= 0.0:
+				e.x = maxf(0.0, e.x - spread)
+		w = e.y - e.x
+		if w >= 1.0:
+			last_mid = (e.x + e.y) * 0.5
+			draw_rect(Rect2(o + Vector2(e.x, y), Vector2(w, hgt)), COL_BODY)
+			if w > 2.0:
+				# The dark rim is on the stream's free sides only.
+				var l: float = e.x + (0.0 if a < 0.0 else 1.0)
+				var r: float = e.y - (0.0 if a > 0.0 else 1.0)
+				draw_rect(Rect2(o + Vector2(l, y), Vector2(r - l, hgt)), COL_HOT)
+				if w > 5.0:
+					var cw: float = maxf(2.0, round(w * 0.3))
+					draw_rect(Rect2(o + Vector2(round((l + r - cw) * 0.5), y), Vector2(cw, hgt)), COL_CORE)
+		y += STREAM_SLICE
+	if end == 1:
+		# Sparks thrown up where the stream lands.
+		for i in 3:
+			var ph: float = _time * (1.3 + _noise(c, i + 70)) + _noise(c, i + 75)
+			var t: float = fposmod(ph, 1.0)
+			var dx: float = (_noise(c, i + 80 + int(ph)) - 0.5) * 22.0 * t
+			draw_rect(Rect2(o + Vector2(round(last_mid + dx), round(bottom - 1.0 - 28.0 * t * (1.0 - t))), Vector2(1, 1)), Color(COL_CORE, 1.0 - t * t))
+
+
+# --- steam (#135) -------------------------------------------------------------
+
+func _on_screen(c: Vector2i) -> bool:
+	return c.x >= _view_c0.x and c.x <= _view_c1.x and c.y >= _view_c0.y and c.y <= _view_c1.y and _seen(c)
+
+
+# `n` puffs of steam off the lava in cell `c` (`whole`: from anywhere in the
+# cell, for lava that water just turned to rock).
+func _puff(c: Vector2i, n: int, whole: bool = false) -> void:
+	if _puffs.size() + n > PUFF_MAX:
+		return
+	var o := _cell_origin(c)
+	var surface: float = TILE - max(2.0, round(_fill_of(c) * TILE))
+	for i in n:
+		var y: float = _puff_rng.randf_range(0.0, TILE) if whole else surface + 1.0
+		_puffs.append([o.x + _puff_rng.randf_range(2.0, TILE - 2.0), o.y + y, _time - (0.0 if whole else _puff_rng.randf() * TICK), _puff_rng.randf_range(1.1, 2.0), _puff_rng.randf()])
+
+
+# Each puff rises fast and slows, sways, swells and fades. It starts lit by
+# the lava under it and pales to grey.
+func _draw_puffs() -> void:
+	for q in _puffs:
+		var age: float = _time - q[2]
+		var t: float = age / q[3]
+		if t < 0.0 or t >= 1.0:
+			continue
+		var s: float = q[4]
+		var x: float = round(q[0] + sin(age * 2.6 + s * TAU) * (1.0 + 3.0 * t) + (s - 0.5) * 8.0 * t)
+		var y: float = round(q[1] - (20.0 + 12.0 * s) * (1.0 - (1.0 - t) * (1.0 - t)))
+		var col := Color(COL_STEAM_LIT.lerp(COL_STEAM, minf(1.0, t * 2.5)), 0.42 * pow(1.0 - t, 1.3) * minf(1.0, age * 10.0))
+		var r: float = 1.0 + floor(t * 2.6 + s * 0.9)
+		# A soft round puff: stacked bars, so its middle is denser than its rim.
+		draw_rect(Rect2(x - r, y - 1.0, r * 2.0, 2.0), col)
+		if r > 1.0:
+			draw_rect(Rect2(x - r + 1.0, y - r + 1.0, r * 2.0 - 2.0, r * 2.0 - 2.0), col)
+			draw_rect(Rect2(x - 1.0, y - r, 2.0, r * 2.0), col)
 
 
 # --- the boss chamber's energy barrier (#82) ------------------------------------
