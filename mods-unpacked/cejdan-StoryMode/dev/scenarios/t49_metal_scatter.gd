@@ -2,7 +2,9 @@ extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 
 # Ticket 49: clumps of metal scattered through B6-B8. 50-seed report of the
 # metal share of rock per biome and clump sizes; then a look at it in the
-# running game, a drill test and a blast.
+# running game, a drill test and a blast. The lava ocean's rows (#43: its rock
+# ceiling, floor and chamber walls, all biome B8) are built after the metal, so
+# shares are measured above the ocean's ceiling (#117).
 
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
@@ -32,7 +34,10 @@ func run(h) -> void:
 		if td == null:
 			failed += 1
 			continue
+		var ceiling: int = int(td.get_meta("story_ocean", {}).get("ceiling", 1 << 20))
 		for c: Vector2i in td.get_used_biome_cells():
+			if c.y >= ceiling:
+				continue
 			var b: int = clampi(td.get_biomev(c), 0, B - 1)
 			var r: int = td.get_resourcev(c)
 			if r == Metal.TILE_ID:
