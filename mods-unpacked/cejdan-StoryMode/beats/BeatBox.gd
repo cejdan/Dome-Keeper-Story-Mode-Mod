@@ -54,7 +54,7 @@ const STYLES := {
 # The whisper: the horror's text at volume 0.
 const WHISPER_SIZE := 20
 const WHISPER_COLOR := Color("f6f4ff")
-const WHISPER_WAVE_AMP := 5.0
+const WHISPER_WAVE_AMP := 9.0
 const WHISPER_WAVE_FREQ := 1.6
 # Deepest biome index (0 = B1, story_beats.gd DEEPEST) at volume 0, and the one
 # where the voice reaches its full tier style.

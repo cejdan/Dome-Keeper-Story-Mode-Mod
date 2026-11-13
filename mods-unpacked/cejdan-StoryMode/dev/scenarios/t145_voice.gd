@@ -57,7 +57,7 @@ func run(h) -> void:
 		if d == 1:
 			h.check("B2: a whisper (volume 0)", r[0] == 0.0, r[0])
 			h.check("B2: \"Hello digger.\" smaller than the narration (%d px)" % narr_size, r[1] > 0 and r[1] < narr_size, r[1])
-			h.check("B2: white and faintly wavy", r[2].contains("[color=#f6f4ff]") and r[2].contains("[wave amp=5.0"), r[2])
+			h.check("B2: white and faintly wavy", r[2].contains("[color=#f6f4ff]") and r[2].contains("[wave amp=9.0"), r[2])
 		if d == 4:
 			h.check("from B5 on: the tier's full style", r[0] == 1.0 and r[2].contains(BeatBox.STYLES[1]["open"] + "Hello digger."), r[2])
 	h.check("the voice grows with each biome", sizes[0] < sizes[1] and sizes[1] < sizes[2], sizes)
