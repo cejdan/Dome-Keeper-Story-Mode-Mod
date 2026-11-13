@@ -45,8 +45,8 @@ func run(h) -> void:
 	h.check("trigger(biome:B2) queues nothing after the reload", StoryBeats.trigger("biome:B2") == 0)
 	await h.wait(1.0)
 	h.check("nothing opened", not StoryBeats.is_open())
-	h.check("an unplayed beat still plays", StoryBeats.fire("lava_death"))
-	h.check("lava_death opens", await h.until(func(): return StoryBeats.instance().open_id == "lava_death", 5.0))
+	h.check("an unplayed beat still plays", StoryBeats.fire("lava_death_1"))
+	h.check("lava_death_1 opens", await h.until(func(): return StoryBeats.instance().open_id == "lava_death_1", 5.0))
 	await h.wait(1.0)
 	await h.shot("new_beat_after_reload")
 	for i in 3:
