@@ -7,25 +7,23 @@ storySuitblaster:
   shadowing-desc: storysuitblaster
   predecessors: [storymode]
 
-storyGadgetCellar:
+# New Gadget I-IV (#132): each opens vanilla's gadget choice; paid on pick
+# (gamemode/gadget_shop.gd). Prices are starting values for the user to tune.
+storyNewGadget1:
   cost: money=50
   predecessors: [storymode]
 
-storyGadgetMineshaft:
-  cost: money=50
-  predecessors: [storymode]
+storyNewGadget2:
+  cost: money=400
+  predecessors: [storyNewGadget1]
 
-storyGadgetDomesurface:
-  cost: money=50
-  predecessors: [storymode]
+storyNewGadget3:
+  cost: money=2500
+  predecessors: [storyNewGadget2]
 
-storyGadgetDomeback:
-  cost: money=50
-  predecessors: [storymode]
-
-storyGadgetActive:
-  cost: money=50
-  predecessors: [storymode]
+storyNewGadget4:
+  cost: money=10000
+  predecessors: [storyNewGadget3]
 
 storyRetireRich:
   cost: money=1000000

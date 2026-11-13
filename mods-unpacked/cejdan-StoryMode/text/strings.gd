@@ -18,16 +18,10 @@ const EN := {
 	"upgrades.storyheatshield4.desc": "The best suit money can buy. Depth heat can't touch you. Lava still can, about 17 times slower.",
 	"upgrades.storyretirerich.title": "Retire Rich",
 	"upgrades.storyretirerich.desc": "Sell the dome, buy an island, never dig again. Ends the run as a win.",
-	"upgrades.storygadgetcellar.title": "Cellar Gadget",
-	"upgrades.storygadgetcellar.desc": "Pick one of three gadgets for a cellar slot. Paid when you pick.",
-	"upgrades.storygadgetmineshaft.title": "Mineshaft Gadget",
-	"upgrades.storygadgetmineshaft.desc": "Pick one of three gadgets for the mineshaft. Paid when you pick.",
-	"upgrades.storygadgetdomesurface.title": "Dome Surface Gadget",
-	"upgrades.storygadgetdomesurface.desc": "Pick one of three gadgets for the dome's surface. Paid when you pick.",
-	"upgrades.storygadgetdomeback.title": "Dome Back Gadget",
-	"upgrades.storygadgetdomeback.desc": "Pick one of three gadgets for the back of the dome. Paid when you pick.",
-	"upgrades.storygadgetactive.title": "Active Gadget",
-	"upgrades.storygadgetactive.desc": "Pick one of three active gadgets. Paid when you pick.",
+	"upgrades.storynewgadget1.title": "New Gadget I",
+	"upgrades.storynewgadget2.title": "New Gadget II",
+	"upgrades.storynewgadget3.title": "New Gadget III",
+	"upgrades.storynewgadget4.title": "New Gadget IV",
 	"upgrades.storysuitblaster.desc": "Install a mining blaster into your suit. Its blast breaks rock, and the metal that no drill can touch.",
 }
 
@@ -37,6 +31,8 @@ static func register() -> void:
 	t.locale = "en"
 	for k: String in EN:
 		t.add_message(k, EN[k])
+	for i in range(1, 5):
+		t.add_message("upgrades.storynewgadget%d.desc" % i, "Roll a random gadget for the dome, as if you found one in a cave. Reroll with water. Paid when you pick.")
 	# Story beats (data/beats.gd): story.beat.<id> holds the beat's lines.
 	t.add_message("story.beat.continue", "Continue")
 	for b: Dictionary in load("res://mods-unpacked/cejdan-StoryMode/data/beats.gd").BEATS:
