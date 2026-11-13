@@ -14,15 +14,17 @@ extends RefCounted
 #   tier     style tier (beats/BeatBox.gd, #24): 1 calm, 2 warm violet wave,
 #            3 glowing with glitches, 4 awake (full-screen violet dark)
 #   lines    1 to 3 short lines, shown together; longer beats page every 3
-#            lines, and a "---" line forces a page break
+#            lines, and a "---" line forces a page break. A line starting
+#            with "> " is the narrator (#137), not the horror: plain, muted
+#            and slanted, in any tier
 #
 # Lines are the story script (docs/story/script.md, #25); dev/scenarios/
 # t99_script fails if they drift from it.
 
 const BEATS: Array = [
-	{"id": "biome_b2", "trigger": "biome:B2", "tier": 1, "lines": ["Oh. Someone is digging.", "Hello. Don't stop on my account."]},
-	{"id": "biome_b3", "trigger": "biome:B3", "tier": 1, "lines": ["The rock is warmer here. That's me, I think.", "The ones on the surface are only frightened. You don't have to be."]},
-	{"id": "biome_b4", "trigger": "biome:B4", "tier": 2, "lines": ["You're doing so well.", "Every layer you lift is a blanket off my face.", "Just a little deeper."]},
+	{"id": "biome_b2", "trigger": "biome:B2", "tier": 1, "lines": ["> You hear a quiet voice whispering something softly. You can't quite tell if the sound is coming from deep below, or from the walls themselves.", "---", "> You strain to listen, and think you hear faintly:", "Hello digger."]},
+	{"id": "biome_b3", "trigger": "biome:B3", "tier": 1, "lines": ["> You hear a voice again. You're still not sure if the sound is coming from the walls or the deep. You have a passing thought, but try and dismiss it. Maybe the voice is inside your head.", "---", "I'm so happy you're here."]},
+	{"id": "biome_b4", "trigger": "biome:B4", "tier": 2, "lines": ["The monsters trapped me. Caged me. Beat me. Flayed me. But you can save me.", "---", "You're doing so well.", "Every layer you lift is a blanket off my face.", "Just a little deeper."]},
 	{"id": "biome_b5", "trigger": "biome:B5", "tier": 2, "lines": ["I can hear your heartbeat through the stone.", "It keeps time with the drill. Isn't that lovely?", "Don't go up yet."]},
 	{"id": "biome_b6", "trigger": "biome:B6", "tier": 2, "lines": ["Others came before you. They stopped about here, for a while.", "They always came down in the end.", "Just a little deeper."]},
 	{"id": "biome_b7", "trigger": "biome:B7", "tier": 3, "lines": ["I've waited such a long time for hands like yours.", "Patient hands. Hungry hands.", "Closer."]},

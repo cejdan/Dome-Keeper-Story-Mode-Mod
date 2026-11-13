@@ -34,10 +34,11 @@ func _falling(s: Array) -> bool:
 	return s.size() > 1
 
 
-# Select until the beat is gone: the first press may only finish the typing.
+# Select until the beat is gone: a press may only finish the typing or turn a
+# page (biome_b2 has two pages since #137).
 func _close(h, id: String) -> bool:
 	await h.wait(1.0)
-	for i in 3:
+	for i in 8:
 		await h.press("ui_select")
 		if await h.until(func(): return StoryBeats.instance().open_id != id, 0.8):
 			return true

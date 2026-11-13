@@ -4,7 +4,8 @@ Notes for implementers:
 - Company name, used everywhere: Halcyon Extraction. Only the data logs and the planet_end narration mention it.
 - The horror's name for the keeper, starting at unobtainium_1: little keeper. Every beat that can fire before the first unobtainium (biomes, first_gem, gate_broken, lava_death, translators) says only 'you', so the address stays right whatever order the player finds things in.
 - The player is meant to work out that they are Keeper 9. The logs come from Keepers 1, 4, 5, 6, 7 and 8. The gaps are deliberate.
-- Lines the logs echo on purpose: 'only frightened, you don't have to be' (b3), 'doing so well' and 'just a little deeper' (b4, b6), 'put it down' (translator_3), 'little keeper' (log_b7, then unobtainium_1).
+- Narration: a line starting with '> ' is the narrator, not the horror (#137). The first beats (b2, b3) open with narration. The user wrote these (2026-11-13); the rest of the script still needs a human pass.
+- Lines the logs echo on purpose: 'only frightened, you don't have to be' (log_b3 only: the horror said it to Ines Varga, the keeper no longer hears it at b3), 'doing so well' and 'just a little deeper' (b4, b6), 'put it down' (translator_3), 'little keeper' (log_b7, then unobtainium_1).
 
 ## Horror's name
 
@@ -19,14 +20,19 @@ Chosen: Velle
 ## Story beats
 
 ### biome_b2 (tier 1)
-Oh. Someone is digging.
-Hello. Don't stop on my account.
+> You hear a quiet voice whispering something softly. You can't quite tell if the sound is coming from deep below, or from the walls themselves.
+---
+> You strain to listen, and think you hear faintly:
+Hello digger.
 
 ### biome_b3 (tier 1)
-The rock is warmer here. That's me, I think.
-The ones on the surface are only frightened. You don't have to be.
+> You hear a voice again. You're still not sure if the sound is coming from the walls or the deep. You have a passing thought, but try and dismiss it. Maybe the voice is inside your head.
+---
+I'm so happy you're here.
 
 ### biome_b4 (tier 2)
+The monsters trapped me. Caged me. Beat me. Flayed me. But you can save me.
+---
 You're doing so well.
 Every layer you lift is a blanket off my face.
 Just a little deeper.

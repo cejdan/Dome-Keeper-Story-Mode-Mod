@@ -11,6 +11,10 @@ extends Control
 #                text, glitches and small shudders more often
 # Red shaking text belongs to the monsters' pleas, never to the horror.
 #
+# The narrator (#137): a line starting with "> " describes what the keeper
+# hears or thinks, in a plain, muted, slanted voice at three quarters size, the
+# same in every tier, so the horror's own words stand out against it.
+#
 # Text comes from the translation key story.beat.<id> (text/strings.gd), with
 # the data file's English lines as a fallback, so it is always readable.
 
@@ -21,6 +25,12 @@ const VIOLET := Color("6b5cff")
 const VIOLET_LIGHT := Color("b8b0ff")
 const VIOLET_SPARK := Color("eeeaff")
 const NIGHT := Color("0b0620")
+
+const NARRATION := "> "
+const NARRATOR_COLOR := Color("c7bfb4")
+const NARRATOR_SCALE := 0.75
+# Slant of the narrator's synthetic italic (x shift per unit of height).
+const NARRATOR_SLANT := 0.2
 
 # Per tier: text size, colour, glow, width, BBCode wrap, typing speed (chars/s),
 # backdrop dimming, glitch rate for the box's shudders.
@@ -102,6 +112,10 @@ func _ready() -> void:
 	_text.install_effect(Glitch.new())
 	var font: Font = load("res://gui/fonts/FontVeryLarge.tres" if tier >= 3 else "res://gui/fonts/FontLarge.tres")
 	_text.add_theme_font_override("normal_font", font)
+	var slanted: FontVariation = FontVariation.new()
+	slanted.base_font = font
+	slanted.variation_transform = Transform2D(Vector2(1, 0), Vector2(-NARRATOR_SLANT, 1), Vector2.ZERO)
+	_text.add_theme_font_override("italics_font", slanted)
 	_text.add_theme_color_override("default_color", _style["color"])
 	if _style["glow_size"] > 0:
 		_text.add_theme_constant_override("outline_size", _style["glow_size"])
@@ -153,16 +167,39 @@ func _set_page(i: int) -> void:
 	# a character is about half the font size wide).
 	var size: int = _style["size"]
 	while size > 28:
-		var per_row: float = maxf(1.0, _style["width"] / (size * 0.5))
 		var rows: int = 0
 		for l: String in page.split("\n"):
+			var s: float = size * (NARRATOR_SCALE if is_narration(l) else 1.0)
+			var per_row: float = maxf(1.0, _style["width"] / (s * 0.5))
 			rows += maxi(1, ceili(l.length() / per_row))
 		if rows <= MAX_ROWS[tier]:
 			break
 		size -= 4
 	_text.add_theme_font_size_override("normal_font_size", size)
-	_text.text = "[center]" + _style["open"] + _escape(page) + _style["close"] + "[/center]"
+	_text.add_theme_font_size_override("italics_font_size", int(size * NARRATOR_SCALE))
+	# Runs of the horror's lines share one effect wrap, so its wave stays connected.
+	var parts: PackedStringArray = []
+	var run: PackedStringArray = []
+	for l: String in page.split("\n"):
+		if is_narration(l):
+			if not run.is_empty():
+				parts.append(_style["open"] + _escape("\n".join(run)) + _style["close"])
+				run = []
+			parts.append("[i][color=#%s]%s[/color][/i]" % [NARRATOR_COLOR.to_html(false), _escape(narration_text(l))])
+		else:
+			run.append(l)
+	if not run.is_empty():
+		parts.append(_style["open"] + _escape("\n".join(run)) + _style["close"])
+	_text.text = "[center]" + "\n".join(parts) + "[/center]"
 	_text.visible_characters = 0
+
+
+static func is_narration(line: String) -> bool:
+	return line.begins_with(NARRATION)
+
+
+static func narration_text(line: String) -> String:
+	return line.substr(NARRATION.length()) if is_narration(line) else line
 
 
 func has_next_page() -> bool:
