@@ -239,7 +239,6 @@ Title: MEMO: Halcyon Extraction, Keeper Onboarding
 Keeper: landing confirmed. Congratulations, and welcome to the site.
 Your shift starts now. Halcyon looks forward to a long and productive dig.
 Native fauna are easily agitated by mining operations. They are also easily managed with your company-issued laser.
-Dig deep. Retire rich.
 
 ### log_b1
 Title: Personal log: Dale Okafor, Keeper 1, shift 3
