@@ -2,6 +2,8 @@
 #   & "<...>\mods-unpacked\cejdan-StoryMode\dev\playtest.ps1" <scenario> [-Timeout 300] [-Headless] [-Res 1280x720] [-Extra "--foo=1"]
 # Output lands in ..\playtest_out\<scenario>\ next to the project: screenshots,
 # log.json, godot.log. Prints the result and any script errors.
+# A scenario that needs longer than 300 s declares `const TIMEOUT := <seconds>`;
+# that is used unless -Timeout is given.
 param(
     [Parameter(Mandatory = $true)][string]$Scenario,
     [int]$Timeout = 300,
@@ -14,6 +16,11 @@ $root = Split-Path $project -Parent
 $engine = Join-Path $root "custom_godot_for_windows\godot.windows.editor.x86_64.exe"
 $out = Join-Path $root "playtest_out\$Scenario"
 if (-not (Test-Path (Join-Path $project "override.cfg"))) { Write-Error "override.cfg missing: refusing to launch"; exit 3 }
+if (-not $PSBoundParameters.ContainsKey("Timeout")) {
+    $src = Join-Path $PSScriptRoot "scenarios\$Scenario.gd"
+    $decl = if (Test-Path $src) { Select-String -Path $src -Pattern "^const TIMEOUT\s*:?=\s*(\d+)" | Select-Object -First 1 } else { $null }
+    if ($decl) { $Timeout = [int]$decl.Matches[0].Groups[1].Value }
+}
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 New-Item -ItemType Directory -Force $out | Out-Null
 $log = Join-Path $out "godot.log"

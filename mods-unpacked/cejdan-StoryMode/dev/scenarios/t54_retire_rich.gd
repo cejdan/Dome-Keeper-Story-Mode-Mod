@@ -1,11 +1,7 @@
 extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 
-# Ticket 54: Retire Rich, the $1,000,000 shop item that wins the run; no relic
-# on Story Mode maps.
-
-const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
-const T21 = preload("res://mods-unpacked/cejdan-StoryMode/dev/scenarios/t21_gate.gd")
-const SEEDS := 25
+# Ticket 54: Retire Rich, the $1,000,000 shop item that wins the run. No relic
+# on this run's map; the many-seed check is t54_no_relics.
 
 
 func boot() -> Dictionary:
@@ -14,21 +10,8 @@ func boot() -> Dictionary:
 
 func run(h) -> void:
 	h.disable_waves()
-	var relics: int = 0
-	# 25 seeds (50 until #96): each map takes about 5 s to generate, and the doom
-	# ending adds about 40 s, so 50 seeds ran past the harness's 300 s timeout.
-	for s in SEEDS:
-		var td = h.generate_map(MapConfig.make_archetype(), 3000 + s)
-		if td != null:
-			relics += td.get_resource_cells_by_id(Data.TILE_RELIC).size() + td.get_resource_cells_by_id(Data.TILE_RELIC_SWITCH).size()
-			if s < 3:
-				var c: Dictionary = T21.new()._colors()
-				c[Data.TILE_RELIC] = Color("#ff00ff")
-				c[Data.TILE_RELIC_SWITCH] = Color("#ff00ff")
-				h.map_png("no_relic_seed%d" % (3000 + s), c, 4, td)
-			td.queue_free()
-		await h.frames(1)
-	h.check("%d seeds: zero relic or relic switch tiles" % SEEDS, relics == 0, relics)
+	# The 50-seed no-relic sweep is t54_no_relics (#120); the doom ending (#96)
+	# left room here for only 25 seeds inside the 300 s timeout.
 	h.check("this run's map: no relic", Level.map.tileData.get_resource_cells_by_id(Data.TILE_RELIC).is_empty())
 
 	var entry: Dictionary = GameWorld.upgrades.get("team1.storyretirerich", {})
