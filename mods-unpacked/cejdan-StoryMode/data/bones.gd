@@ -1,8 +1,8 @@
 extends RefCounted
 
-# Miner bones (#94): one set per biome, B1 to B8, in the rock. Uncovering them
-# (the tile is revealed) opens that biome's data log (data/logs.gd); drilling
-# them out drops the bones, which the keeper carries home and sells.
+# Miner bones (#94): one set per biome, B1 to B8, in the rock. Drilling them
+# out drops the bones, which the keeper carries home and sells; selling them at
+# the dome opens that biome's data log (data/logs.gd).
 #
 # Value: about 3x the biome's best common mineral (data/map_config.gd MIX), in
 # dollars, by biome index. Starting values for the user to tune.
