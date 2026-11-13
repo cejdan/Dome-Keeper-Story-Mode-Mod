@@ -110,11 +110,18 @@ func run(h) -> void:
 	h.note("dome back pool before", _ids(shock))
 	h.set_inv("money", 100000)
 	# Take the active slot by buying the shockwave (dome surface + active) through the shop.
+	# The slot's offers are set to the shockwave and two others before it opens: a
+	# shorter list isn't a valid offer set, so the shop would draw 3 at random and
+	# the shockwave would be missing 2 runs in 5 (#118).
+	var cands: Array = GadgetShop.candidates("domesurface", "team1", "player1")
+	var surf: Array = cands.filter(func(x): return GadgetShop._base(x) == "shockwave")
+	if surf.size() > 0:
+		var set3: Array = [surf[0]] + cands.filter(func(x): return x != surf[0]).slice(0, GadgetShop.OFFERS - 1)
+		Data.apply("team1.story.gadgetoffers.domesurface", ",".join(set3))
 	Level.stage.openStoryGadgetSlot("domesurface", "team1", "player1")
 	await h.wait(1.5)
-	var surf: Array = GadgetShop.candidates("domesurface", "team1", "player1").filter(func(x): return GadgetShop._base(x) == "shockwave")
 	if surf.size() > 0:
-		Data.apply("team1.story.gadgetoffers.domesurface", surf[0])
+		h.check("the dome surface slot offers the shockwave", GadgetShop.offers("domesurface", "team1", "player1").has(surf[0]), GadgetShop.offers("domesurface", "team1", "player1"))
 		Level.stage.onGadgetSelected(surf[0], CONST.GADGET, "player1", "team1")
 		await h.wait(2.0)
 	h.check("shockwave installed (takes dome surface and active)", surf.size() > 0 and GameWorld.boughtUpgrades.has(surf[0]))
