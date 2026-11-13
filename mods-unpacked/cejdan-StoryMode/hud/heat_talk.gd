@@ -98,7 +98,7 @@ func _state(keeper, map, field) -> String:
 	var c: Vector2i = map.getTileCoord(keeper.global_position)
 	var section: int = map.tileData.get_biomev(c)
 	var ocean: Dictionary = map.tileData.get_meta("story_ocean", {})
-	if not ocean.is_empty() and c.y >= int(ocean["top"]) - 1:
+	if not ocean.is_empty() and c.y > int(ocean["ceiling"]):
 		section = 8
 	if section >= LavaData.PASSIVE_HEAT_START_BIOME and LavaData.passive_heat_mult(keeper.teamId) > 0.0:
 		return "hot:%d" % section
