@@ -182,6 +182,16 @@ func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 	Minerals.use_story_iron(modeId == Story.MODE_ID)
 	if modeId != Story.MODE_ID:
 		return
+	# A loaded run keeps its level seed (#116). Vanilla saves don't store it, so
+	# a fresh process rolled a new one: a new palette (picked from the seed right
+	# after this), and the saved lava rejected as another map's. The seed rides
+	# in the saved map data (gamemode/Storymode.gd writes it).
+	var td = levelStartData.tileData
+	if levelStartData.savegame and td != null and td.has_meta(Story.SEED_META):
+		var saved: int = int(td.get_meta(Story.SEED_META))
+		if saved != Level.levelSeed:
+			ModLoaderLog.info("Loaded run: level seed %d restored (was rolled as %d)" % [saved, Level.levelSeed], Story.LOG)
+			Level.levelSeed = saved
 	levelStartData.loadout.modeConfig[Story.MODE_FLAG] = true
 	levelStartData.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
 	levelStartData.mapArchetype = MapConfig.make_archetype()

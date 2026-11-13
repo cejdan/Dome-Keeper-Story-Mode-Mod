@@ -35,6 +35,11 @@ func init() -> void:
 func afterInitialized() -> void:
 	if not multiplayer.is_server():
 		return
+	# The level seed goes into the map data, which every save writes out, so a
+	# load can restore it (#116, mod_main.gd prepareGameMode). A loaded map has it
+	# already; an older save gets it from here on.
+	if Level.map != null and Level.map.tileData != null and not Level.map.tileData.has_meta(Story.SEED_META):
+		Level.map.tileData.set_meta(Story.SEED_META, Level.levelSeed)
 	# Vanilla dev mode hands out 500 iron, 50 water and 20 cobalt; a Story Mode
 	# run starts with empty pockets either way. A loaded save keeps its values.
 	# A new run: the company's welcome memo opens once the keeper can move (#123).

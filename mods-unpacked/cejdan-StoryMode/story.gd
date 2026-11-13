@@ -8,6 +8,8 @@ const LOG := "cejdan-StoryMode"
 const MOD_DIR := "res://mods-unpacked/cejdan-StoryMode/"
 # Older lava code looks for this flag in the loadout's modeConfig.
 const MODE_FLAG := "cejdan-storymode"
+# Map-data meta holding the run's level seed, so a load can restore it (#116).
+const SEED_META := "story_seed"
 
 
 static func is_story() -> bool:
