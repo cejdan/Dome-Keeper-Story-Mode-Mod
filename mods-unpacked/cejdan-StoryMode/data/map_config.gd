@@ -9,6 +9,15 @@ extends RefCounted
 const GATE_BELOW_BIOME: int = 2
 const GATE_THICKNESS: int = 1
 
+# Gold at the gate (#133): GATE_GOLD_DEPOSITS gold deposits of GATE_GOLD_SIZE
+# tiles sit in B3 just above the gate (1 to GATE_GOLD_ROWS rows over it), in
+# the middle half of the map where players dig down, so the Blast Suit's money
+# waits right where it is needed.
+const GATE_GOLD_DEPOSITS: int = 2
+const GATE_GOLD_SIZE: Array = [6, 9]
+const GATE_GOLD_ROWS: int = 5
+const GATE_GOLD_SPACING: int = 10
+
 # Scattered metal: share of a biome's plain rock that becomes metal, by biome
 # index (5 = B6), placed in clumps of METAL_CLUMP tiles. None anywhere else.
 const METAL_SHARE: Dictionary = {5: 0.03, 6: 0.08, 7: 0.15}

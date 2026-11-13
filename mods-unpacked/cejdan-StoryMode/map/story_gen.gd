@@ -28,6 +28,7 @@ static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void
 	# with `rand` (minerals, metal, pools, ocean) is the same as without them.
 	place_translators(map_data, _sub_rand(rand, "translators"))
 	place_bones(map_data, _sub_rand(rand, "bones"))
+	place_gate_gold(map_data, _sub_rand(rand, "gategold"))
 	place_ocean(map_data, rand)
 
 
@@ -577,6 +578,51 @@ static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary, po
 # depth and the middle 70% of the map's width, above the lava ocean.
 # Placed after metal and pools. Meta "story_bones": [[x, y, biome], ...].
 const BONES_ID := 50
+
+
+# Gold at the gate (#133): MapConfig.GATE_GOLD_DEPOSITS gold deposits in plain
+# rock of the biome over the gate, a few rows above it and in the middle half
+# of the map. Meta "story_gate_gold": [[x, y, size], ...] (centre, tiles).
+static func place_gate_gold(map_data, rand: RandomNumberGenerator) -> Array:
+	var gold: int = int(Minerals.TABLE["gold"]["tile_id"])
+	var above: int = MapConfig.GATE_BELOW_BIOME
+	var gate_top: Dictionary = {}
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+		if map_data.get_resourcev(c) == Metal.GATE_ID:
+			gate_top[c.x] = mini(int(gate_top.get(c.x, 1 << 20)), c.y)
+	var mid: float = (x0 + x1) / 2.0
+	var reach: float = (x1 - x0) / 4.0
+	var cands: Array = []
+	for x: int in gate_top:
+		if absf(x - mid) > reach:
+			continue
+		for dy in range(1, MapConfig.GATE_GOLD_ROWS + 1):
+			var c: Vector2i = Vector2i(x, int(gate_top[x]) - dy)
+			if map_data.get_biomev(c) == above and map_data.get_resourcev(c) == Data.TILE_DIRT_START and not _near_special(map_data, c):
+				cands.append(c)
+	cands.sort()
+	_shuffle(cands, rand)
+	var placed: Array = []
+	for c: Vector2i in cands:
+		if placed.size() >= MapConfig.GATE_GOLD_DEPOSITS:
+			break
+		if map_data.get_resourcev(c) != Data.TILE_DIRT_START:
+			continue
+		var far: bool = true
+		for p: Array in placed:
+			if absi(c.x - int(p[0])) < MapConfig.GATE_GOLD_SPACING:
+				far = false
+		if not far:
+			continue
+		var size: int = rand.randi_range(int(MapConfig.GATE_GOLD_SIZE[0]), int(MapConfig.GATE_GOLD_SIZE[1]))
+		var tiles: Array = _grow(map_data, c, gold, size, rand)
+		placed.append([c.x, c.y, tiles.size()])
+	map_data.set_meta("story_gate_gold", placed)
+	return placed
 
 
 static func place_bones(map_data, rand: RandomNumberGenerator) -> Array:
