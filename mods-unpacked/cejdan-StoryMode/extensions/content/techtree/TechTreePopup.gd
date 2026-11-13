@@ -73,13 +73,18 @@ func updateCostLabels():
 
 
 # A New Gadget entry is not bought here: it opens the gadget choice, and the
-# pick pays for it (extensions/stages/level/LevelStage.gd).
+# pick pays for it (extensions/stages/level/LevelStage.gd). Without the money
+# the choice stays shut and the panel shows vanilla's "can't afford" error.
 func buyUpgrade():
 	if Story.is_story() and animationDone:
 		var tree = find_child("TechTree")
 		var panel = tree.focussedTechPanel if tree else null
 		if panel and GadgetShop.is_entry(panel.techId):
 			if panel.state == 1:
-				Level.stage.openStoryGadgetChoice(teamId, playerId)
+				var cost = GameWorld.upgrades.get(panel.techId, {}).get("cost", {})
+				if cost is Dictionary and not GameWorld.canAfford(cost, teamId):
+					GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
+				else:
+					Level.stage.openStoryGadgetChoice(teamId, playerId)
 			return
 	super()
