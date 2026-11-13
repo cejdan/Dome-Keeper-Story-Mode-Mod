@@ -9,6 +9,9 @@ const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
 const SalePops = preload("res://mods-unpacked/cejdan-StoryMode/hud/sale_pops.gd")
 
+# Seconds the bones' "+$X" pop stays readable before their log opens.
+const LOG_AFTER_POP := 1.1
+
 var value: int = 0
 var biome: int = 0
 
@@ -28,10 +31,12 @@ func shred(teamId: String):
 	super(teamId)
 	if not was and multiplayer.is_server() and value > 0:
 		Data.changeByInt(teamId + ".inventory.money", value)
-		SalePops.pop(value, SalePops.BONES)
+		var pop_in: float = SalePops.pop(value, SalePops.BONES)
 		ModLoaderLog.info("Miner bones from B%d sold for $%d" % [biome + 1, value], "cejdan-StoryMode")
-		# The miner's pad comes home with the bones: its log opens now, once per run.
-		StoryBeats.fire("log_b%d" % (biome + 1))
+		# The miner's pad comes home with the bones: its log opens once per run,
+		# after the bones' pop has been on screen long enough to read (#136).
+		if StoryBeats.fire("log_b%d" % (biome + 1)):
+			StoryBeats.hold(pop_in + LOG_AFTER_POP)
 
 
 func serialize() -> Dictionary:

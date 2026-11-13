@@ -30,6 +30,8 @@ signal beat_closed(id: String)
 # Id of the beat on screen, "" when none.
 var open_id: String = ""
 var _box: Control = null
+# Seconds left before a waiting beat may open (hold()).
+var _hold_t: float = 0.0
 
 
 # ---------------------------------------------------------------- API (static)
@@ -75,6 +77,14 @@ func play_now(id: String) -> void:
 	_show(id)
 	while open_id == id:
 		await beat_closed
+
+
+# Keeps every waiting beat off screen for at least `seconds` of unpaused play,
+# so something the player should see first (a sale pop) gets its moment.
+static func hold(seconds: float) -> void:
+	var n = instance()
+	if n != null:
+		n._hold_t = maxf(n._hold_t, seconds)
 
 
 static func has_played(id: String) -> bool:
@@ -158,7 +168,9 @@ func _process(delta: float) -> void:
 	if _watch_t >= WATCH_EVERY and not GameWorld.paused:
 		_watch_t = 0.0
 		_watch_depth()
-	if open_id != "" or not _can_show():
+	if _hold_t > 0.0 and not GameWorld.paused:
+		_hold_t -= delta
+	if open_id != "" or _hold_t > 0.0 or not _can_show():
 		return
 	var queued: Array = _list(QUEUED)
 	if queued.is_empty():

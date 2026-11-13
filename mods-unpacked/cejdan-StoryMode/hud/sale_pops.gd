@@ -9,6 +9,7 @@ extends Node
 #   const SalePops = preload("res://mods-unpacked/cejdan-StoryMode/hud/sale_pops.gd")
 #   SalePops.pop(5)                       # one mineral piece
 #   SalePops.pop(300, SalePops.BONES)     # a set of bones
+# pop() returns roughly how long until that pop shows.
 #
 # Does nothing outside a Story Mode run (the node only exists in one).
 
@@ -56,10 +57,14 @@ static func instance():
 	return tree.get_first_node_in_group(GROUP)
 
 
-static func pop(amount: int, color: Color = GOLD) -> void:
+# Queues a pop. Returns about how many seconds until it shows (0 when it
+# shows on the next frame, or when there is nothing to show it).
+static func pop(amount: int, color: Color = GOLD) -> float:
 	var n = instance()
-	if n != null and amount > 0:
-		n._waiting.append([amount, color])
+	if n == null or amount <= 0:
+		return 0.0
+	n._waiting.append([amount, color])
+	return maxf(n._wait_t, 0.0) + GAP * (n._waiting.size() - 1)
 
 
 func _ready() -> void:
