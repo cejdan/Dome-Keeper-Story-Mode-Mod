@@ -1,5 +1,6 @@
 storymode:
   type: gamemode
+  unlockslimits: [storyonly]
 
 # The win condition's own shop section (#144), at the top like Prestige's: a
 # second root that Storymode.gd adds to every Story Mode run, holding only
@@ -58,4 +59,18 @@ storyHeatShield4:
   predecessors: [storyHeatShield3]
   propertyChanges:
     - suit.heatshield = 4
+
+# Metal Bit (#147): the Mine Driller's and Drillbert's drills cut metal
+# (extensions/.../TileToucher.gd and Drillbot.gd, extensions/.../Tile.gd).
+# Story Mode only: the storymode root unlocks the storyonly limit. Prices are
+# starting values for the user to tune.
+storyDrillMetal:
+  limit: [storyonly]
+  cost: money=600
+  predecessors: [drill]
+
+storyDrillbotMetal:
+  limit: [storyonly]
+  cost: money=600
+  predecessors: [drillbot]
 

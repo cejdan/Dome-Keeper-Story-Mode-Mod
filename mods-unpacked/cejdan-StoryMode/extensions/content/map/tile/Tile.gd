@@ -70,6 +70,9 @@ func _metal_refuses() -> bool:
 		return false
 	if exploded and Metal.suit_blast_covers(coord):
 		return false
+	# A Mine Driller or Drillbert with its Metal Bit (#147).
+	if not exploded and Metal.gadget_may_break():
+		return false
 	exploded = false
 	return true
 

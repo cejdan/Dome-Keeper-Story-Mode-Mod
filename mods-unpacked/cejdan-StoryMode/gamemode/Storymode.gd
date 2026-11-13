@@ -54,6 +54,11 @@ func afterInitialized() -> void:
 	if not GameWorld.boughtUpgrades.has("team1." + WIN_ROOT):
 		GameWorld.addUpgrade(WIN_ROOT, "team1")
 		GameWorld.updateAvailableUpgrades("team1")
+	# Story-only upgrades on vanilla tracks (#147) need the storyonly limit, which
+	# the storymode root unlocks; a save made before it gets it here.
+	if not GameWorld.isUpgradeLimitAvailable("team1.storyonly"):
+		GameWorld.setUpgradeLimitAvailable("team1.storyonly")
+		GameWorld.updateAvailableUpgrades("team1")
 	if not Data.has(MONEY):
 		Data.apply(MONEY, 0)
 		Data.apply("team1.inventory.iron", 0)
