@@ -12,6 +12,7 @@ const LavaField = preload("res://mods-unpacked/cejdan-StoryMode/lava/lava_field.
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const MODE_FLAG := "cejdan-storymode"
 const FIELD_NAME := "StoryLavaField"
+const Chains = preload("res://mods-unpacked/cejdan-StoryMode/map/chains.gd")
 
 
 func _process(_delta: float) -> void:
@@ -33,6 +34,13 @@ func _process(_delta: float) -> void:
 	map.add_child(field)
 	field.setup(map)
 	ModLoaderLog.info("Lava field added: %d magma cells" % field.magma.size(), "cejdan-StoryMode")
+	# Chains of the seal (#101): Story Mode maps only (the --lava dev switch can
+	# put lava on a vanilla map, which has no boss chamber).
+	if Story.is_story():
+		var chains := Chains.new()
+		chains.setup(map)
+		map.add_child(chains)
+		ModLoaderLog.info("Chains added: %d" % chains.chains.size(), "cejdan-StoryMode")
 
 
 func _wants_lava() -> bool:
