@@ -2,9 +2,9 @@ extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 
 # Ticket 94: miner bones, one set per biome. A 20-seed map check finds exactly
 # one bones tile in each of B1..B8, still bones after the gate, metal and pools
-# are placed. In the running game the keeper uncovers each set (its data log
-# opens, captured page by page), drills it out, and the bones delivered at the
-# dome pay their biome's value. Saves to slot 13 for t94_reload.
+# are placed. In the running game the keeper uncovers each set (no log yet),
+# drills it out, and the bones delivered at the dome pay their biome's value and
+# open its data log (captured page by page). Saves to slot 13 for t94_reload.
 
 const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
 const Bones = preload("res://mods-unpacked/cejdan-StoryMode/data/bones.gd")
@@ -63,10 +63,10 @@ func run(h) -> void:
 		var b: int = int(p[2])
 		await h.dig_room(at + Vector2i(-2, -3), at + Vector2i(2, -1))
 		await h.teleport_tile(at + Vector2i(0, -1))
-		# Uncover the bones: the log opens at once.
+		# Uncover the bones: no log yet, it comes home with them.
 		await h.reveal([at])
-		var id: String = await h.read_beat("log_b%d" % (b + 1), 5.0)
-		h.check("B%d: uncovering the bones opens log_b%d" % [b + 1, b + 1], id == "log_b%d" % (b + 1), id)
+		await h.wait(1.5)
+		h.check("B%d: uncovering the bones opens no log" % (b + 1), not StoryBeats.is_open() and not StoryBeats.has_played("log_b%d" % (b + 1)), StoryBeats.instance().open_id)
 		await h.shot("bones_b%d" % (b + 1))
 		# Drill them out and bring them home.
 		var m0: int = int(h.inv("money"))
@@ -82,6 +82,8 @@ func run(h) -> void:
 			drop.linear_velocity = Vector2.ZERO
 			await h.until(func(): return int(h.inv("money")) > m0, 10.0)
 		h.check("B%d: delivered bones pay $%d" % [b + 1, Bones.value_for(b)], int(h.inv("money")) - m0 == Bones.value_for(b), int(h.inv("money")) - m0)
+		var id: String = await h.read_beat("log_b%d" % (b + 1), 5.0)
+		h.check("B%d: selling the bones opens log_b%d" % [b + 1, b + 1], id == "log_b%d" % (b + 1), id)
 	var logs: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false)).filter(func(x): return x.begins_with("log_"))
 	h.check("all 8 logs played once", logs.size() == 8, logs)
 	h.check("a log never plays twice", not StoryBeats.fire("log_b1"))

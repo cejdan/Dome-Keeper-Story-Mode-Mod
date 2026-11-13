@@ -1,7 +1,7 @@
 extends RefCounted
 
 # Miner data logs (#94): one per biome, found in the miner bones. Each opens
-# in the salvaged-log box when its bones are uncovered, once per run.
+# in the salvaged-log box when its bones are sold at the dome, once per run.
 #   id     log_b1 .. log_b8 (biome index 0 .. 7)
 #   title  the log's header line
 #   lines  the body, one line each
