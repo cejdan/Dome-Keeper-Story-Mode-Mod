@@ -9,6 +9,8 @@ const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.
 const T17 = preload("res://mods-unpacked/cejdan-StoryMode/dev/scenarios/t17_report.gd")
 
 const SEEDS: int = 50
+# 50 map generations take about 340 s on the dev machine, over the default 300.
+const TIMEOUT := 600
 const DIRS4: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const DIRS8: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]
 
