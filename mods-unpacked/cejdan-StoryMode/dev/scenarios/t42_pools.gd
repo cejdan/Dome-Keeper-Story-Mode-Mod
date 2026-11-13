@@ -137,6 +137,10 @@ func run(h) -> void:
 	var w_own: Array = []
 	var wo_own: Array = []
 	await h.wait(3.0)
+	# Settled pools do no per-cell work (#119): no cell is awake for the flow
+	# step, none is being eased toward its mass for drawing, no magma is watched.
+	var idle: Dictionary = {"awake": field._awake.size(), "shown_dirty": field._shown_dirty.size(), "melt_check": field._melt_check.size(), "lava cells": field.mass.size()}
+	h.check("settled pools do no per-cell work (nothing awake, easing or melting)", idle["awake"] == 0 and idle["shown_dirty"] == 0 and idle["melt_check"] == 0 and idle["lava cells"] > 0, idle)
 	for round_i in 2:
 		w.append(await _avg_physics_ms(h, 15.0))
 		w_own.append(own_ms)
@@ -169,7 +173,10 @@ func run(h) -> void:
 	field.wake_all()
 	field.visible = true
 	h.note("physics frame ms, field hidden", {"pools settled": hid_w, "no pools": hid_wo, "fps pools": fps_w, "fps no pools": fps_wo})
-	h.check("the lava field's own physics time with settled pools is within 10% of no pools", with_own <= without_own * 1.10 + 0.005, [with_own, without_own])
+	# A backstop on time: the field's own cost is about 0.04 ms a frame, and two
+	# 15 s samples of it vary by about 0.005 ms run to run, so a 10% bound kept
+	# missing by noise (#119). Per-cell work would cost far more than 0.02 ms.
+	h.check("the lava field's own physics time with settled pools is within 0.02 ms of no pools", with_own <= without_own + 0.02, [with_own, without_own])
 	# Not a pass/fail: the whole scene's physics time also rises with pools
 	# present, outside the lava field's own code (see the notes above).
 	h.note("whole-scene physics frame ms", {"pools settled": with_ms, "no pools": without_ms})
