@@ -41,6 +41,13 @@ func _ready():
 		var rr: ImageTexture = ImageTexture.create_from_image(sq2)
 		rr.take_over_path("res://content/icons/storyretirerich.png")
 		_held.append(rr)
+	# The win condition's section (#144): vanilla Prestige's rocket, as its own
+	# copy so Prestige keeps its icon. Fly home rich.
+	var rocket: Texture2D = load("res://content/icons/prestige.png")
+	if rocket != null:
+		var win: ImageTexture = ImageTexture.create_from_image(rocket.get_image())
+		win.take_over_path("res://content/icons/storywin.png")
+		_held.append(win)
 	# Heat Shielding I-IV: the carry (suit) icon pushed hotter along palette
 	# row 12, as a placeholder until art exists.
 	var suit: Texture2D = load("res://content/icons/jetpackstrength1.png")
@@ -155,6 +162,7 @@ func modInit():
 	# The parser stores an entry only when it reaches a blank line, so every
 	# entry in that file, the last one too, must be followed by one.
 	Data.parseUpgradesYaml(Story.MOD_DIR + "data/upgrades.yaml")
+	_order_shop_tracks()
 	# Heat Shielding prices come from the shared lava data file.
 	var LavaData = load(Story.MOD_DIR + "data/lava.gd")
 	for i in LavaData.HEAT_SHIELD_PRICES.size():
@@ -163,6 +171,26 @@ func modInit():
 			hs["cost"] = {"money": int(LavaData.HEAT_SHIELD_PRICES[i])}
 	Data.registerGameMode(Story.MODE_ID)
 	GameWorld.unlockElement(Story.MODE_ID)
+
+
+# The shop draws one track per bought root, in Data.orderedUpgradeKeys order
+# (gamemode roots, then domes, keepers, weapons, gadgets). Story Mode's roots
+# are parsed last, so they would sit at the bottom. In a Story Mode run (#144):
+# the win condition first, then the dome, then Story Mode's own track, then
+# the keeper and everything else in vanilla order. Vanilla runs never have
+# these roots, so their shop is unchanged.
+const WIN_ROOT := "storywin"
+const FIRST_KEEPER_ROOT := "keeper1"
+
+
+func _order_shop_tracks() -> void:
+	var keys: Array = Data.orderedUpgradeKeys
+	if keys.has(WIN_ROOT):
+		keys.erase(WIN_ROOT)
+		keys.push_front(WIN_ROOT)
+	if keys.has(Story.MODE_ID) and keys.has(FIRST_KEEPER_ROOT):
+		keys.erase(Story.MODE_ID)
+		keys.insert(keys.find(FIRST_KEEPER_ROOT), Story.MODE_ID)
 
 
 # Called by GameWorld.prepareLevelStart for every mode; vanilla sets nothing up
