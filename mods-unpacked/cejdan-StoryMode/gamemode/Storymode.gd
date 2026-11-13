@@ -27,6 +27,8 @@ func init() -> void:
 	add_child(load(Story.MOD_DIR + "pleas/plea_director.gd").new())
 	# "+$5" over the dome for each piece sold (#121).
 	add_child(SalePops.new())
+	# The keeper's lines about the depth heat (#146).
+	add_child(load(Story.MOD_DIR + "hud/heat_talk.gd").new())
 	Data.listen(self, "team1.dome.health")
 	GameWorld.upgradeBought.connect(_on_upgrade_bought)
 	ModLoaderLog.info("Story Mode run started (seed %d)" % Level.levelSeed, Story.LOG)
