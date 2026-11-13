@@ -46,6 +46,11 @@ func afterInitialized() -> void:
 	# A save restores Data after this runs, so a load is told apart by its flag.
 	if not SaveGame.currentLoadingSavegame:
 		_welcome()
+	# Story-only upgrades on vanilla tracks (#147) need the storyonly limit, which
+	# the storymode root unlocks; a save made before it gets it here.
+	if not GameWorld.isUpgradeLimitAvailable("team1.storyonly"):
+		GameWorld.setUpgradeLimitAvailable("team1.storyonly")
+		GameWorld.updateAvailableUpgrades("team1")
 	if not Data.has(MONEY):
 		Data.apply(MONEY, 0)
 		Data.apply("team1.inventory.iron", 0)
