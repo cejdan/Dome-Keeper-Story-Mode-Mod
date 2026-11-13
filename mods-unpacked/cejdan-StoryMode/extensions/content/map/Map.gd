@@ -24,10 +24,9 @@ func revealTile(coord: Vector2):
 	elif Metal.is_metal(tile.type):
 		revealTileVisually(coord)
 	elif tile.type == Bones.TYPE:
-		# Miner bones (#94): uncovering them opens their data log at once.
+		# Miner bones (#94). Their data log opens when they are sold at the dome
+		# (drops/BonesDrop.gd), not when they are uncovered.
 		revealTileVisually(coord)
-		if Story.is_story() and is_server():
-			StoryBeats.fire("log_b%d" % (tileData.get_biomev(Vector2i(coord)) + 1))
 
 
 func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
