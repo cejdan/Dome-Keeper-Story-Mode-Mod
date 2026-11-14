@@ -43,6 +43,7 @@ var health: Node = null
 var velle: Node2D = null
 var chase: Node2D = null
 var finale: Node2D = null
+var music: Node = null
 var arena: Rect2 = Rect2()
 var _booted: bool = false
 var _seal_flash: float = 0.0
@@ -88,6 +89,8 @@ static func explosion_at(global_pos: Vector2, kind: String, radius_px: float = 0
 func _ready() -> void:
 	name = "StoryBoss"
 	add_to_group(GROUP)
+	music = load(Story.MOD_DIR + "boss/boss_music.gd").new()
+	add_child(music)
 
 
 func state() -> String:
@@ -157,9 +160,15 @@ func _physics_process(delta: float) -> void:
 		"fight":
 			_seal(keeper, delta)
 			_recharge_blaster(keeper, delta)
+			if velle != null and is_instance_valid(velle):
+				music.fight(velle.phase)
 		"chase":
+			if chase != null and is_instance_valid(chase):
+				music.chase(1.0 - chase.gap / 260.0)
 			if keeper.isInsideDome:
 				_chase_done()
+		"finale":
+			music.finale()
 
 
 func _process(delta: float) -> void:
@@ -303,9 +312,11 @@ func _finale_done() -> void:
 func dome_lost() -> void:
 	if active():
 		_set_state("lost")
+		music.stop()
 
 
 func _finish_won() -> void:
+	music.stop()
 	await get_tree().create_timer(1.0, false).timeout
 	if Level.mode != null and Level.mode.has_method("horror_defeated"):
 		Level.mode.horror_defeated()
@@ -315,6 +326,7 @@ func _keeper_died(cause: String) -> void:
 	if not active():
 		return
 	_set_state("lost")
+	music.stop()
 	ModLoaderLog.info("Boss: the keeper is dead (%s)" % cause, Story.LOG)
 	var keeper = Keepers.first()
 	if keeper != null and is_instance_valid(keeper):
