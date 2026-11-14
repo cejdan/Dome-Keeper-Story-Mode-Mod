@@ -8,6 +8,7 @@ const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
+const Bones = preload("res://mods-unpacked/cejdan-StoryMode/data/bones.gd")
 
 
 func revealTile(coord: Vector2):
@@ -21,6 +22,10 @@ func revealTile(coord: Vector2):
 		tile.richness = float(Minerals.TABLE[tile.type]["richness"])
 		revealTileVisually(coord)
 	elif Metal.is_metal(tile.type):
+		revealTileVisually(coord)
+	elif tile.type == Bones.TYPE:
+		# Miner bones (#94). Their data log opens when they are sold at the dome
+		# (drops/BonesDrop.gd), not when they are uncovered.
 		revealTileVisually(coord)
 
 
@@ -38,6 +43,14 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 			StoryBeats.trigger("first_gem")
 		elif type == Metal.GATE_TYPE:
 			StoryBeats.trigger("gate_broken")
+	if type == Bones.TYPE and is_inside_tree() and is_server():
+		# The bones come loose; they sell by the biome they were found in.
+		var biome: int = tileData.get_biomev(Vector2i(tile.coord))
+		var drop = Level.drops.network_spawn({"type": Bones.TYPE, "position": tile.global_position, "impulse": Vector2.ZERO})
+		if drop != null:
+			drop.value = Bones.value_for(biome)
+			drop.biome = biome
+		return
 	if not Minerals.is_mod_mineral(type):
 		return
 	if not is_inside_tree() or not is_server():

@@ -18,6 +18,7 @@ extends Node
 
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const BeatData = preload("res://mods-unpacked/cejdan-StoryMode/data/beats.gd")
+const LogData = preload("res://mods-unpacked/cejdan-StoryMode/data/logs.gd")
 
 const GROUP := "story-beats"
 const PLAYED := "team1.story.beatsplayed"
@@ -86,8 +87,8 @@ func _ready() -> void:
 func queue_beat(id: String) -> bool:
 	if not multiplayer.is_server() or not Story.is_story():
 		return false
-	if BeatData.by_id(id).is_empty():
-		push_warning("Story beat: no beat with id " + id)
+	if _entry(id).is_empty():
+		push_warning("Story beat: no beat or log with id " + id)
 		return false
 	var queued: Array = _list(QUEUED)
 	if _list(PLAYED).has(id) or queued.has(id):
@@ -161,8 +162,15 @@ func _can_show() -> bool:
 	return true
 
 
+# A beat (data/beats.gd) or a miner's data log (data/logs.gd, #94): logs ride
+# the same queue, pause and once-per-run record, in their own box.
+static func _entry(id: String) -> Dictionary:
+	var b: Dictionary = BeatData.by_id(id)
+	return b if not b.is_empty() else LogData.by_id(id)
+
+
 func _show(id: String) -> void:
-	var beat: Dictionary = BeatData.by_id(id)
+	var beat: Dictionary = _entry(id)
 	if beat.is_empty():
 		# Dropped from the data file since it was queued (an old save).
 		var q: Array = _list(QUEUED)
@@ -174,7 +182,8 @@ func _show(id: String) -> void:
 	var i = load(Story.MOD_DIR + "beats/BeatInputProcessor.gd").new()
 	i.deviceId = keeper.deviceId
 	i.globalInput = true
-	i.popup = load(Story.MOD_DIR + "beats/BeatBox.gd").new()
+	var is_log: bool = not LogData.by_id(id).is_empty()
+	i.popup = load(Story.MOD_DIR + ("beats/LogBox.gd" if is_log else "beats/BeatBox.gd")).new()
 	i.popup.setup(id, int(beat.get("tier", 1)))
 	_box = i.popup
 	Level.stage.showPopup(i.popup, null, "", LevelStage.PopupCanvas.GLOBAL)

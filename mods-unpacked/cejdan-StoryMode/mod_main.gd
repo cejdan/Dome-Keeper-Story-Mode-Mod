@@ -153,6 +153,8 @@ func modInit():
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
 	Minerals.register()
 	Metal.register()
+	# Miner bones (#94): a tile id and a carried, sellable drop.
+	load(Story.MOD_DIR + "data/bones.gd").register()
 	# The translator (#93): carried home like a relic.
 	if not Data.DROP_TYPES.has("translator"):
 		Data.DROP_TYPES.append("translator")

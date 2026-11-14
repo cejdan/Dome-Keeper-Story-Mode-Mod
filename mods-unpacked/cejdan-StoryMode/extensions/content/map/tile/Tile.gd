@@ -5,6 +5,7 @@ extends "res://content/map/tile/Tile.gd"
 
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
+const Bones = preload("res://mods-unpacked/cejdan-StoryMode/data/bones.gd")
 
 
 func setType(type: String):
@@ -18,6 +19,9 @@ func setType(type: String):
 		return
 	if Metal.is_metal(type):
 		_set_metal(fresh)
+		return
+	if type == Bones.TYPE:
+		_set_bones(fresh)
 		return
 	var sheet: Texture2D = Minerals.sheet_for_type(type)
 	if sheet == null:
@@ -109,3 +113,19 @@ func _is_chamber_crust() -> bool:
 	if _crust_rect.size == Vector2i.ZERO or int(coord.y) != _crust_rect.position.y - 1:
 		return false
 	return int(coord.x) >= _crust_rect.position.x and int(coord.x) < _crust_rect.end.x
+
+
+# Miner bones (#94): a miner's remains half-buried in the rock, drilled out
+# like an ore tile.
+func _set_bones(fresh: bool) -> void:
+	set_meta("destructable", true)
+	if res_sprite:
+		var rng: = RandomNumberGenerator.new()
+		rng.seed = Level.levelSeed + hash(coord)
+		res_sprite.texture = Bones.sheet()
+		res_sprite.show()
+		initResourceSprite(Vector2(rng.randi_range(0, 4), 5))
+	var baseHealth: float = Data.of("map.tileBaseHealth") + Bones.EXTRA_HEALTH
+	var mult: float = hardnessMultiplier * pow(Data.of("map.tileHealthMultiplierPerLayer"), layer)
+	max_health = max(1, round(mult * baseHealth))
+	health = max_health if fresh else min(health, max_health)
