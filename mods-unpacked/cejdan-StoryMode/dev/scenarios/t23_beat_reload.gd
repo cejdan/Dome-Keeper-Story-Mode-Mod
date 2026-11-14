@@ -28,8 +28,11 @@ func run(h) -> void:
 		s.append(snappedf(float(Data.of(CD)), 0.001))
 		await h.wait(0.25)
 	h.check("wavecooldown holds still while it is open after the reload", s.min() == s.max(), s)
-	await h.wait(0.5)
-	await h.press("ui_select")
+	await h.wait(2.0)
+	for i in 3:
+		if StoryBeats.is_open():
+			await h.press("ui_select")
+			await h.wait(0.8)
 	h.check("it closes", await h.until(func(): return not StoryBeats.is_open(), 5.0))
 	var after: Array = []
 	for i in 8:
@@ -45,6 +48,9 @@ func run(h) -> void:
 	h.check("lava_death opens", await h.until(func(): return StoryBeats.instance().open_id == "lava_death", 5.0))
 	await h.wait(1.0)
 	await h.shot("new_beat_after_reload")
-	await h.press("ui_select")
+	for i in 3:
+		if StoryBeats.is_open():
+			await h.press("ui_select")
+			await h.wait(0.8)
 	await h.until(func(): return not StoryBeats.is_open(), 5.0)
 	h.snap("end", ["team1.story.beatsqueued", "team1.story.beatsplayed"])

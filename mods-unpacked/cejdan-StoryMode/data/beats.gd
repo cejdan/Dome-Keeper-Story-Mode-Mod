@@ -12,8 +12,8 @@ extends RefCounted
 #              biome:B2 .. biome:B8, lava_ocean, boss_chamber,
 #              first_gem, gate_broken, lava_death, translator:1 .. translator:3,
 #              unobtainium:1, :3, :5, :7, :10, ending:doom, ending:saved
-#   tier     style tier 1 (calm) .. 3 (large, glowing); styling is #24, the
-#            box draws every tier plainly for now
+#   tier     style tier (beats/BeatBox.gd, #24): 1 calm, 2 warm violet wave,
+#            3 glowing with glitches, 4 awake (full-screen violet dark)
 #   lines    1 to 3 short lines, shown together
 #
 # All text below is placeholder until the script lands.
@@ -27,7 +27,8 @@ const BEATS: Array = [
 	{"id": "biome_b7", "trigger": "biome:B7", "tier": 3, "lines": ["Warm, isn't it?"]},
 	{"id": "biome_b8", "trigger": "biome:B8", "tier": 3, "lines": ["Almost.", "Almost."]},
 	{"id": "lava_ocean", "trigger": "lava_ocean", "tier": 3, "lines": ["The fire remembers me.", "Take what shines in it."]},
-	{"id": "boss_chamber", "trigger": "boss_chamber", "tier": 3, "lines": ["You came.", "I knew you would."]},
+	{"id": "boss_chamber", "trigger": "boss_chamber", "tier": 4, "lines": ["You came.", "I knew you would."]},
+	{"id": "boss_wait", "trigger": "boss_wait", "tier": 4, "lines": ["Closer.", "Not yet."]},
 	{"id": "first_gem", "trigger": "first_gem", "tier": 1, "lines": ["Pretty, isn't it?", "There is more below."]},
 	{"id": "gate_broken", "trigger": "gate_broken", "tier": 2, "lines": ["Metal breaks.", "So does everything."]},
 	{"id": "lava_death", "trigger": "lava_death", "tier": 2, "lines": ["Not yet.", "Come back to me."]},
@@ -37,8 +38,8 @@ const BEATS: Array = [
 	{"id": "unobtainium_1", "trigger": "unobtainium:1", "tier": 3, "lines": ["Ah."]},
 	{"id": "unobtainium_3", "trigger": "unobtainium:3", "tier": 3, "lines": ["The seal thins."]},
 	{"id": "unobtainium_5", "trigger": "unobtainium:5", "tier": 3, "lines": ["I can feel your hands."]},
-	{"id": "unobtainium_7", "trigger": "unobtainium:7", "tier": 3, "lines": ["More.", "More."]},
-	{"id": "unobtainium_10", "trigger": "unobtainium:10", "tier": 3, "lines": ["I am awake."]},
+	{"id": "unobtainium_7", "trigger": "unobtainium:7", "tier": 4, "lines": ["More.", "More."]},
+	{"id": "unobtainium_10", "trigger": "unobtainium:10", "tier": 4, "lines": ["I am awake."]},
 ]
 
 
