@@ -43,6 +43,7 @@ var health: Node = null
 var velle: Node2D = null
 var chase: Node2D = null
 var finale: Node2D = null
+var music: Node = null
 var arena: Rect2 = Rect2()
 var _booted: bool = false
 var _seal_flash: float = 0.0
@@ -88,6 +89,8 @@ static func explosion_at(global_pos: Vector2, kind: String, radius_px: float = 0
 func _ready() -> void:
 	name = "StoryBoss"
 	add_to_group(GROUP)
+	music = load(Story.MOD_DIR + "boss/boss_music.gd").new()
+	add_child(music)
 
 
 func state() -> String:
@@ -102,6 +105,9 @@ func _set_state(s: String) -> void:
 
 func _ready_to_run() -> bool:
 	if not enabled or not multiplayer.is_server() or not Story.is_story():
+		return false
+	# A playtest scenario's boot() can switch the sequence off: `boss: false`.
+	if Story.scenario_boot().get("boss", true) == false:
 		return false
 	var stage = Level.stage
 	if stage == null or not (stage is LevelStage) or not stage.keeperInputStarted:
@@ -144,6 +150,8 @@ func _physics_process(delta: float) -> void:
 	if not _booted:
 		_booted = true
 		_resume()
+		if OS.has_feature("editor") and Story.user_arg("scenario") == "" and Story.has_user_arg("boss"):
+			_dev_boss(Story.user_arg("boss"))
 	var keeper = Keepers.first()
 	match current():
 		"":
@@ -157,9 +165,15 @@ func _physics_process(delta: float) -> void:
 		"fight":
 			_seal(keeper, delta)
 			_recharge_blaster(keeper, delta)
+			if velle != null and is_instance_valid(velle):
+				music.fight(velle.phase)
 		"chase":
+			if chase != null and is_instance_valid(chase):
+				music.chase(1.0 - chase.gap / 260.0)
 			if keeper.isInsideDome:
 				_chase_done()
+		"finale":
+			music.finale()
 
 
 func _process(delta: float) -> void:
@@ -303,9 +317,11 @@ func _finale_done() -> void:
 func dome_lost() -> void:
 	if active():
 		_set_state("lost")
+		music.stop()
 
 
 func _finish_won() -> void:
+	music.stop()
 	await get_tree().create_timer(1.0, false).timeout
 	if Level.mode != null and Level.mode.has_method("horror_defeated"):
 		Level.mode.horror_defeated()
@@ -315,6 +331,7 @@ func _keeper_died(cause: String) -> void:
 	if not active():
 		return
 	_set_state("lost")
+	music.stop()
 	ModLoaderLog.info("Boss: the keeper is dead (%s)" % cause, Story.LOG)
 	var keeper = Keepers.first()
 	if keeper != null and is_instance_valid(keeper):
@@ -327,3 +344,42 @@ func _keeper_died(cause: String) -> void:
 		velle.attacks.clear()
 	if Level.mode != null and Level.mode.has_method("keeper_lost"):
 		Level.mode.keeper_lost()
+
+
+# Dev command (editor only): `-- --story --boss` drops the keeper into Velle's
+# chamber with Heat Shielding IV and the Suit Blaster; `--boss=chase` starts
+# at the chase (Velle already dead), `--boss=finale` at the surface battle.
+func _dev_boss(what: String) -> void:
+	ModLoaderLog.info("Dev command: boss (%s)" % what, Story.LOG)
+	if not _ensure_layer():
+		return
+	var keeper = Keepers.first()
+	Data.apply("team1.suit.heatshield", 4)
+	if not GameWorld.boughtUpgrades.has(keeper.playerId + ".suitblaster"):
+		GameWorld.serverAddUpgrade(keeper.playerId + ".suitblaster", keeper.teamId)
+	if what == "finale":
+		_stop_waves()
+		_set_state("chase")
+		_start_chase(Vector2(0, 400))
+		return
+	var ch: Rect2i = _chamber()
+	var cells: Array = []
+	for y in range(ch.position.y - 3, ch.end.y + 2):
+		for x in range(ch.position.x - 2, ch.end.x + 2):
+			cells.append(Vector2i(x, y))
+	Level.map.tileCoordsToReveal.append_array(cells)
+	Level.map.floodRevealTiles()
+	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
+	if not played.has("boss_chamber"):
+		played.append("boss_chamber")
+		Data.apply("team1.story.beatsplayed", ",".join(PackedStringArray(played)))
+	Data.apply(Awakening.AWAKE, true)
+	keeper.teleport(Level.map.getTilePos(Vector2(ch.position + Vector2i(3, 2))))
+	var cam = Level.viewports.getPlayerCam(keeper.playerId) if Level.viewports != null else null
+	if cam != null:
+		cam.position = keeper.position
+	if what == "chase":
+		_stop_waves()
+		health.refill()
+		_set_state("chase")
+		_start_chase(arena.get_center() + Vector2(0, 80))

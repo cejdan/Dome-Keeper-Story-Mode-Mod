@@ -22,7 +22,7 @@ func run(h) -> void:
 	var field = Level.map.get_node("StoryLavaField")
 	# The lava ocean would cook this keeper (no Heat Shielding); the heat test
 	# below is separate.
-	Data.apply("team1.storyheatshield", 4)
+	Data.apply("team1.suit.heatshield", 4)
 	var area: Array = []
 	for y in range(ch.position.y - 3, ch.end.y + 2):
 		for x in range(ch.position.x - 2, ch.end.x + 2):
@@ -101,6 +101,9 @@ func run(h) -> void:
 
 	# ---- stop: they catch up and hit
 	h.up("ui_up")
+	# A save mid-chase, for t161_reload.
+	await SaveGame.saveGame("singleplayer", 16, true)
+	h.note("saved slot 16", {"state": Director.current(), "hearts": health.hearts(), "keeper": h.keeper_tile()})
 	var hearts0: int = health.hearts()
 	var hit: bool = await h.until(func(): return chase.hits > hits0, 8.0)
 	await h.burst("caught", 5, 4)
