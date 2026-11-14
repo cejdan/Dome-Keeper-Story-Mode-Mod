@@ -53,6 +53,14 @@ func play_saved() -> void:
 	_step("end_screen")
 
 
+# The lost ending (#162): the keeper fell to Velle.
+func play_fallen() -> void:
+	playing = "fallen"
+	_step("cards")
+	await _cards(load(Story.MOD_DIR + "data/boss_text.gd").FALLEN_CARDS, "doom")
+	_step("end_screen")
+
+
 func _cards(cards: Array, mood: String) -> void:
 	var box = load(Story.MOD_DIR + "endings/CardBox.gd").new()
 	box.cards = cards

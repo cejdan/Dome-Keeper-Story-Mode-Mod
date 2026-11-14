@@ -150,8 +150,15 @@ func run(h) -> void:
 	h.check("doom cards match planet_end", _diff(doom_md.get("planet_end", {}).get("lines", []), Endings.DOOM_CARDS).is_empty(), _diff(doom_md.get("planet_end", {}).get("lines", []), Endings.DOOM_CARDS))
 	h.check("monsters' last words match monsters_last", _diff(doom_md.get("monsters_last", {}).get("lines", []), Endings.DOOM_LAST_WORDS).is_empty(), _diff(doom_md.get("monsters_last", {}).get("lines", []), Endings.DOOM_LAST_WORDS))
 	h.check("saved cards match saved", _diff(saved_md.get("saved", {}).get("lines", []), Endings.SAVED_CARDS).is_empty(), _diff(saved_md.get("saved", {}).get("lines", []), Endings.SAVED_CARDS))
+	# The boss sequence's draft text (#162).
+	var BossText = load("res://mods-unpacked/cejdan-StoryMode/data/boss_text.gd")
+	var boss_md: Dictionary = s.get("Boss", {})
+	h.check("the monsters' thanks match monsters_thanks", _diff(boss_md.get("monsters_thanks", {}).get("lines", []), BossText.THANKS).is_empty(), _diff(boss_md.get("monsters_thanks", {}).get("lines", []), BossText.THANKS))
+	h.check("the lost ending's cards match fallen", _diff(boss_md.get("fallen", {}).get("lines", []), BossText.FALLEN_CARDS).is_empty(), _diff(boss_md.get("fallen", {}).get("lines", []), BossText.FALLEN_CARDS))
+	all_lines.append_array(BossText.THANKS + BossText.FALLEN_CARDS)
 	var keys: Dictionary = s.get("keys", {})
-	var titles: Dictionary = {"Doom title": Endings.DOOM_TITLE, "Doom subtitle": Endings.DOOM_SUBTITLE, "Saved title": Endings.SAVED_TITLE, "Saved subtitle": Endings.SAVED_SUBTITLE}
+	var titles: Dictionary = {"Doom title": Endings.DOOM_TITLE, "Doom subtitle": Endings.DOOM_SUBTITLE, "Saved title": Endings.SAVED_TITLE, "Saved subtitle": Endings.SAVED_SUBTITLE,
+		"Fallen title": BossText.FALLEN_TITLE, "Fallen subtitle": BossText.FALLEN_SUBTITLE}
 	bad = []
 	for k: String in titles:
 		if keys.get(k, "<missing>") != titles[k]:
@@ -165,4 +172,4 @@ func run(h) -> void:
 	h.check("no placeholder text in %d story lines" % all_lines.size(), odd.is_empty(), odd)
 	# The parser itself found the whole script (guards against a check that
 	# passes because it read nothing).
-	h.check("the script parse found 25 story beats, 3 doom sections, 4 plea stages, 9 logs (8 miners' and the keeper's welcome)", beats_md.size() == 25 and doom_md.size() == 3 and pleas_md.size() == 4 and logs_md.size() == 9, {"beats": beats_md.size(), "doom": doom_md.keys(), "pleas": pleas_md.keys(), "logs": logs_md.size()})
+	h.check("the script parse found 24 story beats, 3 doom sections, 4 plea stages, 9 logs (8 miners' and the keeper's welcome)", beats_md.size() == 24 and doom_md.size() == 3 and pleas_md.size() == 4 and logs_md.size() == 9, {"beats": beats_md.size(), "doom": doom_md.keys(), "pleas": pleas_md.keys(), "logs": logs_md.size()})

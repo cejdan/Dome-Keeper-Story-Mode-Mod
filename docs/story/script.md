@@ -349,6 +349,22 @@ The translator called it a lullaby. It was not for the keeper.
 The tunnels stayed open to the sky. The keeper had dug every one of them.
 Halcyon Extraction marked the site as a loss.
 
+## Boss
+
+Draft lines for the boss sequence (`data/boss_text.gd`).
+
+### monsters_thanks
+- *Digger*. You came *back* for us.
+- The *hunger* is *still*. We *thank* you.
+- *Sleep* now, deep one. Go in *peace*, digger.
+
+### fallen
+"Hush now, little keeper," said Velle. "You did so well."
+The suit went quiet in the dark. Nobody came for it.
+Above, the ground opened like an eye.
+On the surface the singing stopped, one voice at a time.
+Halcyon Extraction logged the keeper as lost with the site, and posted the job again.
+
 ## End screen titles
 
 Doom title: The Planet Is Lost
@@ -356,3 +372,6 @@ Doom subtitle: You retired rich. The planet paid for it.
 
 Saved title: The Planet Is Saved
 Saved subtitle: Saved by the hands that nearly ended it.
+
+Fallen title: The Planet Is Lost
+Fallen subtitle: You woke it. Nobody was left to stop it.
