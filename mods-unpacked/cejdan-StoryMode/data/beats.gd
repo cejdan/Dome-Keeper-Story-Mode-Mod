@@ -14,7 +14,8 @@ extends RefCounted
 #              unobtainium:1, :3, :5, :7, :10, ending:doom, ending:saved
 #   tier     style tier (beats/BeatBox.gd, #24): 1 calm, 2 warm violet wave,
 #            3 glowing with glitches, 4 awake (full-screen violet dark)
-#   lines    1 to 3 short lines, shown together
+#   lines    1 to 3 short lines, shown together; longer beats page every 3
+#            lines, and a "---" line forces a page break
 #
 # Lines are the story script (docs/story/script.md, #25).
 
@@ -27,6 +28,7 @@ const BEATS: Array = [
 	{"id": "biome_b7", "trigger": "biome:B7", "tier": 3, "lines": ["I've waited such a long time for hands like yours.", "Patient hands. Hungry hands.", "Closer."]},
 	{"id": "biome_b8", "trigger": "biome:B8", "tier": 3, "lines": ["This is the last crust between us.", "Under it, everything is warm and bright, and all of it is yours.", "I only want one small thing back. Keep digging."]},
 	{"id": "lava_ocean", "trigger": "lava_ocean", "tier": 3, "lines": ["Swim, then. The fire won't mind you.", "The bright stone is down there. Your kind call it a fortune.", "Every piece you lift, I breathe a little easier. Take as many as you like."]},
+	{"id": "doom_thanks", "trigger": "ending:doom", "tier": 4, "lines": ["Thank you, little keeper.", "Oh, the air up there. I'd forgotten the air.", "---", "Go on, then. Fly home. Spend it all.", "You were always going to.", "---", "Don't look back. This part isn't for you.", "I'll sing the little ones to sleep, all of them. It's what they wanted."]},
 	{"id": "first_gem", "trigger": "first_gem", "tier": 1, "lines": ["Pretty, isn't it?", "There's so much more. All of it further down."]},
 	{"id": "gate_broken", "trigger": "gate_broken", "tier": 2, "lines": ["Someone locked that door a long time ago.", "Not against you. Never against you."]},
 	{"id": "lava_death", "trigger": "lava_death", "tier": 2, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
