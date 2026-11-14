@@ -11,12 +11,13 @@ extends Node
 # instead, as a distant cry; last words only show where the monster fell.
 #
 # The pool comes from the deepest biome reached (data/pleas.gd stages A-D).
-# How a line is written on screen goes through render(), which the rune
-# cipher (#92) takes over.
+# A line shows through render(): in the monsters' runes until translators are
+# installed (pleas/runes.gd, #92).
 
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const PleaData = preload("res://mods-unpacked/cejdan-StoryMode/data/pleas.gd")
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
+const Runes = preload("res://mods-unpacked/cejdan-StoryMode/pleas/runes.gd")
 
 const GROUP := "story-pleas"
 const RED := Color("ff3b30")
@@ -140,9 +141,9 @@ func say(kind: String, at = null, forced: String = "", life: float = -1.0) -> St
 	return line
 
 
-# Hook for the rune cipher (#92): BBCode for the line's text.
+# The line as it shows: runes for whatever the translators can't read yet (#92).
 func render(line: String) -> String:
-	return PleaData.plain(line).replace("[", "[lb]")
+	return Runes.render(line, Runes.stage(), true)
 
 
 func _on_screen(world_pos: Vector2) -> bool:
@@ -164,9 +165,15 @@ func _make(line: String, st: String, kind: String, pos: Vector2, where: String, 
 	label.scroll_active = false
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_override("normal_font", load("res://gui/fonts/FontLarge.tres"))
+	var font: Font = Runes.font()
+	label.add_theme_font_override("normal_font", font if font != null else load("res://gui/fonts/FontLarge.tres"))
+	label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	label.add_theme_color_override("default_color", RED if kind != "death" else RED.lerp(Color.WHITE, 0.25))
 	label.add_theme_color_override("font_outline_color", Color("12060a"))
+	# Bitmap runes take no outline; a hard shadow keeps them readable.
+	label.add_theme_color_override("font_shadow_color", Color(0.05, 0.0, 0.02, 0.9))
+	label.add_theme_constant_override("shadow_offset_x", 2)
+	label.add_theme_constant_override("shadow_offset_y", 2)
 	var shake: int = SHAKE.get(st, 6)
 	label.text = "[center][shake rate=18 level=%d connected=0]%s[/shake][/center]" % [shake, render(line)]
 	var holder: Node2D = Node2D.new()
