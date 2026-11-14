@@ -129,11 +129,10 @@ func run(h) -> void:
 		var r0: int = field.recalls
 		field.heat = field.HEAT_MAX + 5.0
 		await h.until(func(): return field.recalls > r0, 5.0)
-		await _expect(h, "lava_death", "lava_death")
+		await _expect(h, "lava_death_1", "lava_death")
 		field.heat = field.HEAT_MAX + 5.0
 		await h.until(func(): return field.recalls > r0 + 1, 5.0)
-		await h.wait(1.5)
-		h.check("a second death plays nothing", not StoryBeats.is_open())
+		await _expect(h, "lava_death_2", "lava_death_2")
 
 	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
 	h.note("played in order", played)
@@ -144,4 +143,4 @@ func run(h) -> void:
 	h.check("no beat played twice", not dupes, played)
 	# The harness marks the keeper's welcome log played (#123); it isn't wired here.
 	played = played.filter(func(id): return id != "keeper_welcome")
-	h.check("all 11 wired beats played", played.size() == 11, played.size())
+	h.check("all 12 wired beats played", played.size() == 12, played.size())

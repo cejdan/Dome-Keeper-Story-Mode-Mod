@@ -49,7 +49,7 @@ func run(h) -> void:
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.0)
 	h.disable_waves()
-	Data.apply("team1.story.beatsplayed", "biome_b2,biome_b3,biome_b4,biome_b5,biome_b6,biome_b7,biome_b8,lava_ocean,first_gem,gate_broken,lava_death")
+	Data.apply("team1.story.beatsplayed", "biome_b2,biome_b3,biome_b4,biome_b5,biome_b6,biome_b7,biome_b8,lava_ocean,first_gem,gate_broken,lava_death_1,lava_death_2,lava_death_3,lava_death_4")
 	await h.wait(0.5)
 	await _sell(h, 0, 0)
 	await h.wait(1.0)

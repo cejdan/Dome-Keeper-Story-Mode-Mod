@@ -188,6 +188,11 @@ func _can_end() -> bool:
 	return not (GameWorld.won or GameWorld.lost or _lost or _ending)
 
 
+# True while an ending plays or the run is lost: story beats wait (#96, #97).
+func is_ending() -> bool:
+	return _ending or _lost
+
+
 # Takes the keeper's controls and ends the waves, for an ending.
 func _stop_play() -> void:
 	Level.stage.stopKeeperInput()

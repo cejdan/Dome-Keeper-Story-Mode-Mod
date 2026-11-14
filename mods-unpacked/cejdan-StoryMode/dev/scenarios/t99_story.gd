@@ -206,7 +206,7 @@ func _lava_death(h) -> void:
 	field.heat = field.HEAT_MAX + 5.0
 	await h.until(func(): return field.recalls > r0, 5.0)
 	h.check("overheat recalls the keeper", field.recalls > r0, field.recalls)
-	await _expect(h, "lava_death", "lava_death")
+	await _expect(h, "lava_death_1", "lava_death")
 
 
 # ---------------------------------------------------------------- run
@@ -355,7 +355,8 @@ func run(h) -> void:
 
 	# ---- the whole story, once each
 	h.note("opened in order", opened)
-	var want: Array = BeatData.BEATS.map(func(b): return b["id"]) + LogData.LOGS.map(func(l): return l["id"])
+	# One death here: lava deaths 2 to 5 have their own run (t157_lava_deaths).
+	var want: Array = BeatData.BEATS.map(func(b): return b["id"]).filter(func(id): return not (id.begins_with("lava_death_") and id != "lava_death_1")) + LogData.LOGS.map(func(l): return l["id"])
 	var wrong: Dictionary = {}
 	for id in want:
 		if opened.count(id) != 1:

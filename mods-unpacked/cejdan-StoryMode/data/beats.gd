@@ -9,10 +9,13 @@ extends RefCounted
 #   trigger  what fires it: StoryBeats.trigger(name) plays every unplayed beat
 #            whose trigger is `name`. Names in use:
 #              biome:B2 .. biome:B8, lava_ocean, boss_chamber, boss_wait,
-#              first_gem, gate_broken, lava_death, translator:1 .. translator:3,
+#              first_gem, gate_broken, lava_death:1 .. lava_death:5,
+#              translator:1 .. translator:3,
 #              unobtainium:1, :3, :5, :7, :10, ending:doom
 #   tier     style tier (beats/BeatBox.gd, #24): 1 calm, 2 warm violet wave,
 #            3 glowing with glitches, 4 awake (full-screen violet dark)
+#   repeat   optional; true lets the beat play again each time its trigger
+#            fires (lava_death_5: the 5th lava death and every one after)
 #   lines    1 to 3 short lines, shown together; longer beats page every 3
 #            lines, and a "---" line forces a page break. A line starting
 #            with "> " is the narrator (#137), not the horror: plain, muted
@@ -33,7 +36,11 @@ const BEATS: Array = [
 	{"id": "doom_thanks", "trigger": "ending:doom", "tier": 4, "lines": ["Thank you, little keeper.", "Oh, the air up there. I'd forgotten the air.", "---", "Go on, then. Fly home. Spend it all.", "You were always going to.", "---", "Don't look back. This part isn't for you.", "I'll sing the little ones to sleep, all of them. It's what they wanted."]},
 	{"id": "first_gem", "trigger": "first_gem", "tier": 1, "lines": ["Pretty, isn't it?", "There's so much more. All of it further down."]},
 	{"id": "gate_broken", "trigger": "gate_broken", "tier": 2, "lines": ["Someone locked that door a long time ago.", "Not against you. Never against you."]},
-	{"id": "lava_death", "trigger": "lava_death", "tier": 2, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
+	{"id": "lava_death_1", "trigger": "lava_death:1", "tier": 2, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
+	{"id": "lava_death_2", "trigger": "lava_death:2", "tier": 2, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
+	{"id": "lava_death_3", "trigger": "lava_death:3", "tier": 2, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
+	{"id": "lava_death_4", "trigger": "lava_death:4", "tier": 2, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
+	{"id": "lava_death_5", "trigger": "lava_death:5", "tier": 2, "repeat": true, "lines": ["Oh. Oh, that hurt you.", "The fire is clumsy. I would hold you more gently.", "There you are. Come back down."]},
 	{"id": "translator_1", "trigger": "translator:1", "tier": 1, "lines": ["That's one of theirs. You don't need it.", "I already speak your language."]},
 	{"id": "translator_2", "trigger": "translator:2", "tier": 2, "lines": ["Another one? Their words are so loud, and so small.", "Mine are only for you. Wouldn't you rather have mine?"]},
 	{"id": "translator_3", "trigger": "translator:3", "tier": 3, "lines": ["Please put it down. They'll tell you I'm something terrible.", "Have I ever been anything but kind to you?", "Listen to me. Only me."]},

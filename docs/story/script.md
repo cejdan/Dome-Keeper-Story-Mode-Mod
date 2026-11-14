@@ -2,7 +2,7 @@
 
 Notes for implementers:
 - Company name, used everywhere: Halcyon Extraction. Only the data logs and the planet_end narration mention it.
-- The horror's name for the keeper, starting at unobtainium_1: little keeper. Every beat that can fire before the first unobtainium (biomes, first_gem, gate_broken, lava_death, translators) says only 'you', so the address stays right whatever order the player finds things in.
+- The horror's name for the keeper, starting at unobtainium_1: little keeper. Every beat that can fire before the first unobtainium (biomes, first_gem, gate_broken, lava deaths, translators) says only 'you', so the address stays right whatever order the player finds things in.
 - The player is meant to work out that they are Keeper 9. The logs come from Keepers 1, 4, 5, 6, 7 and 8. The gaps are deliberate.
 - Narration: a line starting with '> ' is the narrator, not the horror (#137). The first beats (b2, b3) open with narration. The user wrote these (2026-11-13); the rest of the script still needs a human pass.
 - Lines the logs echo on purpose: 'only frightened, you don't have to be' (log_b3 only: the horror said it to Ines Varga, the keeper no longer hears it at b3), 'doing so well' and 'just a little deeper' (b4, b6), 'put it down' (translator_3), 'little keeper' (log_b7, then unobtainium_1).
@@ -70,7 +70,27 @@ There's so much more. All of it further down.
 Someone locked that door a long time ago.
 Not against you. Never against you.
 
-### lava_death (tier 2)
+### lava_death_1 (tier 2)
+Oh. Oh, that hurt you.
+The fire is clumsy. I would hold you more gently.
+There you are. Come back down.
+
+### lava_death_2 (tier 2)
+Oh. Oh, that hurt you.
+The fire is clumsy. I would hold you more gently.
+There you are. Come back down.
+
+### lava_death_3 (tier 2)
+Oh. Oh, that hurt you.
+The fire is clumsy. I would hold you more gently.
+There you are. Come back down.
+
+### lava_death_4 (tier 2)
+Oh. Oh, that hurt you.
+The fire is clumsy. I would hold you more gently.
+There you are. Come back down.
+
+### lava_death_5 (tier 2)
 Oh. Oh, that hurt you.
 The fire is clumsy. I would hold you more gently.
 There you are. Come back down.

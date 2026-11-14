@@ -2,7 +2,8 @@ extends Node
 
 # Story beats (#23): the horror's text boxes. A beat opens when it is fired and
 # pauses the game (so the wave countdown, lava and Suit Blaster recharge all
-# stop) until the player closes it. Each beat plays once per run.
+# stop) until the player closes it. Each beat plays once per run, except one
+# marked "repeat" in data/beats.gd.
 #
 # Other code fires beats through the static helpers, which do nothing outside a
 # Story Mode run:
@@ -43,8 +44,8 @@ static func instance():
 	return tree.get_first_node_in_group(GROUP)
 
 
-# Queues the beat `id`. False when it is unknown, already played or already
-# waiting, or when this is not a Story Mode run.
+# Queues the beat `id`. False when it is unknown, already played (unless the
+# beat has "repeat") or already waiting, or when this is not a Story Mode run.
 static func fire(id: String) -> bool:
 	var n = instance()
 	return n != null and n.queue_beat(id)
@@ -118,7 +119,7 @@ func queue_beat(id: String) -> bool:
 		push_warning("Story beat: no beat or log with id " + id)
 		return false
 	var queued: Array = _list(QUEUED)
-	if _list(PLAYED).has(id) or queued.has(id):
+	if queued.has(id) or (_list(PLAYED).has(id) and not bool(_entry(id).get("repeat", false))):
 		return false
 	queued.append(id)
 	_store(QUEUED, queued)
@@ -184,6 +185,14 @@ func _can_show() -> bool:
 	if stage == null or StageManager.isSwitchingStage() or not stage.keeperInputStarted:
 		return false
 	if stage.pauseMenuOpen or stage.showingChoicePopup or stage.endingPanel != null:
+		return false
+	# Nothing waiting opens over an ending or a lost run: stopKeeperInput leaves
+	# keeperInputStarted set, and the ending's cards don't pause. The ending's own
+	# beat goes through play_now().
+	if GameWorld.won or GameWorld.lost:
+		return false
+	var mode = Level.mode
+	if mode != null and mode.has_method("is_ending") and mode.is_ending():
 		return false
 	# A loading save restores Data (and so the queue) after the stage starts.
 	if GameWorld.paused or SaveGame.currentLoadingSavegame or Keepers.first() == null:

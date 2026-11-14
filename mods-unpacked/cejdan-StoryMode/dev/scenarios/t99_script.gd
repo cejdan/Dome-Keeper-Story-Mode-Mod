@@ -165,4 +165,4 @@ func run(h) -> void:
 	h.check("no placeholder text in %d story lines" % all_lines.size(), odd.is_empty(), odd)
 	# The parser itself found the whole script (guards against a check that
 	# passes because it read nothing).
-	h.check("the script parse found 21 story beats, 3 doom sections, 4 plea stages, 9 logs (8 miners' and the keeper's welcome)", beats_md.size() == 21 and doom_md.size() == 3 and pleas_md.size() == 4 and logs_md.size() == 9, {"beats": beats_md.size(), "doom": doom_md.keys(), "pleas": pleas_md.keys(), "logs": logs_md.size()})
+	h.check("the script parse found 25 story beats, 3 doom sections, 4 plea stages, 9 logs (8 miners' and the keeper's welcome)", beats_md.size() == 25 and doom_md.size() == 3 and pleas_md.size() == 4 and logs_md.size() == 9, {"beats": beats_md.size(), "doom": doom_md.keys(), "pleas": pleas_md.keys(), "logs": logs_md.size()})
