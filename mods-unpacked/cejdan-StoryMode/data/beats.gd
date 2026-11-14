@@ -8,7 +8,7 @@ extends RefCounted
 #   id       unique name; code fires a beat with StoryBeats.fire(id)
 #   trigger  what fires it: StoryBeats.trigger(name) plays every unplayed beat
 #            whose trigger is `name`. Names in use:
-#              biome:B2 .. biome:B8, lava_ocean, boss_chamber, boss_wait,
+#              biome:B2 .. biome:B8, lava_ocean, boss_chamber,
 #              first_gem, gate_broken, lava_death:1 .. lava_death:5,
 #              translator:1 .. translator:3,
 #              unobtainium:1, :3, :5, :7, :10, ending:doom
@@ -50,7 +50,6 @@ const BEATS: Array = [
 	{"id": "unobtainium_7", "trigger": "unobtainium:7", "tier": 4, "lines": ["Seven. My heart has started again. It beats with yours.", "I'm so proud of you, little keeper.", "Bring me the rest, and I'll give you everything you came here for."]},
 	{"id": "unobtainium_10", "trigger": "unobtainium:10", "tier": 4, "lines": ["Ten. The seal is only a whisper now, little keeper.", "Come to the middle of the world. I want to see your face.", "Or go home rich, if you like. I'll be awake to wave goodbye."]},
 	{"id": "boss_chamber", "trigger": "boss_chamber", "tier": 4, "lines": ["There you are. Oh, look at you. So small, after all that digging.", "You were so good, little keeper. Better than the others.", "The little ones above have a word for me. It means hunger. That's unkind.", "My name is Velle. It means wanting.", "You know all about wanting, don't you?", "Now come closer, and let me open my eyes."]},
-	{"id": "boss_wait", "trigger": "boss_wait", "tier": 4, "lines": ["Not yet, little keeper. Come closer.", "Closer still. I'm almost ready for you."]},
 ]
 
 

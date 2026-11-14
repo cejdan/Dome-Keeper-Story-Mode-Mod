@@ -57,7 +57,8 @@ func run(h) -> void:
 	h.check("the seal weakens with every piece", rising and Awakening.mined() == 10, levels)
 	h.check("the mined deposits are recorded per cell", Awakening.freed(cells[0]) and Awakening.freed(cells[9]) and not Awakening.freed(cells[10] if cells.size() > 10 else Vector2i(9999, 9999)))
 
-	# Into the boss chamber.
+	# Into the boss chamber. The fight that follows has its own scenarios (#160).
+	load("res://mods-unpacked/cejdan-StoryMode/boss/boss_director.gd").enabled = false
 	var room: Rect2i = td.get_meta("story_boss_chamber", Rect2i())
 	h.check("the map has a boss chamber", room.size != Vector2i.ZERO, room)
 	var inside: Vector2i = room.position + room.size / 2
@@ -65,8 +66,6 @@ func run(h) -> void:
 	var id: String = await h.read_beat("chamber", 6.0)
 	h.check("entering the chamber plays the awakening beat", id == "boss_chamber", id)
 	h.check("the horror is awake", Awakening.is_awake() and Awakening.level() == 1.0, Awakening.level())
-	var wait_id: String = await h.read_beat("not_yet", 6.0)
-	h.check("then the placeholder beat (come closer, not yet)", wait_id == "boss_wait", wait_id)
 	await h.teleport_tile(inside)
 	await h.wait(1.5)
 	h.check("re-entering plays nothing", not StoryBeats.is_open())

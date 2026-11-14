@@ -697,7 +697,9 @@ func _update_heat(delta: float) -> void:
 	# Passive heat from depth (#46), out of the dome, scaled by Heat Shielding.
 	passive_rate = 0.0
 	var passive_zone := false
-	if not keeper.isInsideDome and not keeper.disabled:
+	# The sealed boss chamber keeps the depth's heat out while Velle fights (#160).
+	var sealed: bool = str(Data.ofOr("team1.story.boss", "")) == "fight"
+	if not keeper.isInsideDome and not keeper.disabled and not sealed:
 		var raw: float = passive_rate_at(map.getTileCoord(keeper.global_position))
 		passive_zone = raw > 0.0 or map.tileData.get_biomev(map.getTileCoord(keeper.global_position)) >= LavaData.PASSIVE_HEAT_START_BIOME
 		passive_rate = raw * LavaData.passive_heat_mult(keeper.teamId)
@@ -712,7 +714,14 @@ func _update_heat(delta: float) -> void:
 	else:
 		heat = max(0.0, heat - COOL_MINE_PER_SECOND * delta)
 	if heat >= HEAT_MAX:
-		_recall(keeper)
+		# Velle jams the suit's recall through the boss sequence (#160):
+		# overheating costs a heart there, not a trip home.
+		var BossDirector = load("res://mods-unpacked/cejdan-StoryMode/boss/boss_director.gd")
+		if BossDirector.jams_recall():
+			heat = HEAT_MAX * load("res://mods-unpacked/cejdan-StoryMode/data/boss.gd").OVERHEAT_HEAT_AFTER
+			BossDirector.overheated()
+		else:
+			_recall(keeper)
 	if not boss_chamber_reached and _chamber.size != Vector2i.ZERO:
 		if _chamber.has_point(map.getTileCoord(keeper.global_position)):
 			boss_chamber_reached = true

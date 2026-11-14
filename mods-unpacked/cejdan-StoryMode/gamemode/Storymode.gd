@@ -29,6 +29,8 @@ func init() -> void:
 	add_child(SalePops.new())
 	# The keeper's lines about the depth heat (#146).
 	add_child(load(Story.MOD_DIR + "hud/heat_talk.gd").new())
+	# The boss sequence: Velle's chamber fight and what follows (#160).
+	add_child(load(Story.MOD_DIR + "boss/boss_director.gd").new())
 	Data.listen(self, "team1.dome.health")
 	GameWorld.upgradeBought.connect(_on_upgrade_bought)
 	ModLoaderLog.info("Story Mode run started (seed %d)" % Level.levelSeed, Story.LOG)
@@ -244,6 +246,28 @@ func _lose() -> void:
 	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
 	popup.init(multiplayer.is_server())
 	Level.stage.showEndingPanel(popup)
+
+
+# The keeper died in the boss sequence (#160): the run ends in failure. The
+# boss director calls this once.
+func keeper_lost() -> void:
+	if not _can_end():
+		return
+	_lost = true
+	ModLoaderLog.info("The keeper is lost: the run ends in failure", Story.LOG)
+	await _stop_play()
+	Level.moveHudOut()
+	GameWorld.lost = true
+	await get_tree().create_timer(1.2).timeout
+	Audio.sound("lose")
+	await get_tree().create_timer(0.2).timeout
+	GameWorld.handleGameLost()
+	Audio.startGameOver(1.0)
+	await get_tree().create_timer(5.0).timeout
+	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
+	popup.init(multiplayer.is_server())
+	Level.stage.showEndingPanel(popup)
+	SaveGame.delete_autosave()
 
 
 # Vanilla Relic Hunt's run weight (Relichunt.gd). Story Mode's own iron term
