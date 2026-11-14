@@ -7,17 +7,17 @@ extends RefCounted
 # Fields:
 #   id       unique name; code fires a beat with StoryBeats.fire(id)
 #   trigger  what fires it: StoryBeats.trigger(name) plays every unplayed beat
-#            whose trigger is `name`. Names wired so far: none (the biome and
-#            event watchers are #26). Planned names:
-#              biome:B2 .. biome:B8, lava_ocean, boss_chamber,
+#            whose trigger is `name`. Names in use:
+#              biome:B2 .. biome:B8, lava_ocean, boss_chamber, boss_wait,
 #              first_gem, gate_broken, lava_death, translator:1 .. translator:3,
-#              unobtainium:1, :3, :5, :7, :10, ending:doom, ending:saved
+#              unobtainium:1, :3, :5, :7, :10, ending:doom
 #   tier     style tier (beats/BeatBox.gd, #24): 1 calm, 2 warm violet wave,
 #            3 glowing with glitches, 4 awake (full-screen violet dark)
 #   lines    1 to 3 short lines, shown together; longer beats page every 3
 #            lines, and a "---" line forces a page break
 #
-# Lines are the story script (docs/story/script.md, #25).
+# Lines are the story script (docs/story/script.md, #25); dev/scenarios/
+# t99_script fails if they drift from it.
 
 const BEATS: Array = [
 	{"id": "biome_b2", "trigger": "biome:B2", "tier": 1, "lines": ["Oh. Someone is digging.", "Hello. Don't stop on my account."]},
