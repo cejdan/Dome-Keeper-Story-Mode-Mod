@@ -186,6 +186,14 @@ func _can_show() -> bool:
 		return false
 	if stage.pauseMenuOpen or stage.showingChoicePopup or stage.endingPanel != null:
 		return false
+	# Nothing waiting opens over an ending or a lost run: stopKeeperInput leaves
+	# keeperInputStarted set, and the ending's cards don't pause. The ending's own
+	# beat goes through play_now().
+	if GameWorld.won or GameWorld.lost:
+		return false
+	var mode = Level.mode
+	if mode != null and mode.has_method("is_ending") and mode.is_ending():
+		return false
 	# A loading save restores Data (and so the queue) after the stage starts.
 	if GameWorld.paused or SaveGame.currentLoadingSavegame or Keepers.first() == null:
 		return false
