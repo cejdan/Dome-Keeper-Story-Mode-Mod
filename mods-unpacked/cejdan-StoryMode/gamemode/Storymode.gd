@@ -27,6 +27,8 @@ func init() -> void:
 	add_child(load(Story.MOD_DIR + "pleas/plea_director.gd").new())
 	# "+$5" over the dome for each piece sold (#121).
 	add_child(SalePops.new())
+	# The keeper's lines about the depth heat (#146).
+	add_child(load(Story.MOD_DIR + "hud/heat_talk.gd").new())
 	Data.listen(self, "team1.dome.health")
 	GameWorld.upgradeBought.connect(_on_upgrade_bought)
 	ModLoaderLog.info("Story Mode run started (seed %d)" % Level.levelSeed, Story.LOG)
@@ -46,6 +48,12 @@ func afterInitialized() -> void:
 	# A save restores Data after this runs, so a load is told apart by its flag.
 	if not SaveGame.currentLoadingSavegame:
 		_welcome()
+	# The win condition's shop section (#144): vanilla adds only the mode's own
+	# root, so the second root is added here, then its Retire Rich unlocked.
+	# A save made before #144 gets it on load too.
+	if not GameWorld.boughtUpgrades.has("team1." + WIN_ROOT):
+		GameWorld.addUpgrade(WIN_ROOT, "team1")
+		GameWorld.updateAvailableUpgrades("team1")
 	# Story-only upgrades on vanilla tracks (#147) need the storyonly limit, which
 	# the storymode root unlocks; a save made before it gets it here.
 	if not GameWorld.isUpgradeLimitAvailable("team1.storyonly"):
@@ -85,6 +93,8 @@ func _welcome() -> void:
 const SUITBLASTER_ENTRY := "storysuitblaster"
 # Retire Rich (#31, #54): the only way to win a Story Mode run until the boss.
 const RETIRE_ENTRY := "storyretirerich"
+# Retire Rich's own root, the shop's top section (#144).
+const WIN_ROOT := "storywin"
 
 
 func _on_upgrade_bought(id: String, teamId: String, _playerId: String) -> void:

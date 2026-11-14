@@ -2,6 +2,12 @@ storymode:
   type: gamemode
   unlockslimits: [storyonly]
 
+# The win condition's own shop section (#144), at the top like Prestige's: a
+# second root that Storymode.gd adds to every Story Mode run, holding only
+# Retire Rich. mod_main.gd puts it first in the shop's track order.
+storyWin:
+  type: gamemode
+
 storySuitblaster:
   cost: money=200
   shadowing: suitblaster
@@ -28,7 +34,7 @@ storyNewGadget4:
 
 storyRetireRich:
   cost: money=1000000
-  predecessors: [storymode]
+  predecessors: [storyWin]
 
 storyHeatShield1:
   cost: money=0

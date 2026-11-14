@@ -15,6 +15,12 @@ extends Control
 # hears or thinks, in a plain, muted, slanted voice at three quarters size, the
 # same in every tier, so the horror's own words stand out against it.
 #
+# The horror's volume (#145): its voice grows louder the deeper the keeper has
+# been. At B2 it is a whisper, small white text below the narrator's size with
+# a faint wave; each biome uncovered after that brings it closer to its tier's
+# full style, which it reaches from B5 on (VOLUME_FULL_AT). The narrator never
+# changes size.
+#
 # Text comes from the translation key story.beat.<id> (text/strings.gd), with
 # the data file's English lines as a fallback, so it is always readable.
 
@@ -45,8 +51,20 @@ const STYLES := {
 		"open": "[wave amp=26 freq=0.6 connected=1][glitch rate=0.7]", "close": "[/glitch][/wave]", "cps": 20.0, "dim": 0.84, "shudder": 0.7},
 }
 
+# The whisper: the horror's text at volume 0.
+const WHISPER_SIZE := 20
+const WHISPER_COLOR := Color("f6f4ff")
+const WHISPER_WAVE_AMP := 9.0
+const WHISPER_WAVE_FREQ := 1.6
+# Deepest biome index (0 = B1, story_beats.gd DEEPEST) at volume 0, and the one
+# where the voice reaches its full tier style.
+const VOLUME_QUIET_AT := 1
+const VOLUME_FULL_AT := 4
+
 var beat_id: String = ""
 var tier: int = 1
+# 0 = whisper .. 1 = the tier's full style. Set from the depth on setup().
+var volume: float = 1.0
 var _style: Dictionary
 var _text: RichTextLabel
 var _hint: Label
@@ -67,6 +85,12 @@ const MAX_ROWS := {1: 5, 2: 5, 3: 4, 4: 4}
 func setup(id: String, style_tier: int) -> void:
 	beat_id = id
 	tier = clampi(style_tier, 1, 4)
+	volume = volume_for(int(Data.ofOr("team1.story.deepest", 0)))
+
+
+# How loud the horror is once the keeper has reached the biome index `deepest`.
+static func volume_for(deepest: int) -> float:
+	return clampf(float(deepest - VOLUME_QUIET_AT) / float(VOLUME_FULL_AT - VOLUME_QUIET_AT), 0.0, 1.0)
 
 
 func _init() -> void:
@@ -177,21 +201,50 @@ func _set_page(i: int) -> void:
 		size -= 4
 	_text.add_theme_font_size_override("normal_font_size", size)
 	_text.add_theme_font_size_override("italics_font_size", int(size * NARRATOR_SCALE))
+	var tags: Array = _voice_tags(size)
 	# Runs of the horror's lines share one effect wrap, so its wave stays connected.
 	var parts: PackedStringArray = []
 	var run: PackedStringArray = []
 	for l: String in page.split("\n"):
 		if is_narration(l):
 			if not run.is_empty():
-				parts.append(_style["open"] + _escape("\n".join(run)) + _style["close"])
+				parts.append(tags[0] + _escape("\n".join(run)) + tags[1])
 				run = []
 			parts.append("[i][color=#%s]%s[/color][/i]" % [NARRATOR_COLOR.to_html(false), _escape(narration_text(l))])
 		else:
 			run.append(l)
 	if not run.is_empty():
-		parts.append(_style["open"] + _escape("\n".join(run)) + _style["close"])
+		parts.append(tags[0] + _escape("\n".join(run)) + tags[1])
 	_text.text = "[center]" + "\n".join(parts) + "[/center]"
 	_text.visible_characters = 0
+
+
+# The horror's wave and glitch per tier: [amp, freq, glitch rate] (0 = none),
+# the numbers in STYLES' own open tags.
+const VOICE_FX := {1: [0.0, 0.0, 0.0], 2: [14.0, 1.4, 0.0], 3: [20.0, 0.9, 0.25], 4: [26.0, 0.6, 0.7]}
+
+
+# Open and close tags for the horror's lines at this beat's volume (#145): at
+# full volume the tier's own tags; quieter, smaller and whiter, with the wave
+# easing toward a faint whisper wave.
+func _voice_tags(size: int) -> Array:
+	if volume >= 1.0:
+		return [_style["open"], _style["close"]]
+	var fx: Array = VOICE_FX[tier]
+	var px: int = int(round(lerpf(WHISPER_SIZE, size, volume)))
+	var col: Color = WHISPER_COLOR.lerp(_style["color"], volume)
+	var amp: float = lerpf(WHISPER_WAVE_AMP, fx[0], volume)
+	var freq: float = lerpf(WHISPER_WAVE_FREQ, fx[1] if fx[1] > 0.0 else WHISPER_WAVE_FREQ, volume)
+	var open: String = "[font_size=%d][color=#%s]" % [px, col.to_html(false)]
+	var close: String = "[/color][/font_size]"
+	if amp >= 0.5:
+		open += "[wave amp=%.1f freq=%.2f connected=1]" % [amp, freq]
+		close = "[/wave]" + close
+	var glitch: float = fx[2] * volume
+	if glitch > 0.0:
+		open += "[glitch rate=%.2f]" % glitch
+		close = "[/glitch]" + close
+	return [open, close]
 
 
 static func is_narration(line: String) -> bool:
