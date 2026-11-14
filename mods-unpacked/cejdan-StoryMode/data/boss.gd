@@ -45,8 +45,10 @@ const CHASE_HEAD_START := 2.5        # seconds before the tentacles set off
 const CHASE_RECOIL := 1.3            # seconds a tip hangs back after it lands a hit
 
 # --- the surface finale (#162) -----------------------------------------------
-const FINALE_TENTACLE_HP := 260.0
-const FINALE_EYE_HP := 700.0
-const FINALE_SLAM_DAMAGE := 22
+# A tentacle's health follows the run's weight (what its waves are built
+# from), inside these limits; the great eye has three times as much.
+const FINALE_HP_PER_RUN_WEIGHT := 0.3
+const FINALE_TENTACLE_HP_MIN := 60.0
+const FINALE_TENTACLE_HP_MAX := 400.0
+const FINALE_SLAM_DAMAGE := 35        # to the dome; the great eye hits twice as hard
 const FINALE_SLAM_EVERY := 5.5
-const FINALE_ROUNDS := [2, 3]         # tentacles in round 1, round 2 (plus the great eye)

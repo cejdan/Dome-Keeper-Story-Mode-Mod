@@ -8,6 +8,8 @@ extends Node
 #   fight    Velle in the chamber (boss/velle.gd). The chamber is sealed.
 #   chase    Velle's body is dead; its tentacles hunt the keeper back to the
 #            dome (boss/chase.gd).
+#   finale   the keeper is home; the tentacles burst through the ground and
+#            the dome fights them (boss/finale.gd).
 #   won      the horror is defeated; the saved ending plays.
 #   lost     the keeper ran out of hearts; the run ends in failure.
 #
@@ -40,6 +42,7 @@ var layer: Node2D = null
 var health: Node = null
 var velle: Node2D = null
 var chase: Node2D = null
+var finale: Node2D = null
 var arena: Rect2 = Rect2()
 var _booted: bool = false
 var _seal_flash: float = 0.0
@@ -188,6 +191,10 @@ func _resume() -> void:
 				_stop_waves()
 				var k = Keepers.first()
 				_start_chase(layer.to_local(k.global_position) + Vector2(0, 220))
+		"finale":
+			if _ensure_layer():
+				_stop_waves()
+				_start_finale()
 		"lost", "won":
 			pass
 
@@ -271,12 +278,35 @@ func _start_chase(origin: Vector2) -> void:
 func _chase_done() -> void:
 	if chase != null and is_instance_valid(chase):
 		chase.running = false
+	_set_state("finale")
+	_start_finale()
+
+
+# ---------------------------------------------------------------- the finale
+
+func _start_finale() -> void:
+	finale = load(Story.MOD_DIR + "boss/finale.gd").new()
+	finale.name = "Finale"
+	layer.add_child(finale)
+	finale.setup()
+	finale.finished.connect(_finale_done)
+
+
+func _finale_done() -> void:
+	if current() != "finale":
+		return
 	_set_state("won")
 	_finish_won()
 
 
+# The dome fell in the finale (the game mode's own loss): the lost ending.
+func dome_lost() -> void:
+	if active():
+		_set_state("lost")
+
+
 func _finish_won() -> void:
-	await get_tree().create_timer(2.0, false).timeout
+	await get_tree().create_timer(1.0, false).timeout
 	if Level.mode != null and Level.mode.has_method("horror_defeated"):
 		Level.mode.horror_defeated()
 

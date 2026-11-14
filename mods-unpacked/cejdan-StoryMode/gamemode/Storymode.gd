@@ -234,6 +234,11 @@ func _dev_horror_defeated() -> void:
 
 func _lose() -> void:
 	_lost = true
+	# The dome fell while it fought Velle's tentacles (#162): the lost ending.
+	var boss = get_node_or_null("StoryBoss")
+	var fallen: bool = boss != null and boss.active()
+	if fallen:
+		boss.dome_lost()
 	Level.moveHudOut()
 	GameWorld.lost = true
 	var delay: float = Level.stage.playGameLostAnimation()
@@ -245,6 +250,9 @@ func _lose() -> void:
 	await get_tree().create_timer(5.0).timeout
 	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
 	popup.init(multiplayer.is_server())
+	if fallen:
+		var BossText = load(Story.MOD_DIR + "data/boss_text.gd")
+		load(Story.MOD_DIR + "endings/ending_director.gd").retitle(popup, BossText.FALLEN_TITLE, BossText.FALLEN_SUBTITLE)
 	Level.stage.showEndingPanel(popup)
 
 
@@ -256,6 +264,11 @@ func keeper_lost() -> void:
 	_lost = true
 	ModLoaderLog.info("The keeper is lost: the run ends in failure", Story.LOG)
 	await _stop_play()
+	# The lost ending (#162): the planet's end, told in cards.
+	var endings = get_node_or_null("StoryEndings")
+	if endings != null:
+		await get_tree().create_timer(1.5).timeout
+		await endings.play_fallen()
 	Level.moveHudOut()
 	GameWorld.lost = true
 	await get_tree().create_timer(1.2).timeout
@@ -266,6 +279,8 @@ func keeper_lost() -> void:
 	await get_tree().create_timer(5.0).timeout
 	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
 	popup.init(multiplayer.is_server())
+	var BossText = load(Story.MOD_DIR + "data/boss_text.gd")
+	load(Story.MOD_DIR + "endings/ending_director.gd").retitle(popup, BossText.FALLEN_TITLE, BossText.FALLEN_SUBTITLE)
 	Level.stage.showEndingPanel(popup)
 	SaveGame.delete_autosave()
 
