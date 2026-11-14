@@ -41,6 +41,13 @@ const ARCHETYPE: Dictionary = {
 }
 const BIOMES: int = 8
 
+# Tile health grows by this factor per biome in Story Mode (#148; vanilla
+# uses 2.1). Lower than vanilla because Story Mode has eight biomes where a
+# vanilla map has about five: at 2.1 a B8 tile had 180 times B1's health and
+# each drill level bought about one biome. Applied in mod_main.gd
+# prepareGameMode, after vanilla sets its own.
+const TILE_HEALTH_PER_BIOME: float = 1.9
+
 # Deposits per 1,000 tiles of a biome. Level with depth for now ("how much more
 # common deeper" is still open on the map). 11 gives about vanilla's ore density.
 const DEPOSITS_PER_1000: float = 11.0
@@ -55,8 +62,8 @@ const MIX: Array = [
 	{"bronze": 35, "iron": 50, "gold": 15},
 	{"bronze": 5, "iron": 35, "gold": 40, "sapphire": 20},
 	{"iron": 10, "gold": 42, "sapphire": 32, "emerald": 15, "ruby": 0.5, "diamond": 0.5},
-	{"gold": 30, "sapphire": 26, "emerald": 28, "ruby": 15, "diamond": 1},
-	{"gold": 12, "sapphire": 13, "emerald": 25, "ruby": 32, "mythril": 15, "diamond": 3},
+	{"gold": 28, "sapphire": 24, "emerald": 25, "ruby": 13, "mythril": 8, "diamond": 2},
+	{"gold": 8, "sapphire": 10, "emerald": 20, "ruby": 30, "mythril": 28, "diamond": 4},
 	{"sapphire": 3, "emerald": 12, "ruby": 25, "mythril": 52, "diamond": 8},
 ]
 

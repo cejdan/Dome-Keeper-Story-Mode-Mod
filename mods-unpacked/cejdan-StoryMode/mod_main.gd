@@ -241,6 +241,9 @@ func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 			ModLoaderLog.info("Loaded run: level seed %d restored (was rolled as %d)" % [saved, Level.levelSeed], Story.LOG)
 			Level.levelSeed = saved
 	levelStartData.loadout.modeConfig[Story.MODE_FLAG] = true
+	# Story Mode's gentler tile health growth with depth (#148). Vanilla's
+	# prepareCleanData sets 2.1 again before every run.
+	Data.apply("map.tileHealthMultiplierPerLayer", MapConfig.TILE_HEALTH_PER_BIOME)
 	levelStartData.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
 	levelStartData.mapArchetype = MapConfig.make_archetype()
 	GameWorld.prepareRegularLevelStart(levelStartData)
