@@ -9,6 +9,7 @@ const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd"
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
 const Bones = preload("res://mods-unpacked/cejdan-StoryMode/data/bones.gd")
+const Awakening = preload("res://mods-unpacked/cejdan-StoryMode/beats/awakening.gd")
 
 
 func revealTile(coord: Vector2):
@@ -43,6 +44,9 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 			StoryBeats.trigger("first_gem")
 		elif type == Metal.GATE_TYPE:
 			StoryBeats.trigger("gate_broken")
+		if type == "unobtainium":
+			# Each piece mined weakens the horror's seal (#95).
+			Awakening.unobtainium_mined(Vector2i(tile.coord))
 	if type == Bones.TYPE and is_inside_tree() and is_server():
 		# The bones come loose; they sell by the biome they were found in.
 		var biome: int = tileData.get_biomev(Vector2i(tile.coord))
