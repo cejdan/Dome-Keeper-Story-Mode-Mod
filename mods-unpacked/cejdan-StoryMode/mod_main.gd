@@ -66,14 +66,10 @@ func _ready():
 			var t: ImageTexture = ImageTexture.create_from_image(hot)
 			t.take_over_path("res://content/icons/storyheatshield%d.png" % (i + 1))
 			_held.append(t)
-	# Gadget slot entries borrow a vanilla gadget's icon (as a copy).
-	for pair: Array in [["storygadgetcellar", "drillbot"], ["storygadgetmineshaft", "lift"], ["storygadgetdomesurface", "autocannon"],
-			["storygadgetdomeback", "spire"], ["storygadgetactive", "shockwave"]]:
-		var vt: Texture2D = load("res://content/icons/%s.png" % pair[1])
-		if vt != null:
-			var copy: ImageTexture = ImageTexture.create_from_image(vt.get_image())
-			copy.take_over_path("res://content/icons/%s.png" % pair[0])
-			_held.append(copy)
+	# New Gadget I-IV (#132): a cog with a spark and the tier in pips
+	# (art/tools/make_gear_icon.py).
+	for i in range(1, 5):
+		Assets.provide(Story.MOD_DIR + "art/icons/newgadget%d.png" % i, "res://content/icons/storynewgadget%d.png" % i)
 
 	# Living lava: the director gives each Story Mode run's map a LavaField.
 	var lava = load("res://mods-unpacked/cejdan-StoryMode/lava/lava_director.gd").new()

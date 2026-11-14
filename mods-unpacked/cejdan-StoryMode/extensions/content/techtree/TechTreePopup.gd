@@ -12,7 +12,7 @@ const GadgetShop = preload("res://mods-unpacked/cejdan-StoryMode/gamemode/gadget
 
 func _ready():
 	if Story.is_story():
-		# Gadget slot entries: ladder price now, and empty slots off the shop.
+		# New Gadget entries leave the shop once nothing is left to offer.
 		GadgetShop.refresh_entries(teamId, playerId)
 	super()
 	if not Story.is_story():
@@ -72,14 +72,19 @@ func updateCostLabels():
 		label.label_settings.font_color = color
 
 
-# A gadget slot entry is never bought itself: it opens that slot's offers
-# (paid on pick, see extensions/stages/level/LevelStage.gd).
+# A New Gadget entry is not bought here: it opens the gadget choice, and the
+# pick pays for it (extensions/stages/level/LevelStage.gd). Without the money
+# the choice stays shut and the panel shows vanilla's "can't afford" error.
 func buyUpgrade():
 	if Story.is_story() and animationDone:
 		var tree = find_child("TechTree")
 		var panel = tree.focussedTechPanel if tree else null
 		if panel and GadgetShop.is_entry(panel.techId):
 			if panel.state == 1:
-				Level.stage.openStoryGadgetSlot(GadgetShop.slot_of(panel.techId), teamId, playerId)
+				var cost = GameWorld.upgrades.get(panel.techId, {}).get("cost", {})
+				if cost is Dictionary and not GameWorld.canAfford(cost, teamId):
+					GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
+				else:
+					Level.stage.openStoryGadgetChoice(teamId, playerId)
 			return
 	super()
