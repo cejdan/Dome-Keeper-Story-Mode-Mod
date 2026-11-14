@@ -45,6 +45,13 @@ var _panel_box: StyleBoxFlat
 var _reveal: Tween
 var _time: float = 0.0
 var _closing: bool = false
+var _pages: Array = []
+var _page: int = 0
+
+# A beat longer than this many lines is shown in pages; select turns the page.
+const PAGE_LINES := 3
+# Most text rows a page may take before its font shrinks to fit.
+const MAX_ROWS := {1: 5, 2: 5, 3: 4, 4: 4}
 
 
 func setup(id: String, style_tier: int) -> void:
@@ -54,6 +61,7 @@ func setup(id: String, style_tier: int) -> void:
 
 func _init() -> void:
 	name = "StoryBeatPopup"
+	add_to_group("story-beat-box")
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -94,7 +102,6 @@ func _ready() -> void:
 	_text.install_effect(Glitch.new())
 	var font: Font = load("res://gui/fonts/FontVeryLarge.tres" if tier >= 3 else "res://gui/fonts/FontLarge.tres")
 	_text.add_theme_font_override("normal_font", font)
-	_text.add_theme_font_size_override("normal_font_size", _style["size"])
 	_text.add_theme_color_override("default_color", _style["color"])
 	if _style["glow_size"] > 0:
 		_text.add_theme_constant_override("outline_size", _style["glow_size"])
@@ -103,9 +110,11 @@ func _ready() -> void:
 		_text.add_theme_constant_override("outline_size", 6)
 		_text.add_theme_color_override("font_outline_color", Color("221f1f"))
 	_text.add_theme_constant_override("line_separation", 10 if tier < 4 else 22)
-	_text.text = "[center]" + _style["open"] + _escape(lines_text()) + _style["close"] + "[/center]"
-	_text.visible_characters = 0
 	col.add_child(_text)
+	var lines: PackedStringArray = lines_text().split("\n", false)
+	for i in range(0, lines.size(), PAGE_LINES):
+		_pages.append("\n".join(lines.slice(i, i + PAGE_LINES)))
+	_set_page(0)
 	_hint = Label.new()
 	_hint.name = "BeatHint"
 	_hint.label_settings = load("res://gui/fontsettings/SmallFontSettings.tres")
@@ -129,6 +138,40 @@ func lines_text() -> String:
 		var b: Dictionary = load("res://mods-unpacked/cejdan-StoryMode/data/beats.gd").by_id(beat_id)
 		s = "\n".join(PackedStringArray(b.get("lines", [])))
 	return s
+
+
+func _set_page(i: int) -> void:
+	_page = i
+	var page: String = _pages[i] if i < _pages.size() else ""
+	# Shrink the font until the page fits its tier's rows (a rough estimate:
+	# a character is about half the font size wide).
+	var size: int = _style["size"]
+	while size > 28:
+		var per_row: float = maxf(1.0, _style["width"] / (size * 0.5))
+		var rows: int = 0
+		for l: String in page.split("\n"):
+			rows += maxi(1, ceili(l.length() / per_row))
+		if rows <= MAX_ROWS[tier]:
+			break
+		size -= 4
+	_text.add_theme_font_size_override("normal_font_size", size)
+	_text.text = "[center]" + _style["open"] + _escape(page) + _style["close"] + "[/center]"
+	_text.visible_characters = 0
+
+
+func has_next_page() -> bool:
+	return _page + 1 < _pages.size()
+
+
+func next_page() -> void:
+	if _hint != null:
+		_hint.modulate.a = 0.0
+	_set_page(_page + 1)
+	_start_reveal(0.15)
+
+
+func page_count() -> int:
+	return _pages.size()
 
 
 func _escape(s: String) -> String:
@@ -209,9 +252,15 @@ func finish_reveal() -> void:
 
 func move_in() -> void:
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.35 if tier < 4 else 0.9)
+	_start_reveal(0.25 if tier < 4 else 0.8)
+
+
+func _start_reveal(delay: float) -> void:
+	if _reveal != null:
+		_reveal.kill()
 	var chars: int = _text.get_total_character_count()
 	_reveal = create_tween()
-	_reveal.tween_interval(0.25 if tier < 4 else 0.8)
+	_reveal.tween_interval(delay)
 	_reveal.tween_property(_text, "visible_characters", chars, chars / float(_style["cps"]))
 	_reveal.tween_callback(_show_hint)
 
@@ -228,6 +277,6 @@ func move_out() -> void:
 	t.tween_callback(queue_free)
 
 
-# Plain text of the beat (for checks).
+# Plain text of the beat, every page (for checks).
 func text() -> String:
-	return _text.get_parsed_text() if _text != null else ""
+	return "\n".join(PackedStringArray(_pages))

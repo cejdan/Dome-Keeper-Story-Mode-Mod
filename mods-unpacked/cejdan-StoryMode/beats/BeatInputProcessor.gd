@@ -2,7 +2,8 @@ extends InputProcessor
 
 # Input for an open story beat: it swallows every key, so the keeper and the
 # dome stay still. Select, accept, cancel, Escape or a left click first finish
-# the typing-out of the text, then close the box. Keys are ignored for a moment
+# the typing-out of the text, then turn to the next page if there is one, then
+# close the box. Keys are ignored for a moment
 # after the box opens, and closing waits a little longer, so a key the player
 # was already pressing doesn't dismiss the beat unread.
 
@@ -36,6 +37,9 @@ func buttonEvent(event) -> bool:
 		return true
 	if popup.is_revealing():
 		popup.finish_reveal()
+	elif popup.has_next_page():
+		Audio.sound("gui_move")
+		popup.next_page()
 	elif age >= MIN_OPEN_MS:
 		Audio.sound("gui_confirm")
 		desintegrate()

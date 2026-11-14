@@ -73,7 +73,7 @@ func run(h) -> void:
 	await h.wait(0.5)
 	await h.shot("beat_open")
 	var box = Level.stage.find_child("StoryBeatPopup", true, false)
-	h.check("the box shows the beat's lines", box != null and box.text().contains("There is more below."), box.text() if box else null)
+	h.check("the box shows the beat's lines", box != null and box.text() == "\n".join(PackedStringArray(load("res://mods-unpacked/cejdan-StoryMode/data/beats.gd").by_id("first_gem")["lines"])), box.text() if box else null)
 	var during: Array = await _samples(h, 5.0)
 	h.up("ui_right")
 	h.snap("beat open", ["team1.story.beatsqueued", "team1.story.beatsplayed"])
