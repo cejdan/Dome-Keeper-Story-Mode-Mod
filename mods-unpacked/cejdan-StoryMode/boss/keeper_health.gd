@@ -107,7 +107,7 @@ func _draw() -> void:
 	var n: int = Boss.HEARTS
 	var have: int = hearts()
 	var w: float = n * 8.0 - 1.0
-	var p: Vector2 = (to_local(keeper.global_position) + Vector2(-w * 0.5, -32)).round()
+	var p: Vector2 = (to_local(keeper.global_position) + Vector2(-w * 0.5, -29)).round()
 	for i in n:
 		var full: bool = i < have
 		var just_lost: bool = i == have and _lost_flash > 0.0

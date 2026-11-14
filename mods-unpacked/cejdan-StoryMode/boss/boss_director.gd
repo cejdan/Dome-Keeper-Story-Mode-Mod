@@ -6,7 +6,9 @@ extends Node
 #            into the boss chamber), its awakening beat has been read, and the
 #            keeper is in the chamber.
 #   fight    Velle in the chamber (boss/velle.gd). The chamber is sealed.
-#   won      Velle is defeated; the saved ending plays.
+#   chase    Velle's body is dead; its tentacles hunt the keeper back to the
+#            dome (boss/chase.gd).
+#   won      the horror is defeated; the saved ending plays.
 #   lost     the keeper ran out of hearts; the run ends in failure.
 #
 # Through all of it the keeper has hearts (boss/keeper_health.gd), the suit's
@@ -37,6 +39,7 @@ static var enabled: bool = true
 var layer: Node2D = null
 var health: Node = null
 var velle: Node2D = null
+var chase: Node2D = null
 var arena: Rect2 = Rect2()
 var _booted: bool = false
 var _seal_flash: float = 0.0
@@ -151,6 +154,9 @@ func _physics_process(delta: float) -> void:
 		"fight":
 			_seal(keeper, delta)
 			_recharge_blaster(keeper, delta)
+		"chase":
+			if keeper.isInsideDome:
+				_chase_done()
 
 
 func _process(delta: float) -> void:
@@ -176,6 +182,12 @@ func _resume() -> void:
 			_set_state("")
 			if _ensure_layer():
 				health.refill()
+		"chase":
+			# A save made during the chase: the tentacles come up from below again.
+			if _ensure_layer():
+				_stop_waves()
+				var k = Keepers.first()
+				_start_chase(layer.to_local(k.global_position) + Vector2(0, 220))
 		"lost", "won":
 			pass
 
@@ -240,6 +252,25 @@ func _explosion(global_pos: Vector2, kind: String, radius_px: float) -> void:
 func _velle_defeated() -> void:
 	if current() != "fight":
 		return
+	_set_state("chase")
+	_start_chase(velle.eye_pos())
+
+
+# ---------------------------------------------------------------- the chase
+
+func _start_chase(origin: Vector2) -> void:
+	chase = load(Story.MOD_DIR + "boss/chase.gd").new()
+	chase.name = "Chase"
+	layer.add_child(chase)
+	chase.setup(health, origin)
+	Sfx.play("roar", -2.0, 1.2)
+	InputSystem.shake(18.0, 1.0, 18.0)
+
+
+# The keeper made it into the dome.
+func _chase_done() -> void:
+	if chase != null and is_instance_valid(chase):
+		chase.running = false
 	_set_state("won")
 	_finish_won()
 
