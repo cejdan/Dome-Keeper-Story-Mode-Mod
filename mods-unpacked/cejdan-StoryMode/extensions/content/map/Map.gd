@@ -2,7 +2,8 @@ extends "res://content/map/Map.gd"
 
 # Story Mode minerals on the map: reveal (richness and the visible ore mark),
 # drops when a mineral tile breaks, and the ore edge overlay between tiles.
-# Vanilla resources and vanilla modes run vanilla code only.
+# Vanilla resources and vanilla modes run vanilla code only, except
+# onTileRemoved's lift-entry check (#159), which gives vanilla's answer cheaper.
 
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
@@ -10,6 +11,134 @@ const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
 const Bones = preload("res://mods-unpacked/cejdan-StoryMode/data/bones.gd")
 const Awakening = preload("res://mods-unpacked/cejdan-StoryMode/beats/awakening.gd")
+
+
+# --- the flood reveal, spread over frames (#159) -----------------------------------
+# Breaking into a big cavern (the lava ocean: about 6,500 cells) revealed all of
+# it in one frame and froze the game. Once a Story Mode run is under way, the
+# flood runs breadth-first from where the cavern was opened, at most
+# FLOOD_BUDGET_USEC of work a frame, so the cavern unveils outward over a moment
+# instead. A small dig still finishes in the frame it starts. Each frame's work
+# updates every touched border sprite once (vanilla redoes each up to four
+# times) and uploads the map textures once. Map setup and loading, vanilla
+# modes, and a forced flood (the scanner cave) run vanilla's flood in one go.
+const FLOOD_BUDGET_USEC := 6000
+var _flood: Array = []              # cells waiting, breadth-first from _flood_head
+var _flood_head := 0
+var _flood_closed: Dictionary = {}
+var _flooding := false              # inside a flood step: border and texture updates wait
+var _border_batch: Dictionary = {}
+
+
+func floodRevealTiles(forceUpdate: = false):
+	if forceUpdate or not _slice_floods():
+		# What is still pending goes first; the new cells take vanilla's way.
+		if flood_pending():
+			_run_flood(-1)
+		super(forceUpdate)
+	else:
+		_take_queue()
+		_run_flood(FLOOD_BUDGET_USEC)
+
+
+func _slice_floods() -> bool:
+	return Story.is_story() and Level.stage != null and is_instance_valid(Level.stage) and Level.stage.get("keeperInputStarted") == true
+
+
+func flood_pending() -> bool:
+	return _flood_head < _flood.size()
+
+
+# Reveals everything still waiting, now (playtests that dig and look at once).
+func finish_flood() -> void:
+	_take_queue()
+	_run_flood(-1)
+
+
+func _take_queue() -> void:
+	_flood.append_array(tileCoordsToReveal)
+	tileCoordsToReveal.clear()
+
+
+# Vanilla's floodRevealTiles loop, breadth-first, skipping cells already done,
+# for at most `budget` usec (-1: until done).
+func _run_flood(budget: int) -> void:
+	var t0 := Time.get_ticks_usec()
+	var offsets = get("NEIGHBOR_TILE_OFFSETS" + str(Data.of("map.revealdistance")))
+	_flooding = true
+	var n := 0
+	while _flood_head < _flood.size():
+		var cell: Vector2 = _flood[_flood_head]
+		_flood_head += 1
+		if _flood_closed.has(cell):
+			continue
+		_flood_closed[cell] = true
+		n += 1
+		if tileData.get_hardnessv(cell) > -1:
+			var resv = tileData.get_resourcev(cell)
+			if resv == -1:
+				if not visibleTileCoords.has(cell) or visibleTileCoords[cell] != -1:
+					visibleTileCoords[cell] = -1
+					revealTile(cell)
+					onTileRemoved(cell)
+					removeTileVisually(cell)
+				for d in offsets:
+					var nc: Vector2 = cell + d
+					if not _flood_closed.has(nc) and not visibleTileCoords.has(nc):
+						_flood.append(nc)
+			elif not visibleTileCoords.has(cell) or visibleTileCoords[cell] != resv:
+				revealTile(cell)
+		if budget >= 0 and (n & 31) == 0 and Time.get_ticks_usec() - t0 > budget:
+			break
+	_flooding = false
+	for key: Vector2i in _border_batch:
+		_update_border_sprite(key.x, key.y)
+	_border_batch.clear()
+	updateDirtyTextures()
+	if not flood_pending():
+		_flood.clear()
+		_flood_head = 0
+		_flood_closed.clear()
+	elif _flood_head > 8192:
+		_flood = _flood.slice(_flood_head)
+		_flood_head = 0
+
+
+func _process(delta):
+	super(delta)
+	if flood_pending():
+		_run_flood(FLOOD_BUDGET_USEC)
+
+
+# Vanilla's onTileRemoved, with one change (#159). To see whether the removed
+# cell's column holds a lift entry, vanilla scanned every B1 cell
+# (tileData.get_entry_coords()) for each removed cell. Breaking into the lava
+# ocean removes about 6,000 open cells in one flood reveal, and that scan froze
+# the game for seconds. An entry is an open, non-border B1 cell at row -2, so
+# the column is checked directly: the same answer for one cell's cost.
+func onTileRemoved(tileCoord: Vector2):
+	tileData.clear_resource(tileCoord)
+	for listener in tileDestroyedListeners.get(tileCoord, []):
+		listener.tileDestroyed(tileCoord)
+	pathfinder.add_point_in_coord(tileCoord)
+	for n in NEIGHBOR_TILE_OFFSETS1:
+		var c = n + tileCoord
+		if not tiles.has(c):
+			pathfinder.try_connect_coord(tileCoord, c)
+	updateBorderSpriteOfTileCoord(tileCoord)
+	if _has_entry(int(tileCoord.x)):
+		updateLiftLength(tileCoord.x)
+	var world_tile_pos: Vector2 = getTilePos(tileCoord)
+	tile_destroyed.emit(world_tile_pos)
+
+
+# Whether get_entry_coords() holds a cell in column x.
+func _has_entry(x: int) -> bool:
+	var c := Vector2i(x, -2)
+	if tileData.get_biomev(c) == 0 and tileData.get_hardnessv(c) != -1 and tileData.get_resourcev(c) == -1:
+		return true
+	# With no entry anywhere, get_entry_coords() answers (0, 0).
+	return x == 0 and tileData.get_entry_coords().has(Vector2.ZERO)
 
 
 func revealTile(coord: Vector2):
@@ -21,12 +150,20 @@ func revealTile(coord: Vector2):
 	var tile = tiles[coord]
 	if Minerals.is_mod_mineral(tile.type):
 		tile.richness = float(Minerals.TABLE[tile.type]["richness"])
-		revealTileVisually(coord)
+		_reveal_visually(coord)
 	elif Metal.is_metal(tile.type):
-		revealTileVisually(coord)
+		_reveal_visually(coord)
 	elif tile.type == Bones.TYPE:
 		# Miner bones (#94). Their data log opens when they are sold at the dome
 		# (drops/BonesDrop.gd), not when they are uncovered.
+		_reveal_visually(coord)
+
+
+# Inside a flood step the map textures upload once, at its end (#159).
+func _reveal_visually(coord: Vector2) -> void:
+	if _flooding:
+		revealTileVisuallyWithoutTexturesUpdate(coord)
+	else:
 		revealTileVisually(coord)
 
 
@@ -85,7 +222,15 @@ func getSceneForTileType(tileType: int) -> PackedScene:
 
 
 func updateBorderSprite(x: int, y: int):
-	super(x, y)
+	if _flooding:
+		# A flood step updates each touched sprite once, at its end (#159).
+		_border_batch[Vector2i(x, y)] = true
+	else:
+		_update_border_sprite(x, y)
+
+
+func _update_border_sprite(x: int, y: int):
+	super.updateBorderSprite(x, y)
 	var key = Vector2(x, y)
 	if not borderSprites.has(key):
 		return

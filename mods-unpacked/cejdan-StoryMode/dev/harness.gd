@@ -303,12 +303,16 @@ func enable_waves() -> void:
 func reveal_all() -> void:
 	Level.map.tileCoordsToReveal.append_array(Level.map.tileData.get_used_cells(MapData.LAYER_BIOME))
 	Level.map.floodRevealTiles()
+	if Level.map.has_method("finish_flood"):
+		Level.map.finish_flood()
 	await frames(5)
 
 
 func reveal(coords: Array) -> void:
 	Level.map.tileCoordsToReveal.append_array(coords)
 	Level.map.floodRevealTiles()
+	if Level.map.has_method("finish_flood"):
+		Level.map.finish_flood()
 	await frames(3)
 
 
