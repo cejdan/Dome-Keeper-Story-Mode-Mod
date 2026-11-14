@@ -9,5 +9,9 @@
   "diamond": {"row": 4, "cols": [18, 19, 20], "colors": ["#6f8796", "#cfe9f5", "#ffffff"]},
   "mythril": {"row": 4, "cols": [21, 22, 23], "colors": ["#1c5a6a", "#49c6cf", "#d9fffb"]},
   "unobtainium": {"row": 4, "cols": [24, 25, 26], "colors": ["#3d0b6e", "#b440ff", "#f6d2ff"]},
-  "metal": {"row": 4, "cols": [27, 28, 29], "colors": ["#2b3038", "#5d6673", "#a9b4c2"]}
+  "metal": {"row": 4, "cols": [27, 28, 29], "colors": ["#2b3038", "#5d6673", "#a9b4c2"]},
+  "translator": {"row": 0, "cols": [16, 17, 18], "colors": ["#4a3a34", "#a8957c", "#e6dcc4"]},
+  "rune_eye": {"row": 0, "cols": [19, 20, 21], "colors": ["#5c0b12", "#ff3b30", "#ffd0a0"]},
+  "bones": {"row": 0, "cols": [22, 23, 24], "colors": ["#544a3e", "#b9ae97", "#f1e9d4"]},
+  "datalog": {"row": 0, "cols": [25, 26, 27], "colors": ["#0c2a1e", "#2fbf78", "#c4ffdf"]}
 }

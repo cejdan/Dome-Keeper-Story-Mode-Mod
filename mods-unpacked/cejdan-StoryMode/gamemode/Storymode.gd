@@ -6,6 +6,8 @@ extends Node
 
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
+const Runes = preload("res://mods-unpacked/cejdan-StoryMode/pleas/runes.gd")
+const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
 
 const MONEY := "team1.inventory.money"
 
@@ -37,6 +39,8 @@ func afterInitialized() -> void:
 		if not Data.has("team1.inventory." + m):
 			Data.apply("team1.inventory." + m, 0)
 		Data.listen(self, "team1.inventory." + m)
+	# Translators installed at the dome (#93).
+	Data.listen(self, "team1.inventory.translator")
 	Level.addHudElement(load(Story.MOD_DIR + "hud/MoneyHud.tscn"), "team1")
 
 
@@ -65,6 +69,15 @@ func _on_upgrade_bought(id: String, teamId: String, _playerId: String) -> void:
 func propertyChanged(property: String, oldValue, newValue) -> void:
 	# A mineral delivered to the dome pays its dollar value. Inventory counts only
 	# ever rise from deliveries; Story Mode never spends minerals.
+	if property == "team1.inventory.translator":
+		# Each translator the dome takes in moves the pleas one stage closer to
+		# English, and the horror objects (#93).
+		var n: int = int(newValue) if newValue != null else 0
+		if n > (int(oldValue) if oldValue != null else 0):
+			Runes.set_stage(n)
+			StoryBeats.trigger("translator:%d" % n)
+			ModLoaderLog.info("Translator %d installed: plea stage %d" % [n, Runes.stage()], Story.LOG)
+		return
 	if property.begins_with("team1.inventory."):
 		var type: String = property.substr(16)
 		if Minerals.is_mineral(type) and oldValue != null and newValue > oldValue:

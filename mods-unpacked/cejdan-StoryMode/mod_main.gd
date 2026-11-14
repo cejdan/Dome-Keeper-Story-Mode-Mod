@@ -153,6 +153,10 @@ func modInit():
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
 	Minerals.register()
 	Metal.register()
+	# The translator (#93): carried home like a relic.
+	if not Data.DROP_TYPES.has("translator"):
+		Data.DROP_TYPES.append("translator")
+	Data.DROP_SCENES["translator"] = load(Story.MOD_DIR + "drops/translator_drop.tscn")
 	# The mod's own shop entries (data/upgrades.yaml), through vanilla's parser.
 	# Its root `storymode` is a gamemode upgrade: vanilla adds it to a run only
 	# when the run's mode id is "storymode", so vanilla modes never see them.

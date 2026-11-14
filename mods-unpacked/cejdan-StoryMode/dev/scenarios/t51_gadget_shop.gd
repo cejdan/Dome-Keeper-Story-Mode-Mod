@@ -33,8 +33,8 @@ func run(h) -> void:
 			chambers += td.get_resource_cells_by_id(Data.TILE_GADGET).size()
 			td.queue_free()
 		await h.frames(1)
-	h.check("20 seeds: zero gadget chamber tiles", chambers == 0, chambers)
-	h.check("this run's map: zero gadget chamber tiles", Level.map.tileData.get_resource_cells_by_id(Data.TILE_GADGET).size() == 0)
+	h.check("20 seeds: the only gadget-id tiles are the 3 translator chambers (12 tiles a map, #93)", chambers == 20 * 12, chambers)
+	h.check("this run's map: no vanilla gadget chamber", Level.map.find_children("GadgetChamber*", "", true, false).is_empty())
 
 	# ---- offer pools
 	var pools: Dictionary = {}
