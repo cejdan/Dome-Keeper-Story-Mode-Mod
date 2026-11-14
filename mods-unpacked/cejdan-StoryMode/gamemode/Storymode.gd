@@ -46,6 +46,8 @@ func afterInitialized() -> void:
 	# Translators installed at the dome (#93).
 	Data.listen(self, "team1.inventory.translator")
 	Level.addHudElement(load(Story.MOD_DIR + "hud/MoneyHud.tscn"), "team1")
+	if OS.has_feature("editor") and Story.has_user_arg("horror-defeated"):
+		_dev_horror_defeated()
 
 
 # The shop's Suit Blaster entry is a stand-in: buying it grants the real gadget
@@ -103,10 +105,49 @@ var _ending: bool = false
 # Retire Rich: the doom ending (#96), then vanilla Relic Hunt's win, minus the
 # relic and the final wave. Still a won run with the $1M.
 func _win() -> void:
-	if GameWorld.won or GameWorld.lost or _ending:
+	if not _can_end():
 		return
 	_ending = true
 	ModLoaderLog.info("Retire Rich bought: the run is won", Story.LOG)
+	await _stop_play()
+	var endings = get_node_or_null("StoryEndings")
+	if endings != null:
+		await endings.play_doom()
+	var Endings = load(Story.MOD_DIR + "data/endings.gd")
+	await _end_won(Endings.DOOM_TITLE, Endings.DOOM_SUBTITLE)
+
+
+# The saved ending's hook (#97). The future boss fight calls this when the horror
+# is defeated: Level.mode.horror_defeated(). It plays the saved ending (narration
+# cards), then ends the run as a win on the end screen "The Planet Is Saved".
+# Returns false, and does nothing, when the run is already won, lost or playing
+# an ending; true when the ending started. The ending runs on its own; the
+# caller need not await it. Normal play never calls it yet; the dev command
+# `-- --story --horror-defeated` does once keeper input has started.
+func horror_defeated() -> bool:
+	if not multiplayer.is_server() or not _can_end():
+		return false
+	_ending = true
+	_saved_ending()
+	return true
+
+
+func _saved_ending() -> void:
+	ModLoaderLog.info("The horror is defeated: the planet is saved", Story.LOG)
+	await _stop_play()
+	var endings = get_node_or_null("StoryEndings")
+	if endings != null:
+		await endings.play_saved()
+	var Endings = load(Story.MOD_DIR + "data/endings.gd")
+	await _end_won(Endings.SAVED_TITLE, Endings.SAVED_SUBTITLE)
+
+
+func _can_end() -> bool:
+	return not (GameWorld.won or GameWorld.lost or _lost or _ending)
+
+
+# Takes the keeper's controls and ends the waves, for an ending.
+func _stop_play() -> void:
 	Level.stage.stopKeeperInput()
 	for mm in get_tree().get_nodes_in_group("monster-manager"):
 		mm.disabled = true
@@ -116,9 +157,10 @@ func _win() -> void:
 	# system's next frame; the ending's own boxes integrate after that.
 	for i in 3:
 		await get_tree().process_frame
-	var endings = get_node_or_null("StoryEndings")
-	if endings != null:
-		await endings.play_doom()
+
+
+# Vanilla Relic Hunt's win, with the end screen retitled for the ending played.
+func _end_won(title: String, subtitle: String) -> void:
 	GameWorld.handleGameWon()
 	Audio.stopBattleMusic()
 	await get_tree().create_timer(2.5).timeout
@@ -126,10 +168,19 @@ func _win() -> void:
 	await get_tree().create_timer(4.0).timeout
 	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
 	popup.init(multiplayer.is_server())
-	var Endings = load(Story.MOD_DIR + "data/endings.gd")
-	load(Story.MOD_DIR + "endings/ending_director.gd").retitle(popup, Endings.DOOM_TITLE, Endings.DOOM_SUBTITLE)
+	load(Story.MOD_DIR + "endings/ending_director.gd").retitle(popup, title, subtitle)
 	Level.stage.showEndingPanel(popup)
 	SaveGame.delete_autosave()
+
+
+# Dev command (editor only): `-- --story --horror-defeated` plays the saved
+# ending as soon as the keeper can move.
+func _dev_horror_defeated() -> void:
+	while Level.stage == null or not Level.stage.keeperInputStarted:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	ModLoaderLog.info("Dev command: horror defeated", Story.LOG)
+	horror_defeated()
 
 
 func _lose() -> void:
