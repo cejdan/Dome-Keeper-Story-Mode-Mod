@@ -7,6 +7,7 @@ extends "res://content/map/Map.gd"
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
+const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
 
 
 func revealTile(coord: Vector2):
@@ -31,6 +32,12 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 	if type == CONST.IRON and not currentIronCountByLayer.has(tile.layer):
 		currentIronCountByLayer[tile.layer] = 1
 	super(teamId, keeperTechId, tile)
+	# Story beats (#26): the first gem mined, the gate broken.
+	if Story.is_story() and is_server():
+		if Minerals.TABLE.has(type) and Minerals.TABLE[type]["shape"] == "star":
+			StoryBeats.trigger("first_gem")
+		elif type == Metal.GATE_TYPE:
+			StoryBeats.trigger("gate_broken")
 	if not Minerals.is_mod_mineral(type):
 		return
 	if not is_inside_tree() or not is_server():

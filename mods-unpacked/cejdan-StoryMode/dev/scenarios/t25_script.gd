@@ -9,7 +9,7 @@ const BeatData = preload("res://mods-unpacked/cejdan-StoryMode/data/beats.gd")
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	return {"seed": 12345, "beats": true}
 
 
 func run(h) -> void:

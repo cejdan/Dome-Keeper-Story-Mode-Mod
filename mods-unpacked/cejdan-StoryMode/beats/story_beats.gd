@@ -98,7 +98,48 @@ func queue_beat(id: String) -> bool:
 	return true
 
 
-func _process(_delta: float) -> void:
+const DEEPEST := "team1.story.deepest"
+const WATCH_EVERY := 0.2
+var _watch_t: float = 0.0
+
+
+# Depth (#26): the keeper's tile biome, not a fixed row, since biome edges are
+# ragged. Entering B2..B8 for the first time fires "biome:B<n>"; the lava ocean
+# (the generator's "story_ocean" rows) fires "lava_ocean". The deepest biome
+# reached is kept in Data (0 = B1 .. 7 = B8, 8 = the ocean) for the pleas.
+func _watch_depth() -> void:
+	if not multiplayer.is_server() or Level.map == null or Level.map.tileData == null:
+		return
+	var keeper = Keepers.first()
+	if keeper == null or not is_instance_valid(keeper) or keeper.isInsideDome:
+		return
+	var td = Level.map.tileData
+	var c: Vector2i = Level.map.getTileCoord(keeper.global_position)
+	var depth: int = -1
+	var ocean: Dictionary = td.get_meta("story_ocean", {})
+	if not ocean.is_empty() and c.y >= int(ocean["top"]) - 1 and c.x >= int(ocean["x0"]) and c.x <= int(ocean["x1"]):
+		depth = 8
+	else:
+		depth = td.get_biomev(c)
+	if depth < 0:
+		return
+	if depth > int(Data.ofOr(DEEPEST, 0)):
+		Data.apply(DEEPEST, depth)
+	if depth == 8:
+		trigger("lava_ocean")
+	elif depth >= 1:
+		trigger("biome:B%d" % (depth + 1))
+
+
+static func deepest() -> int:
+	return int(Data.ofOr(DEEPEST, 0))
+
+
+func _process(delta: float) -> void:
+	_watch_t += delta
+	if _watch_t >= WATCH_EVERY and not GameWorld.paused:
+		_watch_t = 0.0
+		_watch_depth()
 	if open_id != "" or not _can_show():
 		return
 	var queued: Array = _list(QUEUED)

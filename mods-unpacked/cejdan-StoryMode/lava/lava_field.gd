@@ -688,6 +688,9 @@ func _recall(keeper) -> void:
 	# it stands and yanks the keeper back to the dome.
 	recalls += 1
 	heat = 0.0
+	# The horror is tender about it (#26); plays once per run.
+	if Story.is_story():
+		load("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd").trigger("lava_death")
 	for c in keeper.carriedCarryables.duplicate():
 		if is_instance_valid(c):
 			keeper.dropCarry(c)
