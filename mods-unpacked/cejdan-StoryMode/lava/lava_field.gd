@@ -49,6 +49,8 @@ const COL_HOT := Color("ff8a1c")
 const COL_BODY := Color("e8430e")
 const COL_DEEP := Color("9c1d0a")
 const COL_CRUST := Color("3a0d0a")
+# Slices a stream is drawn in per cell (4 px each).
+const STREAM_SLICES := 6
 
 var map
 var mass: Dictionary = {}          # Vector2i -> float, cells holding lava
@@ -788,22 +790,71 @@ func _seen(c: Vector2i) -> bool:
 # The lava in a cell as it is drawn, in this node's space: a pouring stream
 # (a column) or a body (a rect at the cell's bottom, f x TILE tall, or the full
 # cell under more lava). _draw() and the burn and water checks all use this, so
-# what burns is what the player sees (#48).
+# what burns is what the player sees (#48). A stream's rect is its extent at
+# the cell's middle; _draw() draws it in slices along stream_edges() (#122).
 func _lava_shape(c: Vector2i) -> Dictionary:
 	var f := _fill_of(c)
 	var o := _cell_origin(c)
-	var above_has: bool = shown.get(c + Vector2i.UP, 0.0) > 0.05
+	# Lava resting above (a body, not a stream pouring in) fills this cell to the top.
+	var up: Vector2i = c + Vector2i.UP
+	var above_has: bool = shown.get(up, 0.0) > 0.05 and not _is_stream(up)
 	if f <= 0.02:
 		return {"rect": Rect2(o, Vector2.ZERO), "stream": false, "above_has": above_has}
-	var below: Vector2i = c + Vector2i.DOWN
-	var falling: bool = _is_open(below) and shown.get(below, 0.0) < 0.95
-	if falling and not above_has and f < 0.9:
-		var w: float = clamp(round(6.0 + f * 16.0), 4.0, TILE)
-		var wob: float = round(sin(_time * 5.0 + c.y * 1.3) * 1.5)
-		var x: float = round((TILE - w) * 0.5) + wob
-		return {"rect": Rect2(o + Vector2(x, 0), Vector2(w, TILE)), "stream": true, "above_has": above_has}
+	if _is_stream(c):
+		var e: Vector2 = stream_edges(c, 0.5)
+		return {"rect": Rect2(o + Vector2(e.x, 0), Vector2(e.y - e.x, TILE)), "stream": true, "above_has": above_has}
 	var h: float = TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
 	return {"rect": Rect2(o + Vector2(0, TILE - h), Vector2(TILE, h)), "stream": false, "above_has": above_has}
+
+
+# Falling lava (#122): the cell below is open and not yet full. It draws as a
+# stream whether or not lava falls into it from above, so a long column is one
+# stream all the way down. (It used to need an empty cell above, so a column's
+# cells drew as stacked full-width pool blocks, and film cells near the 0.05
+# threshold flickered between a thin stream and a full block.) A cell whose
+# side neighbour is resting lava is the bottom of a pool draining through a
+# hole, and stays a body, as does a near-full cell.
+func _is_stream(c: Vector2i) -> bool:
+	var f := _fill_of(c)
+	if f >= 0.9 or not _falling(c):
+		return false
+	for side in [Vector2i.LEFT, Vector2i.RIGHT]:
+		var n: Vector2i = c + side
+		if shown.get(n, 0.0) > 0.2 and not _falling(n):
+			return false
+	return true
+
+
+func _falling(c: Vector2i) -> bool:
+	var below: Vector2i = c + Vector2i.DOWN
+	return _is_open(below) and shown.get(below, 0.0) < 0.95
+
+
+# A stream's width: thicker with more lava, from the cell's fill averaged with
+# the stream cells above and below it, so lava moving down the column in
+# lumps (the simulation passes it on a tick at a time) doesn't pulse.
+func _stream_width(c: Vector2i) -> float:
+	var f := _fill_of(c)
+	var up: Vector2i = c + Vector2i.UP
+	var dn: Vector2i = c + Vector2i.DOWN
+	var fa: float = _fill_of(up) if shown.get(up, 0.0) > 0.02 and _falling(up) else f
+	var fb: float = _fill_of(dn) if shown.get(dn, 0.0) > 0.02 and _falling(dn) else f
+	var fs: float = (fa + 2.0 * f + fb) / 4.0
+	return clampf(6.0 + fs * 16.0, 4.0, TILE)
+
+
+# A stream's left and right edge (x from the cell's left side) at `t` of the
+# way down the cell (0 top, 1 bottom). The width blends into the next stream
+# cell's, and the wobble follows world height, so the column has no steps at
+# cell borders.
+func stream_edges(c: Vector2i, t: float) -> Vector2:
+	var w: float = _stream_width(c)
+	var dn: Vector2i = c + Vector2i.DOWN
+	if shown.get(dn, 0.0) > 0.02 and _is_stream(dn):
+		w = lerpf(w, _stream_width(dn), t)
+	var y_px: float = (float(c.y) + t) * TILE
+	var mid: float = TILE * 0.5 + sin(_time * 5.0 - y_px * 0.054) * 1.5
+	return Vector2(round(mid - w * 0.5), round(mid + w * 0.5))
 
 
 # Does a rect (world space) overlap drawn lava that is deep enough to burn
@@ -861,13 +912,17 @@ func _draw() -> void:
 		var sh: Dictionary = _lava_shape(c)
 		var above_has: bool = sh["above_has"]
 		if sh["stream"]:
-			# A pouring stream: a column that wobbles, thicker with more lava.
-			var w: float = sh["rect"].size.x
-			var x: float = sh["rect"].position.x - o.x
-			draw_rect(sh["rect"], COL_BODY)
-			draw_rect(Rect2(o + Vector2(x + 1, 0), Vector2(max(1.0, w - 2), TILE)), COL_HOT)
-			if w > 6:
-				draw_rect(Rect2(o + Vector2(x + round(w * 0.5) - 1, 0), Vector2(2, TILE)), COL_CORE)
+			# A pouring stream: a ribbon that wobbles, thicker with more lava,
+			# drawn in slices so it runs on unbroken from cell to cell (#122).
+			for i in STREAM_SLICES:
+				var e: Vector2 = stream_edges(c, (i + 0.5) / STREAM_SLICES)
+				var w: float = e.y - e.x
+				var y: float = i * TILE / STREAM_SLICES
+				var hgt: float = TILE / STREAM_SLICES
+				draw_rect(Rect2(o + Vector2(e.x, y), Vector2(w, hgt)), COL_BODY)
+				draw_rect(Rect2(o + Vector2(e.x + 1, y), Vector2(max(1.0, w - 2), hgt)), COL_HOT)
+				if w > 6:
+					draw_rect(Rect2(o + Vector2(e.x + round(w * 0.5) - 1, y), Vector2(2, hgt)), COL_CORE)
 			continue
 		var h: float = sh["rect"].size.y
 		var top: float = TILE - h
