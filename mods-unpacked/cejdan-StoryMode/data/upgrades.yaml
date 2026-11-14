@@ -2,7 +2,7 @@ storymode:
   type: gamemode
 
 storySuitblaster:
-  cost: money=500
+  cost: money=200
   shadowing: suitblaster
   shadowing-desc: storysuitblaster
   predecessors: [storymode]

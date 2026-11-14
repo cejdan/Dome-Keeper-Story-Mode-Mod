@@ -1,6 +1,6 @@
 extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 
-# Ticket 22: the Suit Blaster is sold in the Story Mode shop for $500. Buying
+# Ticket 22: the Suit Blaster is sold in the Story Mode shop for $200 (#133; was $500). Buying
 # it equips it and the keeper can blast (through metal). Run it with
 # -Extra "--gadget=<id>" to check other loadouts.
 
@@ -16,10 +16,10 @@ func run(h) -> void:
 	h.note("loadout", {"primary gadget": Level.loadout.domes[0].primaryGadgetId if Level.loadout.domes.size() > 0 else "?"})
 	var entry: Dictionary = GameWorld.upgrades.get("team1.storysuitblaster", {})
 	h.check("the shop has the Suit Blaster entry", not entry.is_empty(), GameWorld.upgrades.keys().filter(func(k): return "story" in k))
-	h.check("it costs $500 and nothing else", entry.get("cost", {}) == {"money": 500}, entry.get("cost", {}))
+	h.check("it costs $200 and nothing else", entry.get("cost", {}) == {"money": 200}, entry.get("cost", {}))
 	h.check("the run starts without the Suit Blaster", not GameWorld.boughtUpgrades.has("player1.suitblaster"))
 
-	h.set_inv("money", 520)
+	h.set_inv("money", 220)
 	Level.stage.startUpgradesInput(h.keeper())
 	await h.wait(1.5)
 	await h.shot("techtree")
@@ -32,13 +32,13 @@ func run(h) -> void:
 	await h.wait(1.0)
 
 	var refused: bool = false
-	h.set_inv("money", 499)
+	h.set_inv("money", 199)
 	refused = not (await h.buy("storysuitblaster"))
-	h.check("refused with $499", refused and not GameWorld.boughtUpgrades.has("player1.suitblaster"), h.inv("money"))
-	h.set_inv("money", 520)
+	h.check("refused with $199", refused and not GameWorld.boughtUpgrades.has("player1.suitblaster"), h.inv("money"))
+	h.set_inv("money", 220)
 	var ok: bool = await h.buy("storysuitblaster")
 	await h.wait(1.0)
-	h.check("bought for $500", ok and h.inv("money") == 20, h.inv("money"))
+	h.check("bought for $200", ok and h.inv("money") == 20, h.inv("money"))
 	h.check("buying it equips the Suit Blaster", GameWorld.boughtUpgrades.has("player1.suitblaster"))
 	h.check("its upgrades are in the shop at iron x 14", GameWorld.upgrades.get("team1.suitblastermaxcharge", GameWorld.upgrades.get("player1.suitblastermaxcharge", {})).get("cost", {}).get("money", -1) == 28, GameWorld.upgrades.keys().filter(func(k): return "suitblaster" in k))
 
