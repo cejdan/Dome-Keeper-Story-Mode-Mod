@@ -140,10 +140,6 @@ My name is Velle. It means wanting.
 You know all about wanting, don't you?
 Now come closer, and let me open my eyes.
 
-### boss_wait (tier 4)
-Not yet, little keeper. Come closer.
-Closer still. I'm almost ready for you.
-
 ## Pleas
 
 ### Stage A (B1 to B2): warning

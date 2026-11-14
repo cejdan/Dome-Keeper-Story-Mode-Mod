@@ -136,6 +136,8 @@ func modInit():
 		"content/gadgets/mineraltree/MineralTree.gd",
 		"content/gadgets/minedriller/TileToucher.gd",
 		"content/gadgets/drillbot/Drillbot.gd",
+		"content/caves/bombcave/CaveBomb.gd",
+		"content/gadgets/blastMining/Mine.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	# Scenes that were already loaded still hold the vanilla script; reload them
@@ -157,6 +159,8 @@ func modInit():
 		"res://content/gadgets/minedriller/Drill.tscn",
 		"res://content/gadgets/minedriller/SideDriller.tscn",
 		"res://content/gadgets/drillbot/Drillbot.tscn",
+		"res://content/caves/bombcave/CaveBomb.tscn",
+		"res://content/gadgets/blastMining/Mine.tscn",
 	]:
 		if ResourceLoader.has_cached(scene_path):
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))

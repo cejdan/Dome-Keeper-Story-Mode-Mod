@@ -17,7 +17,7 @@ func run(h) -> void:
 	h.disable_waves()
 	h.check("the awakening survives the reload", Awakening.mined() == 10 and Awakening.is_awake() and Awakening.level() == 1.0, [Awakening.mined(), Awakening.is_awake()])
 	var replays: Array = []
-	for id: String in ["unobtainium_1", "unobtainium_3", "unobtainium_5", "unobtainium_7", "unobtainium_10", "boss_chamber", "boss_wait"]:
+	for id: String in ["unobtainium_1", "unobtainium_3", "unobtainium_5", "unobtainium_7", "unobtainium_10", "boss_chamber"]:
 		if StoryBeats.fire(id):
 			replays.append(id)
 	h.check("no awakening beat plays again", replays.is_empty(), replays)

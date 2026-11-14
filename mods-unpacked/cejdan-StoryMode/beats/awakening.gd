@@ -8,7 +8,8 @@ extends RefCounted
 #   Awakening.is_awake()   the boss chamber has been entered
 #   Awakening.freed(cell)  whether the deposit cell was mined (chains, #101)
 # Beats: "unobtainium:<n>" after the 1st, 3rd, 5th, 7th and 10th (data/beats.gd),
-# then "boss_chamber" and the placeholder "boss_wait" on entering the chamber.
+# then "boss_chamber" on entering the chamber; when it closes the fight starts
+# (boss/boss_director.gd, #160).
 
 const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd")
 
@@ -55,4 +56,3 @@ static func wake() -> void:
 	Data.apply(AWAKE, true)
 	ModLoaderLog.info("Awakening: the horror is awake", "cejdan-StoryMode")
 	StoryBeats.trigger("boss_chamber")
-	StoryBeats.trigger("boss_wait")

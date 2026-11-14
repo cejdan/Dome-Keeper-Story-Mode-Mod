@@ -310,12 +310,12 @@ func run(h) -> void:
 			await _quiet(h, "unobtainium %d" % (i + 1))
 	h.check("10 mined, the seal at %.2f" % Awakening.level(), Awakening.mined() == 10, Awakening.mined())
 
-	# ---- the boss chamber
+	# ---- the boss chamber (the fight has its own scenarios, #160)
+	load("res://mods-unpacked/cejdan-StoryMode/boss/boss_director.gd").enabled = false
 	var room: Rect2i = td.get_meta("story_boss_chamber", Rect2i())
 	await h.teleport_tile(room.position + room.size / 2)
 	await _expect(h, "boss_chamber", "chamber", 6.0)
 	h.check("the horror is awake", Awakening.is_awake(), Awakening.level())
-	await _expect(h, "boss_wait", "not_yet", 6.0)
 	await _quiet(h, "boss chamber")
 
 	# ---- Retire Rich, from inside the shop: the doom ending
