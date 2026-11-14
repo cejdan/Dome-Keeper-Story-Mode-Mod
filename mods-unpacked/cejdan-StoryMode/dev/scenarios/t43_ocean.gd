@@ -8,7 +8,8 @@ const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd"
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	# The boss fight (#160) would seal the chamber; it has its own scenarios.
+	return {"seed": 12345, "boss": false}
 
 
 var field

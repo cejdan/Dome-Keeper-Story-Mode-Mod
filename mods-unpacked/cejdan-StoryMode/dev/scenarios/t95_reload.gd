@@ -8,7 +8,7 @@ const StoryBeats = preload("res://mods-unpacked/cejdan-StoryMode/beats/story_bea
 
 
 func boot() -> Dictionary:
-	return {"load": 14, "beats": true}
+	return {"load": 14, "beats": true, "boss": false}
 
 
 func run(h) -> void:

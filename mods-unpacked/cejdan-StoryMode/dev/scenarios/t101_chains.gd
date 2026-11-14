@@ -12,7 +12,8 @@ const UNOB_ID := 47
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	# The boss fight (#160) would seal the chamber; it has its own scenarios.
+	return {"seed": 12345, "boss": false}
 
 
 func _frame_ms(h, frames: int) -> float:
