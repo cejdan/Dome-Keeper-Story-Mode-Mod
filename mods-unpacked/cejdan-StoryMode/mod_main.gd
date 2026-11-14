@@ -67,6 +67,13 @@ func _ready():
 			var t: ImageTexture = ImageTexture.create_from_image(hot)
 			t.take_over_path("res://content/icons/storyheatshield%d.png" % (i + 1))
 			_held.append(t)
+	# Metal Bit (#147): the gadget's own icon with a half-size Suit Blaster
+	# badge (the metal breaker), pixels copied so the palette encoding holds.
+	for pair: Array in [["drill", "storydrillmetal"], ["drillbot", "storydrillbotmetal"]]:
+		var bit: Texture2D = _badged_icon("res://content/icons/%s.png" % pair[0], "res://content/icons/suitblaster.png")
+		if bit != null:
+			bit.take_over_path("res://content/icons/%s.png" % pair[1])
+			_held.append(bit)
 	# New Gadget I-IV (#132): a cog with a spark and the tier in pips
 	# (art/tools/make_gear_icon.py).
 	for i in range(1, 5):
@@ -127,6 +134,8 @@ func modInit():
 		"content/caves/treecave/Iron.gd",
 		"content/gadgets/mineraltree/FruitGrowth.gd",
 		"content/gadgets/mineraltree/MineralTree.gd",
+		"content/gadgets/minedriller/TileToucher.gd",
+		"content/gadgets/drillbot/Drillbot.gd",
 	]:
 		ModLoaderMod.install_script_extension(EXT + path)
 	# Scenes that were already loaded still hold the vanilla script; reload them
@@ -145,6 +154,9 @@ func modInit():
 		"res://stages/level/LevelStage.tscn",
 		"res://content/caves/treecave/IronTreeCave.tscn",
 		"res://content/gadgets/mineraltree/MineralTree.tscn",
+		"res://content/gadgets/minedriller/Drill.tscn",
+		"res://content/gadgets/minedriller/SideDriller.tscn",
+		"res://content/gadgets/drillbot/Drillbot.tscn",
 	]:
 		if ResourceLoader.has_cached(scene_path):
 			_held.append(ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_REPLACE))
@@ -191,6 +203,24 @@ func _order_shop_tracks() -> void:
 	if keys.has(Story.MODE_ID) and keys.has(FIRST_KEEPER_ROOT):
 		keys.erase(Story.MODE_ID)
 		keys.insert(keys.find(FIRST_KEEPER_ROOT), Story.MODE_ID)
+
+
+# `base` with `badge` shrunk to half size in its lower right corner.
+func _badged_icon(base: String, badge: String) -> Texture2D:
+	var b: Texture2D = load(base)
+	var g: Texture2D = load(badge)
+	if b == null or g == null:
+		return null
+	var img: Image = b.get_image().duplicate()
+	var mark: Image = g.get_image().duplicate()
+	for i: Image in [img, mark]:
+		if i.is_compressed():
+			i.decompress()
+		i.convert(Image.FORMAT_RGBA8)
+	mark.resize(mark.get_width() / 2, mark.get_height() / 2, Image.INTERPOLATE_NEAREST)
+	var at: Vector2i = img.get_size() - mark.get_size()
+	img.blend_rect(mark, Rect2i(Vector2i.ZERO, mark.get_size()), at)
+	return ImageTexture.create_from_image(img)
 
 
 # Called by GameWorld.prepareLevelStart for every mode; vanilla sets nothing up

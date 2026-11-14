@@ -30,6 +30,19 @@ const BLAST_TTL_MS := 6000
 # Each: {"centre": Vector2, "radius": float, "dir": Vector2, "distance": int, "until": int}
 static var _blasts: Array = []
 
+# Metal Bit (#147): a drilling gadget's hits on metal go through once its
+# team owns the gadget's Metal Bit. The gadget's hits name no source either,
+# so its physics step sets this to the upgrade that would let it through
+# (e.g. "team1.storydrillmetal") and clears it after; a tile hit while it is
+# set came from that gadget.
+const DRILL_UPGRADE := "storydrillmetal"
+const DRILLBOT_UPGRADE := "storydrillbotmetal"
+static var gadget_hit: String = ""
+
+
+static func gadget_may_break() -> bool:
+	return gadget_hit != "" and GameWorld.boughtUpgrades.has(gadget_hit)
+
 
 static func register() -> void:
 	Data.TILE_ID_TO_STRING_MAP[TILE_ID] = TYPE
