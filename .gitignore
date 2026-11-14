@@ -18,3 +18,6 @@
 # Engine caches and build output, wherever they appear (e.g. art/tools/engine_render)
 .godot/
 *.tmp
+
+# Godot import sidecars the editor writes next to images in docs/
+/docs/**/*.import

@@ -61,9 +61,17 @@ func _run() -> void:
 	if not scenario.boot().get("beats", false) and Story.is_story():
 		var ids: PackedStringArray = []
 		for b: Dictionary in load(Story.MOD_DIR + "data/beats.gd").BEATS + load(Story.MOD_DIR + "data/logs.gd").LOGS:
-			ids.append(b["id"])
+			if b["id"] != "keeper_welcome" or not scenario.boot().get("welcome", false):
+				ids.append(b["id"])
 		Data.apply("team1.story.beatsplayed", ",".join(ids))
 		note("story beats muted (boot has no beats: true)")
+	elif not scenario.boot().get("welcome", false) and Story.is_story():
+		# The keeper's welcome log (#123) opens at the start of every new run;
+		# only scenarios that test it (boot `welcome: true`) see it.
+		var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
+		if not played.has("keeper_welcome"):
+			played.append("keeper_welcome")
+			Data.apply("team1.story.beatsplayed", ",".join(PackedStringArray(played)))
 	note("scenario begin", {"seed": Level.levelSeed, "mode": Level.loadout.modeId if Level.loadout else ""})
 	await scenario.run(self)
 	finish()

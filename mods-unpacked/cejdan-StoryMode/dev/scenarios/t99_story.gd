@@ -41,7 +41,7 @@ var translators: int = 0
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345, "beats": true}
+	return {"seed": 12345, "beats": true, "welcome": true}
 
 
 # ---------------------------------------------------------------- helpers
@@ -212,13 +212,16 @@ func _lava_death(h) -> void:
 # ---------------------------------------------------------------- run
 
 func run(h) -> void:
+	StoryBeats.instance().beat_opened.connect(func(id): opened.append(id))
+	# The keeper's welcome log opens first (#123).
+	var welcome: String = await h.read_beat("keeper_welcome", 6.0)
+	h.check("the run opens with the keeper's welcome log", welcome == "keeper_welcome", welcome)
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.0)
 	h.disable_waves()
 	td = Level.map.tileData
 	field = Level.map.get_node_or_null("StoryLavaField")
 	pd = load("res://mods-unpacked/cejdan-StoryMode/pleas/plea_director.gd").instance()
-	StoryBeats.instance().beat_opened.connect(func(id): opened.append(id))
 	h.check("lava field and plea director are in the run", field != null and pd != null)
 
 	# Heat Shielding IV first: depth heat can't recall the keeper.

@@ -5,9 +5,17 @@ extends RefCounted
 #   id     log_b1 .. log_b8 (biome index 0 .. 7)
 #   title  the log's header line
 #   lines  the body, one line each
+#   header optional: the box's top line, in place of "salvaged suit log,
+#          recovered in B<n>" (the keeper's own company log, #123)
 # Lines are the story script (docs/story/script.md, #25).
+#
+# keeper_welcome (#123) is the keeper's own log: Halcyon's welcome memo, which
+# opens once at the start of a new run (gamemode/Storymode.gd). biome -1.
+
+const WELCOME := "keeper_welcome"
 
 const LOGS: Array = [
+	{"id": "keeper_welcome", "biome": -1, "header": "HALCYON EXTRACTION  //  KEEPER UPLINK  //  SIGNAL 100%", "title": "MEMO: Halcyon Extraction, Keeper Onboarding", "lines": ["Keeper: landing confirmed. Congratulations, and welcome to the site.", "Your shift starts now. Halcyon looks forward to a long and productive dig.", "Native fauna are easily agitated by mining operations. They are also easily managed with your company-issued laser."]},
 	{"id": "log_b1", "biome": 0, "title": "Personal log: Dale Okafor, Keeper 1, shift 3", "lines": ["Bugs hit the dome again. They shriek the whole fight, like they're yelling at me.", "Ore's thick up here. Hit quota by noon.", "Company sheet says the fauna is acoustically aggressive, non-strategic.", "Earplugs in. Drill on."]},
 	{"id": "log_b2", "biome": 1, "title": "MEMO: Halcyon Extraction, Fauna Compliance", "lines": ["To all Keepers: native vocalisations are noise, not language. Do not record them.", "Alien translation devices found on site are company property. Surrender them unused.", "Productivity bonuses resume below Layer 4."]},
 	{"id": "log_b3", "biome": 2, "title": "Personal log: Ines Varga, Keeper 4, shift 21", "lines": ["Heard something under the drill tonight. Not the bugs. Lower. Kind.", "It said the things on the surface are only frightened. That I don't have to be.", "Slept nine hours. First time since landing."]},
