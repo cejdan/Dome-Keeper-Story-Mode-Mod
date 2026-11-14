@@ -16,6 +16,8 @@ const EN := {
 	"upgrades.storyheatshield3.desc": "Ceramic plates. Lava heats you 80% slower, depth heat 90% slower.",
 	"upgrades.storyheatshield4.title": "Heat Shielding IV",
 	"upgrades.storyheatshield4.desc": "The best suit money can buy. Depth heat can't touch you. Lava still can, about 17 times slower.",
+	"upgrades.storywin.title": "Win Condition",
+	"upgrades.storywin.desc": "There is one way out of this mine: get rich enough to leave it.",
 	"upgrades.storyretirerich.title": "Retire Rich",
 	"upgrades.storyretirerich.desc": "Sell the dome, buy an island, never dig again. Ends the run as a win.",
 	"upgrades.storynewgadget1.title": "New Gadget I",

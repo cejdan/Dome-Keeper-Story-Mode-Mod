@@ -46,6 +46,12 @@ func afterInitialized() -> void:
 	# A save restores Data after this runs, so a load is told apart by its flag.
 	if not SaveGame.currentLoadingSavegame:
 		_welcome()
+	# The win condition's shop section (#144): vanilla adds only the mode's own
+	# root, so the second root is added here, then its Retire Rich unlocked.
+	# A save made before #144 gets it on load too.
+	if not GameWorld.boughtUpgrades.has("team1." + WIN_ROOT):
+		GameWorld.addUpgrade(WIN_ROOT, "team1")
+		GameWorld.updateAvailableUpgrades("team1")
 	if not Data.has(MONEY):
 		Data.apply(MONEY, 0)
 		Data.apply("team1.inventory.iron", 0)
@@ -80,6 +86,8 @@ func _welcome() -> void:
 const SUITBLASTER_ENTRY := "storysuitblaster"
 # Retire Rich (#31, #54): the only way to win a Story Mode run until the boss.
 const RETIRE_ENTRY := "storyretirerich"
+# Retire Rich's own root, the shop's top section (#144).
+const WIN_ROOT := "storywin"
 
 
 func _on_upgrade_bought(id: String, teamId: String, _playerId: String) -> void:
