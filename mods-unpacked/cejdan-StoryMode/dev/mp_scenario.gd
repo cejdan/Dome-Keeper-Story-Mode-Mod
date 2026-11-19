@@ -10,7 +10,7 @@ const DEV_SHARE := "story.dev.share"
 # Host: waits in the loadout for `players` lobby members, picks `mode` (Story
 # Mode by default), starts the run and waits until it is playable. False if
 # any step failed.
-func host_start(h, players: int = 2, mode: String = "storymode", dome: String = "") -> bool:
+func host_start(h, players: int = 2, mode: String = "storymode", dome: String = "", keepers: Array = []) -> bool:
 	var stage = Level.stage
 	GameWorld.figuredOutMovementInLoadout = true
 	var joined: bool = await h.until(func(): return Lobby.members.size() >= players, 120.0)
@@ -33,6 +33,26 @@ func host_start(h, players: int = 2, mode: String = "storymode", dome: String = 
 		stage.domeSelected(dome, "team1", false)
 		await h.wait(1.0)
 		h.check(dome + " selected", Level.loadout.domes.front().domeId == dome, Level.loadout.domes.front().domeId)
+	# Each player's keeper, in loadout order (#297): keepers[i] for keeper i.
+	# Story Mode scenarios that name none get the Engineer for everyone, as
+	# every Story run had before #297 opened the other keepers.
+	if keepers.is_empty() and mode == "storymode":
+		for i in Level.loadout.keepers.size():
+			keepers.append("keeper1")
+	if not keepers.is_empty():
+		var i: int = 0
+		for lk in Level.loadout.keepers.duplicate():
+			if i < keepers.size() and lk.keeperId != keepers[i]:
+				stage.changeKeeper(lk.playerId, keepers[i] + "-skin0")
+			i += 1
+		var swapped: bool = await h.until(func():
+			for j in mini(keepers.size(), Level.loadout.keepers.size()):
+				var lk2 = Level.loadout.keepers[j]
+				if lk2.keeperId != keepers[j] or lk2.keeper == null or lk2.keeper.techId != keepers[j]:
+					return false
+			return true, 20.0)
+		h.check("keepers picked: %s" % str(keepers), swapped, Level.loadout.keepers.map(func(lk): return [lk.playerId, lk.keeperId]))
+		await h.wait(1.0)
 	stage.startRun()
 	var started: bool = await h.until(func(): return Level.stage is LevelStage and Level.stage.get("keeperInputStarted") == true and Level.map != null and Level.map.isMapReady(), 180.0)
 	h.check("run started", started)
