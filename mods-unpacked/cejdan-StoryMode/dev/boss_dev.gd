@@ -4,12 +4,23 @@ extends RefCounted
 # has by the time the boss is reached, and a drilled way home for the chase.
 
 # Every upgrade a keeper at the boss has bought: all of the drill and the
-# jetpack, and a dome that can fight (DOME_GEAR: Laser IV, faster aim, more
+# jetpack (or the other keepers' like lines), and a dome that can fight (DOME_GEAR: Laser IV, faster aim, more
 # health on the laser dome; the same kind of thing on the others).
 const GEAR: Array = [
 	"drill1", "drill2", "drill3", "drill4",
 	"jetpackspeed1", "jetpackspeed2", "jetpackspeed3", "jetpackspeed4",
 	"jetpackstrength1", "jetpackstrength2", "jetpackstrength3", "jetpackstrength4",
+	# The other keepers' mining, movement and carry lines (#297); each keeper
+	# gets only its own tree's (the ids are per keeper).
+	"keeper2pinballdamage1", "keeper2pinballdamage2", "keeper2pinballdamage3", "keeper2pinballdamage4",
+	"keeper2movement1", "keeper2movement2", "keeper2movement3", "keeper2movement4",
+	"keeper2bundle1", "keeper2bundle2", "keeper2bundle3", "keeper2bundle4",
+	"keeper2rotationalmining1", "keeper2rotationalmining2",
+	"keeper3kunaidamage4", "keeper3kunaicooldown1", "keeper3kunaicooldown2", "keeper3kunaicooldown3",
+	"keeper3doublejump", "keeper3slidecontrol", "keeper3quadjump", "keeper3aerialmastery",
+	"keeper3carrylimit1", "keeper3carrylimit2", "keeper3carrylimit3",
+	"keeper4punch1", "keeper4punch2", "keeper4punch3", "keeper4punch4",
+	"keeper4speed1", "keeper4speed2", "keeper4speed3",
 	"domehealthmeter",
 ]
 

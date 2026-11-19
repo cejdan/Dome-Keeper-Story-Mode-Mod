@@ -200,6 +200,16 @@ func _key(action: String, pressed: bool) -> void:
 			e.pressed = pressed
 			Input.parse_input_event(e)
 			return
+	# An action bound to the mouse only (keeper3's rope, #297): its button, where
+	# the mouse is (aim_mouse puts it there).
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventMouseButton:
+			var m: InputEventMouseButton = ev.duplicate()
+			m.pressed = pressed
+			m.position = get_viewport().get_mouse_position()
+			m.global_position = m.position
+			Input.parse_input_event(m)
+			return
 	push_error("Harness: no key for action " + action)
 
 
@@ -227,6 +237,21 @@ func press(action: String) -> void:
 
 # Gamepad input for splitscreen (#231): vanilla's device index for a gamepad is
 # its joypad device + 1 (InputSystem.getDeviceIndex), so `index` 1 is joypad 0.
+# Puts the mouse over `world_pos` in keeper `k`'s view (default: the first local
+# keeper), the way a player aims with the mouse (#297: keeper3's kunai and
+# rope aim at the mouse when it plays on the keyboard).
+func aim_mouse(world_pos: Vector2, k = null) -> void:
+	if k == null:
+		k = keeper()
+	var vp: Viewport = k.get_viewport()
+	var at: Vector2 = vp.get_canvas_transform() * world_pos
+	vp.warp_mouse(at)
+	var ev := InputEventMouseMotion.new()
+	ev.position = at
+	ev.global_position = at
+	vp.push_input(ev, true)
+
+
 func pad(index: int, action: String, pressed: bool) -> void:
 	for ev in InputMap.action_get_events(action):
 		if ev is InputEventJoypadButton:

@@ -25,8 +25,9 @@ static func make_old(tier: int, blaster: bool) -> Dictionary:
 	for raw: String in KeeperUpgrades._team_entries():
 		var u: Dictionary = Data.deepDuplicateUpgrade(Data.upgrades[raw])
 		u.erase("limit")
-		if u.get("predecessors", []) == ["keeper1"]:
+		if u.get("predecessors", []).has("keeper1"):
 			u["predecessors"] = ["storymode"]
+			u.erase("predecessorsany")
 		Data.makeInstancedUpgrade(u, "team1")
 		gw.upgrades[u["id"]] = u
 	for n in range(1, tier + 1):

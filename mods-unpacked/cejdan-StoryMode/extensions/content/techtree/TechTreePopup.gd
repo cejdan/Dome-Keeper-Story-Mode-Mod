@@ -10,6 +10,8 @@ const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd"
 const GadgetShop = preload("res://mods-unpacked/cejdan-StoryMode/gamemode/gadget_shop.gd")
 const DomeGas = preload("res://mods-unpacked/cejdan-StoryMode/gas/dome_gas.gd")
 
+var _story_money_listening := false
+
 
 func _ready():
 	if Story.is_story():
@@ -27,6 +29,7 @@ func _ready():
 	# The iron listener stays (propertyChanged ignores it): vanilla's moveOut
 	# unlistens it, and logged an error when it was already gone (#249).
 	Data.listen(self, teamId + ".inventory.money")
+	_story_money_listening = true
 	_story_show_money()
 
 
@@ -44,7 +47,10 @@ func propertyChanged(property: String, oldValue, newValue):
 
 
 func moveOut():
-	if isIn:
+	# Only a Story Mode shop listens for money (#297: closing a vanilla shop
+	# logged "removing listener who is not listening").
+	if isIn and _story_money_listening:
+		_story_money_listening = false
 		Data.unlisten(self, teamId + ".inventory.money")
 	super()
 

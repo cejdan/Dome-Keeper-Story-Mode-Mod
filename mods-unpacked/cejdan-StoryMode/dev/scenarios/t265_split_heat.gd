@@ -91,7 +91,7 @@ func run(h) -> void:
 	var hs1 = _panel(shop2, "player2.storyheatshield1")
 	h.note("keeper 2's shop", {"panels": ids2.size(), "player1 entries": ids2.filter(func(i): return i.begins_with("player1.")), "heat": ids2.filter(func(i): return "storyheat" in i)})
 	h.check("keeper 2's shop shows its own Heat Shielding, none of keeper 1's", hs1 != null and not ids2.any(func(i): return i.begins_with("player1.")), ids2.filter(func(i): return i.begins_with("player")))
-	h.check("Heat Shielding sits in keeper 2's keeper track", hs1 != null and hs1.track.rootTechId == "player2.keeper1", hs1.track.rootTechId if hs1 else null)
+	h.check("Heat Shielding sits in keeper 2's keeper track", hs1 != null and hs1.track.rootTechId == "player2." + k2.techId, hs1.track.rootTechId if hs1 else null)
 	for n in [1, 2]:
 		var p = _panel(shop2, "player2.storyheatshield%d" % n)
 		if p == null:
