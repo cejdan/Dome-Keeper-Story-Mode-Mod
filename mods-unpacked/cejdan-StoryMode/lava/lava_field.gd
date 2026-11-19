@@ -645,10 +645,13 @@ func _check_water() -> void:
 	for d in Level.drops.get_children():
 		if not "type" in d or d.type != CONST.WATER or d.absorbed or not is_instance_valid(d):
 			continue
-		var c: Vector2i = map.getTileCoord(d.global_position)
-		if not lava_overlaps(Rect2(d.global_position - Vector2(2, 2), Vector2(4, 4))):
+		var touched: Vector2i = lava_touched(Rect2(d.global_position - Vector2(2, 2), Vector2(4, 4)))
+		if touched == NO_CELL:
 			continue
-		var cells := _harden_from(c, LavaData.WATER_HARDENS_CELLS)
+		# The lava it touches can be drawn in the next cell (beside it, a pool's
+		# top just under it, a stream pouring past): harden from there (#296).
+		var c: Vector2i = map.getTileCoord(d.global_position)
+		var cells := _harden_from(c if mass.get(c, 0.0) >= BURN_MASS else touched, LavaData.WATER_HARDENS_CELLS)
 		for k in Keepers.getAll():
 			if k.carriedCarryables.has(d):
 				k.dropCarry(d)
@@ -1172,6 +1175,15 @@ func _edges(p: Array, c: Vector2i, t: float, goop: bool) -> Vector2:
 # (BURN_MASS)? BURN_TOLERANCE px of overlap are forgiven, so skimming the
 # surface doesn't flicker.
 func lava_overlaps(world_rect: Rect2) -> bool:
+	return lava_touched(world_rect) != NO_CELL
+
+
+const NO_CELL := Vector2i(-1073741824, -1073741824)
+
+
+# The first lava cell whose drawn lava `world_rect` touches, or NO_CELL. A
+# stream running on into the cell below counts as the stream's own cell.
+func lava_touched(world_rect: Rect2) -> Vector2i:
 	var a: Vector2i = map.getTileCoord(world_rect.position)
 	var b: Vector2i = map.getTileCoord(world_rect.end)
 	var local := Rect2(to_local(world_rect.position), world_rect.size)
@@ -1183,13 +1195,13 @@ func lava_overlaps(world_rect: Rect2) -> bool:
 			if mass.get(up, 0.0) >= BURN_MASS and shown.get(up, 0.0) > 0.02 and _is_stream(up):
 				var ext: Rect2 = _lava_shape(up)["ext"].grow(-BURN_TOLERANCE)
 				if ext.size.x > 0.0 and ext.size.y > 0.0 and ext.intersects(local):
-					return true
+					return up
 			if mass.get(c, 0.0) < BURN_MASS:
 				continue
 			var r: Rect2 = _lava_shape(c)["rect"].grow(-BURN_TOLERANCE)
 			if r.size.x > 0.0 and r.size.y > 0.0 and r.intersects(local):
-				return true
-	return false
+				return c
+	return NO_CELL
 
 
 # The keeper's body for lava contact: a fixed box around its position, from its
