@@ -6,7 +6,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # and what each drill level costs. The tables go into the log for the ticket.
 
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 const SEEDS := 10
 const TIMEOUT := 600
@@ -29,7 +31,7 @@ func run(h) -> void:
 		mythril.append(0.0)
 		tiles.append(0)
 	for s in SEEDS:
-		var td = h.generate_map(MapConfig.make_archetype(), 7000 + s)
+		var td = h.generate_map(_MapConfig.make_archetype(), 7000 + s)
 		if td == null:
 			continue
 		var o: Dictionary = td.get_meta("story_ocean", {})
@@ -41,10 +43,10 @@ func run(h) -> void:
 				continue
 			tiles[b] += 1
 			var r: int = td.get_resourcev(c)
-			var m: String = Minerals.by_tile_id(r) if (r >= 40 or r == Data.TILE_IRON) else ""
+			var m: String = _Minerals.by_tile_id(r) if (r >= 40 or r == Data.TILE_IRON) else ""
 			if m == "" or m == "unobtainium":
 				continue
-			var v: float = 2.0 * Minerals.value_of(m)
+			var v: float = 2.0 * _Minerals.value_of(m)
 			dollars[b] += v
 			if Minerals.ORDER.find(m) >= Minerals.ORDER.find("sapphire"):
 				gems[b] += v

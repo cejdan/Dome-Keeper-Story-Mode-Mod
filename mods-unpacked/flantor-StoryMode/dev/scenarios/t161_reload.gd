@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # tentacles come up from below the keeper again, and the waves stay stopped.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 
 
@@ -15,8 +16,8 @@ func boot() -> Dictionary:
 func run(h) -> void:
 	await h.until(func(): return not SaveGame.currentLoadingSavegame, 20.0)
 	await h.wait(1.5)
-	var boss = Director.instance()
-	h.check("the loaded run is still in the chase", Director.current() == "chase", Director.current())
+	var boss = _Director.instance()
+	h.check("the loaded run is still in the chase", _Director.current() == "chase", _Director.current())
 	h.check("the chase resumed", boss.chase != null and is_instance_valid(boss.chase))
 	if boss.chase == null:
 		return

@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
 const PleaData = preload("res://mods-unpacked/flantor-StoryMode/data/pleas.gd")
+static var _PleaData = PleaData  # calls go through this: lazy_preload makes const-preload calls slow
 const LogData = preload("res://mods-unpacked/flantor-StoryMode/data/logs.gd")
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 
@@ -118,7 +119,7 @@ func run(h) -> void:
 		var sec: Dictionary = pleas_md.get("Stage " + st, {})
 		for kind: String in ["arrive", "fight", "death"]:
 			var want: Array = sec.get("sub", {}).get(kind, [])
-			var got: Array = PleaData.pool(st, kind)
+			var got: Array = _PleaData.pool(st, kind)
 			n_pleas += got.size()
 			all_lines.append_array(got)
 			if want.is_empty() or not _diff(want, got).is_empty():

@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # home, the vanilla supplement choice opens, and the pick applies.
 
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 
 
@@ -57,7 +58,7 @@ func run(h) -> void:
 	var bad: Array = []
 	var counts: Array = []
 	for s in 20:
-		var a = MapConfig.make_archetype()
+		var a = _MapConfig.make_archetype()
 		a.powercores = mini(a.powercores, cap)
 		var td = h.generate_map(a, 4000 + s)
 		if td == null:

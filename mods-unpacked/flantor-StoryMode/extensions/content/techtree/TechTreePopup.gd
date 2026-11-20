@@ -5,10 +5,15 @@ extends "res://content/techtree/TechTreePopup.gd"
 # Vanilla modes run vanilla code only.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 const DomeGas = preload("res://mods-unpacked/flantor-StoryMode/gas/dome_gas.gd")
+static var _DomeGas = DomeGas  # calls go through this: lazy_preload makes const-preload calls slow
 
 var _story_money_listening := false
 # Call for Evacuation (#303): bought here, the shop closes so the company's
@@ -17,18 +22,18 @@ const EVACUATE_ID := "storyevacuate"
 
 
 func _ready():
-	if Story.is_story():
+	if _Story.is_story():
 		# New Gadget entries leave the shop once nothing is left to offer.
-		GadgetShop.refresh_entries(teamId, playerId)
+		_GadgetShop.refresh_entries(teamId, playerId)
 	super()
-	if not Story.is_story():
+	if not _Story.is_story():
 		return
 	var iron_label: Node = find_child("LabelIron")
 	# The iron icon sits just before the iron count in the inventory grid.
 	var grid: Node = iron_label.get_parent()
 	var icon: Node = grid.get_child(iron_label.get_index() - 1)
 	if icon is TextureRect:
-		icon.texture = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/icon_money.png")
+		icon.texture = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/icon_money.png")
 	# The iron listener stays (propertyChanged ignores it): vanilla's moveOut
 	# unlistens it, and logged an error when it was already gone (#249).
 	Data.listen(self, teamId + ".inventory.money")
@@ -51,14 +56,14 @@ func _story_on_bought(id: String, team: String, player: String) -> void:
 
 
 func _story_show_money() -> void:
-	find_child("LabelIron").text = Minerals.dollars(int(Data.ofOr(teamId + ".inventory.money", 0))).substr(1)
+	find_child("LabelIron").text = _Minerals.dollars(int(Data.ofOr(teamId + ".inventory.money", 0))).substr(1)
 
 
 func propertyChanged(property: String, oldValue, newValue):
 	if property == teamId + ".inventory.money":
 		_story_show_money()
 		return
-	if property == teamId + ".inventory.iron" and Story.is_story():
+	if property == teamId + ".inventory.iron" and _Story.is_story():
 		return
 	super(property, oldValue, newValue)
 
@@ -75,7 +80,7 @@ func moveOut():
 
 
 func updateCostLabels():
-	if not Story.is_story():
+	if not _Story.is_story():
 		super()
 		return
 	find_child("LabelIronCost").text = ""
@@ -97,7 +102,7 @@ func updateCostLabels():
 		var label: Label = find_child("Label" + row + "Cost")
 		if label == null:
 			continue
-		label.text = Minerals.dollars(int(cost)).substr(1) if costType == "money" else "%s" % cost
+		label.text = _Minerals.dollars(int(cost)).substr(1) if costType == "money" else "%s" % cost
 		label.label_settings.font_color = color
 
 
@@ -105,15 +110,15 @@ func updateCostLabels():
 # pick pays for it (extensions/stages/level/LevelStage.gd). Without the money
 # the choice stays shut and the panel shows vanilla's "can't afford" error.
 func buyUpgrade():
-	if Story.is_story() and animationDone:
+	if _Story.is_story() and animationDone:
 		var tree = find_child("TechTree")
 		var panel = tree.focussedTechPanel if tree else null
 		# Vent the Dome (#213) with clean air in the dome would be water for
 		# nothing: refused, as vanilla refuses a repair at full health.
-		if panel and panel.techId.ends_with(DomeGas.VENT_ID) and not DomeGas.has_gas():
+		if panel and panel.techId.ends_with(DomeGas.VENT_ID) and not _DomeGas.has_gas():
 			GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
 			return
-		if panel and GadgetShop.is_entry(panel.techId):
+		if panel and _GadgetShop.is_entry(panel.techId):
 			if panel.state == 1:
 				var cost = GameWorld.upgrades.get(panel.techId, {}).get("cost", {})
 				if cost is Dictionary and not GameWorld.canAfford(cost, teamId):

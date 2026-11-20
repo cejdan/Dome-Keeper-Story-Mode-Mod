@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # the translator chambers, spent.
 
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -15,7 +16,7 @@ func run(h) -> void:
 	await h.until(func(): return not SaveGame.currentLoadingSavegame, 20.0)
 	await h.wait(1.0)
 	h.disable_waves()
-	h.check("translation stage survives the reload", Runes.stage() == 3, Runes.stage())
+	h.check("translation stage survives the reload", _Runes.stage() == 3, _Runes.stage())
 	var chambers: Array = []
 	for c in Level.map.find_children("*", "", true, false):
 		if c.get_script() != null and str(c.get_script().resource_path).ends_with("TranslatorChamber.gd"):

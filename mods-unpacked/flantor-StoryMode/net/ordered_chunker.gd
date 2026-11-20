@@ -9,6 +9,7 @@ extends "res://systems/network/Chunker.gd"
 # Network's chunker node by mod_main.gd (set_script, so it keeps its RPC path).
 
 const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd")
+static var _StoryNet = StoryNet  # calls go through this: lazy_preload makes const-preload calls slow
 
 const BATCH := 700  # bytes of Data values per delta sent at once: whole under MAX_CHUNK_SIZE
 
@@ -29,7 +30,7 @@ static var tally: Dictionary = {"messages": 0, "bytes": 0, "max": 0, "chunked": 
 
 
 func send(target_peer_id: int, request_type: ChunkRequestType, callable: Callable) -> void:
-	if not StoryNet.is_data(request_type):
+	if not _StoryNet.is_data(request_type):
 		super.send(target_peer_id, request_type, callable)
 		return
 	if multiplayer.is_server():
@@ -69,14 +70,14 @@ func _count(n: int) -> void:
 # False when nothing could go now.
 func _send_split(peer: int, callable: Callable) -> bool:
 	var args: Array = callable.get_bound_arguments()
-	var vals: Dictionary = StoryNet.data_values(ChunkRequestType.DATA_DELTA_SYNC, args)
+	var vals: Dictionary = _StoryNet.data_values(ChunkRequestType.DATA_DELTA_SYNC, args)
 	if vals.is_empty():
 		return false
 	var queued_keys: Dictionary = {}
 	var fulls: Array = []
 	for id in outgoing_rpcs:
 		var r: OutgoingRPC = outgoing_rpcs[id]
-		if r.target_peer_id != peer or r.is_sent() or not StoryNet.is_data(r.request_type):
+		if r.target_peer_id != peer or r.is_sent() or not _StoryNet.is_data(r.request_type):
 			continue
 		if r.request_type == ChunkRequestType.DATA_FULL_SYNC:
 			fulls.append(id)
@@ -157,7 +158,7 @@ func reset() -> void:
 	super()
 	_keys_cache.clear()
 	_pinned.clear()
-	StoryNet.reset()
+	_StoryNet.reset()
 
 
 func _rebind(callable: Callable, args: Array, vals: Dictionary) -> Callable:
@@ -176,7 +177,7 @@ func _queue(peer: int, request_type: ChunkRequestType, data: PackedByteArray) ->
 func _keys_of(r: OutgoingRPC) -> Dictionary:
 	if not _keys_cache.has(r.request_id):
 		var keys: Dictionary = {}
-		for k in StoryNet.queued_values(r):
+		for k in _StoryNet.queued_values(r):
 			keys[k] = true
 		_keys_cache[r.request_id] = keys
 	return _keys_cache[r.request_id]
@@ -208,7 +209,7 @@ func _strip(request_type: ChunkRequestType, callable: Callable) -> Callable:
 	if args.size() < 2 or not args[-1] is PackedByteArray or (args[-1] as PackedByteArray).size() < MAX_CHUNK_SIZE:
 		return callable
 	var full: bool = request_type == ChunkRequestType.DATA_FULL_SYNC
-	var vals: Dictionary = StoryNet.data_values(request_type, args)
+	var vals: Dictionary = _StoryNet.data_values(request_type, args)
 	var hit := false
 	for k: String in StoryNet.NEVER_SENT:
 		if vals.has(k):
@@ -230,6 +231,6 @@ func _strip(request_type: ChunkRequestType, callable: Callable) -> Callable:
 
 func _data_queued(peer: int) -> bool:
 	for r in outgoing_rpcs.values():
-		if r.target_peer_id == peer and not r.is_sent() and StoryNet.is_data(r.request_type):
+		if r.target_peer_id == peer and not r.is_sent() and _StoryNet.is_data(r.request_type):
 			return true
 	return false

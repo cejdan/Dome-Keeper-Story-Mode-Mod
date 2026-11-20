@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t230_mp_boss_chase_client.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 420
 
@@ -31,7 +32,7 @@ func _facts(chase) -> Dictionary:
 func run(h) -> void:
 	if not await host_start(h):
 		return
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var ck = _client_keeper(h)
 	var me = h.keeper()
 	h.check("boss director and a client keeper on the host", boss != null and ck != null, keeper_rows(h))
@@ -43,8 +44,8 @@ func run(h) -> void:
 
 	# ---- the chase, by the dev command (it drills the shaft home too)
 	boss._dev_boss("chase")
-	var started: bool = await h.until(func(): return Director.current() == "chase" and boss.chase != null, 10.0)
-	h.check("`--boss=chase` starts the chase on the host", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "chase" and boss.chase != null, 10.0)
+	h.check("`--boss=chase` starts the chase on the host", started, _Director.current())
 	if not started:
 		return
 	var chase = boss.chase
@@ -86,15 +87,15 @@ func run(h) -> void:
 	await h.teleport_tile(Vector2i(0, -3))
 	await h.wait(3.0)
 	h.check("the host's keeper is home", me.isInsideDome, keeper_rows(h))
-	h.check("with the client's keeper still out, the chase goes on", Director.current() == "chase" and chase.target == ck, [Director.current(), _facts(chase)])
+	h.check("with the client's keeper still out, the chase goes on", _Director.current() == "chase" and chase.target == ck, [_Director.current(), _facts(chase)])
 	await h.shot("host_home_waiting")
 
 	# ---- the client's keeper gets home: the chase is over
 	share("go_home", true)
-	var over: bool = await h.until(func(): return Director.current() == "finale", 30.0)
-	h.check("with every keeper home, the chase is over: the finale", over, {"state": Director.current(), "keepers": keeper_rows(h)})
+	var over: bool = await h.until(func(): return _Director.current() == "finale", 30.0)
+	h.check("with every keeper home, the chase is over: the finale", over, {"state": _Director.current(), "keepers": keeper_rows(h)})
 	h.check("the tentacles stop", not chase.running, chase.running)
-	share("done", {"state": Director.current(), "hearts": boss.health.hearts(), "chase": _facts(chase)})
+	share("done", {"state": _Director.current(), "hearts": boss.health.hearts(), "chase": _facts(chase)})
 	h.note("chase", _facts(chase))
 	await h.wait(1.0)
 	await h.shot("host_finale")

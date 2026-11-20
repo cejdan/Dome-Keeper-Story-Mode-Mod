@@ -8,8 +8,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # translator. Each page stays up long enough to read.
 
 const Shoot = preload("res://mods-unpacked/flantor-StoryMode/dev/workshop_shoot.gd")
+static var _Shoot = Shoot  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 900
 
 
@@ -24,18 +27,18 @@ func _pd():
 # Waits for a beat, holds each page `sec` s (typing included), shoots it,
 # turns it with select. Returns the beat id.
 func _read(h, label: String, sec: float) -> String:
-	await h.until(func(): return StoryBeats.is_open(), 8.0)
-	var id: String = StoryBeats.instance().open_id
-	Shoot.clip(h, "beat_" + label)
+	await h.until(func(): return _StoryBeats.is_open(), 8.0)
+	var id: String = _StoryBeats.instance().open_id
+	_Shoot.clip(h, "beat_" + label)
 	for page in 12:
 		await h.wait(sec)
 		await h.shot("%s_p%d" % [label, page + 1])
 		await h.press("ui_select")
 		await h.wait(0.3)
-		if StoryBeats.instance().open_id != id:
+		if _StoryBeats.instance().open_id != id:
 			break
 		# A press that only finished the typing: press again next round.
-	Shoot.clip(h, "beat_" + label + "_end")
+	_Shoot.clip(h, "beat_" + label + "_end")
 	h.note("read", {"label": label, "id": id})
 	await h.wait(1.0)
 	return id
@@ -45,20 +48,20 @@ func _sell_bones(h, biome: int) -> void:
 	var dome = Level.getDome("team1")
 	var target: Vector2 = dome.getDropTarget("iron").global_position + Vector2(0, -8)
 	var drop = Level.drops.network_spawn({"type": Bones.TYPE, "position": target + Vector2(0, -12), "impulse": Vector2.ZERO})
-	drop.value = Bones.value_for(biome)
+	drop.value = _Bones.value_for(biome)
 	drop.biome = biome
 
 
 # A small room in `biome` near x 0: top-left of a 7 x 3 room.
 func _room(h, td, biome: int) -> Vector2i:
-	var o: Vector2i = Shoot.find_rock(td, 7, 3, [biome], 4, 90, -12, 8)
-	await h.reveal(Shoot.rect(o - Vector2i(2, 2), 11, 7))
-	await h.clear_tiles(Shoot.rect(o, 7, 3))
+	var o: Vector2i = _Shoot.find_rock(td, 7, 3, [biome], 4, 90, -12, 8)
+	await h.reveal(_Shoot.rect(o - Vector2i(2, 2), 11, 7))
+	await h.clear_tiles(_Shoot.rect(o, 7, 3))
 	return o
 
 
 func run(h) -> void:
-	Shoot.window_1080()
+	_Shoot.window_1080()
 	var td = Level.map.tileData
 
 	# ---- 1. the welcome memo, a moment after landing
@@ -79,7 +82,7 @@ func run(h) -> void:
 	var came: bool = await h.until(func(): return Data.of("team1.monsters.wavepresent"), 40.0)
 	h.check("a wave arrives", came)
 	await h.until(func(): return pd.shown.size() > 0, 4.0)
-	Shoot.clip(h, "plea_arrive")
+	_Shoot.clip(h, "plea_arrive")
 	await h.wait(2.5)
 	await h.shot("plea_arrive")
 	await h.until(func(): return pd.shown.size() > 1, 10.0)
@@ -91,7 +94,7 @@ func run(h) -> void:
 	await h.wait(0.6)
 	await h.shot("plea_death")
 	await h.wait(2.0)
-	Shoot.clip(h, "plea_end")
+	_Shoot.clip(h, "plea_end")
 	h.note("pleas", pd.shown)
 	await h.until(func(): return not Data.of("team1.monsters.wavepresent"), 60.0)
 	h.disable_waves()
@@ -105,20 +108,20 @@ func run(h) -> void:
 	var dig: Array = []
 	for dx in range(1, 5):
 		dig.append(bones + Vector2i(dx, 0))
-	await h.reveal(Shoot.rect(bones - Vector2i(3, 3), 10, 7))
+	await h.reveal(_Shoot.rect(bones - Vector2i(3, 3), 10, 7))
 	await h.clear_tiles(dig)
 	await h.teleport_tile(bones + Vector2i(3, 0))
 	await h.wait(1.5)
 	h.snap_camera()
 	await h.wait(1.0)
-	Shoot.clip(h, "bones_rock")
+	_Shoot.clip(h, "bones_rock")
 	await h.shot("bones_in_rock")
 	h.down("ui_left")
 	await h.until(func(): return Level.map.is_tile_empty(bones), 15.0)
 	h.up("ui_left")
 	await h.wait(1.5)
 	await h.shot("bones_dropped")
-	Shoot.clip(h, "bones_rock_end")
+	_Shoot.clip(h, "bones_rock_end")
 	await h.teleport_tile(Vector2i(0, -1))
 	await h.wait(2.0)
 	_sell_bones(h, 0)
@@ -129,23 +132,23 @@ func run(h) -> void:
 	var r2: Vector2i = await _room(h, td, 1)
 	await h.teleport_tile(r2 + Vector2i(3, 2))
 	await h.wait(1.5)
-	if not StoryBeats.is_open():
-		StoryBeats.fire("biome_b2")
+	if not _StoryBeats.is_open():
+		_StoryBeats.fire("biome_b2")
 	id = await _read(h, "b2", 5.0)
 	h.check("B2 plays its beat", id == "biome_b2", id)
 
 	# ---- 5. the first translator, at the dome
 	await h.teleport_tile(Vector2i(0, -1))
 	await h.wait(1.5)
-	StoryBeats.fire("translator_1")
+	_StoryBeats.fire("translator_1")
 	await _read(h, "translator_1", 5.0)
 
 	# ---- 6. the voice in B3, and Ines' log
 	var r3: Vector2i = await _room(h, td, 2)
 	await h.teleport_tile(r3 + Vector2i(3, 2))
 	await h.wait(1.5)
-	if not StoryBeats.is_open():
-		StoryBeats.fire("biome_b3")
+	if not _StoryBeats.is_open():
+		_StoryBeats.fire("biome_b3")
 	id = await _read(h, "b3", 5.0)
 	h.check("B3 plays its beat", id == "biome_b3", id)
 	await h.teleport_tile(Vector2i(0, -1))

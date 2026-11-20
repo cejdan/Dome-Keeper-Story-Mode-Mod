@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # each beat opens, fits its pages, and that no beat line is placeholder text.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
 
 
@@ -22,7 +23,7 @@ func run(h) -> void:
 	var n: int = 0
 	for b: Dictionary in BeatData.BEATS:
 		n += 1
-		StoryBeats.fire(b["id"])
+		_StoryBeats.fire(b["id"])
 		var id: String = await h.read_beat("%02d_%s" % [n, b["id"]])
-		h.check("%s opens and closes" % b["id"], id == b["id"] and not StoryBeats.is_open(), id)
-	h.check("all %d beats played" % BeatData.BEATS.size(), BeatData.BEATS.all(func(b): return StoryBeats.has_played(b["id"])))
+		h.check("%s opens and closes" % b["id"], id == b["id"] and not _StoryBeats.is_open(), id)
+	h.check("all %d beats played" % BeatData.BEATS.size(), BeatData.BEATS.all(func(b): return _StoryBeats.has_played(b["id"])))

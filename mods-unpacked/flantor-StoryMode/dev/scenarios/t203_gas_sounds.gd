@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # level against one of the game's own mine sounds.
 
 const GasSfx = preload("res://mods-unpacked/flantor-StoryMode/gas/gas_sfx.gd")
+static var _GasSfx = GasSfx  # calls go through this: lazy_preload makes const-preload calls slow
 const REFERENCE := "res://content/sounds/rock-break-1.wav"
 
 
@@ -29,7 +30,7 @@ func run(h) -> void:
 	h.disable_waves()
 	var out: Dictionary = {}
 	for sound in ["burst", "vent", "choke", "ignite"]:
-		var s: AudioStreamWAV = GasSfx._make(sound)
+		var s: AudioStreamWAV = _GasSfx._make(sound)
 		var lv: Dictionary = _levels(s)
 		out[sound] = lv
 		s.save_to_wav(h.out_dir.path_join("gas_%s.wav" % sound))

@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 const TIMEOUT := 300
 
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -41,7 +42,7 @@ func run(h) -> void:
 		# map's shape. Counted in the notes.
 		var metal: int = 0
 		for y in range(start, ceiling):
-			if Metal.is_metal_id(td.get_resourcev(Vector2i(x, y))):
+			if _Metal.is_metal_id(td.get_resourcev(Vector2i(x, y))):
 				td.set_resourcev(Vector2i(x, y), Data.TILE_DIRT_START)
 				metal += 1
 		# And no lava in or beside the shaft (pools are pre-filled caverns).

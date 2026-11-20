@@ -5,6 +5,7 @@ extends "res://content/gadgets/suitblaster/SuitblasterExplosion.gd"
 # vanilla.
 
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func explode():
@@ -13,9 +14,9 @@ func explode():
 		var radius: float = Data.of(teamId + ".suitblaster.radius")
 		if Data.of(teamId + ".suitblaster.directionalexplosions") and dir.length() > 0:
 			var d: Vector2 = Vector2(Data.snapVectorToDirections(dir, CONST.PI_HALF))
-			Metal.record_line(centre, d.round(), int(round(0.5 + pow(radius, 2) * 1.25)))
+			_Metal.record_line(centre, d.round(), int(round(0.5 + pow(radius, 2) * 1.25)))
 		else:
-			Metal.record_circle(centre, radius)
+			_Metal.record_circle(centre, radius)
 		# The blast hurts Velle too (#160).
 		load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").explosion_at(global_position, "blast", radius * 24.0 + 10.0)
 	super()

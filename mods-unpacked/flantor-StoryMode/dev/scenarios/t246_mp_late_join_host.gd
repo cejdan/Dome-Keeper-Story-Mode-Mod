@@ -15,8 +15,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 #   mp_playtest.ps1 t246_mp_late_join_host t246_mp_late_join_watcher -Client2 t246_mp_late_join_leaver -Rejoin t246_mp_late_join_rejoin
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd")
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const KEY := "team1.story.t246"
 const LOG := "user://t246_host.json"
 const TIMEOUT := 420
@@ -64,7 +66,7 @@ func run(h) -> void:
 		if c.peer_id != _watcher:
 			_joiner = c.peer_id
 	var t0: float = h.now()
-	_burst = not Story.has_user_arg("noburst")
+	_burst = not _Story.has_user_arg("noburst")
 	h.note("bursts", _burst)
 	_on = true
 	var each := func(): _frame(h)
@@ -90,7 +92,7 @@ func run(h) -> void:
 	f.store_string(JSON.stringify({"sets": _sets, "queue": _queue, "watcher": _watcher, "joiner": _joiner}))
 	f.close()
 	await h.wait(1.0)
-	var want := {"n": _n, "money": Data.of("team1.inventory.money"), "story": Data.of(KEY), "boss": Director.current()}
+	var want := {"n": _n, "money": Data.of("team1.inventory.money"), "story": Data.of(KEY), "boss": _Director.current()}
 	h.note("final values", want)
 	h.note("resends", StoryNet.resends)
 	share("final", want)
@@ -133,6 +135,6 @@ func _queued(peer: int) -> int:
 
 
 func _hold_repeat() -> void:
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	if boss != null:
 		boss._net_repeat = 1.0e9

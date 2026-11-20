@@ -4,6 +4,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # fresh process: the chain broken before the save is still broken.
 
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
+static var _Awakening = Awakening  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -17,7 +18,7 @@ func run(h) -> void:
 	var chains = Level.map.get_node_or_null("StoryChains")
 	h.check("chains come back", chains != null and chains.chains.size() > 0)
 	var broken: Array = chains.chains.filter(func(c): return c["broken"])
-	var freed: Array = chains.chains.filter(func(c): return c["cells"].any(func(x): return Awakening.freed(x)))
+	var freed: Array = chains.chains.filter(func(c): return c["cells"].any(func(x): return _Awakening.freed(x)))
 	h.check("the chains broken before the save are broken, the rest whole", broken.size() > 0 and broken == freed, [broken.size(), freed.size(), chains.chains.size()])
 	h.check("they come back broken, not snapping again", chains._all.all(func(c): return c["snap_t"] < 0.0))
 	var trunks_ok: bool = chains.trunks.all(func(t): return t["broken"] == t["members"].all(func(i): return chains.chains[i]["broken"]))

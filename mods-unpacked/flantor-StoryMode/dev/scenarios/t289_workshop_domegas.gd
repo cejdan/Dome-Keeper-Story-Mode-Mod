@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # and vents in; the haze thickens and the keeper's toxin bar fills.
 
 const Shoot = preload("res://mods-unpacked/flantor-StoryMode/dev/workshop_shoot.gd")
+static var _Shoot = Shoot  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 900
 
 
@@ -13,7 +14,7 @@ func boot() -> Dictionary:
 
 
 func run(h) -> void:
-	Shoot.window_1080()
+	_Shoot.window_1080()
 	h.disable_waves()
 	await h.until(func(): return Level.map.get_node_or_null("StoryGasField") != null, 10.0)
 	var field = Level.map.get_node("StoryGasField")
@@ -30,7 +31,7 @@ func run(h) -> void:
 	await h.clear_tiles(shaft)
 	await h.wait(1.0)
 	h.snap_camera()
-	Shoot.clip(h, "dome_start")
+	_Shoot.clip(h, "dome_start")
 	for i in 14:
 		if field.toxin > 70.0:
 			field.freeze_toxin = true
@@ -41,5 +42,5 @@ func run(h) -> void:
 	field.freeze_toxin = true
 	await h.wait(3.0)
 	await h.shot("dome_gas_full")
-	Shoot.clip(h, "dome_end")
+	_Shoot.clip(h, "dome_end")
 	h.check("gas built up in the dome", field.dome.amount > 3.0, field.dome.amount)

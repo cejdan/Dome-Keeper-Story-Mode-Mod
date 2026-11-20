@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t230_mp_boss_chase_host.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
 const TIMEOUT := 420
@@ -29,9 +30,9 @@ func run(h) -> void:
 	if c == null or spot == null:
 		return
 	var ch := Rect2i(int(c[0]), int(c[1]), int(c[2]), int(c[3]))
-	var boss = Director.instance()
-	var reads: bool = await h.until(func(): return Director.current() == "chase", 15.0)
-	h.check("the boss state reads `chase` on the client", reads, Director.current())
+	var boss = _Director.instance()
+	var reads: bool = await h.until(func(): return _Director.current() == "chase", 15.0)
+	h.check("the boss state reads `chase` on the client", reads, _Director.current())
 	var built: bool = await h.until(func(): return boss.chase != null and is_instance_valid(boss.chase) and boss.chase.puppet, 10.0)
 	h.check("the client has a puppet chase", built)
 	if not built:
@@ -41,7 +42,7 @@ func run(h) -> void:
 	await h.teleport_tile(Vector2i(int(spot[0]), int(spot[1])))
 	var mid: Vector2 = Vector2(ch.get_center())
 	h.note("chamber cell on the client", {"res": Level.map.tileData.get_resourcev(mid), "visible": Level.map.visibleTileCoords.get(mid, "no")})
-	h.check("the recall is jammed for the client in the chase", Director.jams_recall())
+	h.check("the recall is jammed for the client in the chase", _Director.jams_recall())
 
 	# ---- the same tentacles as the host's
 	var l1 = await shared(h, "look1", 40.0)
@@ -74,8 +75,8 @@ func run(h) -> void:
 	# ---- home
 	await shared(h, "go_home", 60.0)
 	await h.teleport_tile(Vector2i(0, -3))
-	var over: bool = await h.until(func(): return Director.current() == "finale", 20.0)
-	h.check("home too: the client follows the team into the finale", over, Director.current())
+	var over: bool = await h.until(func(): return _Director.current() == "finale", 20.0)
+	h.check("home too: the client follows the team into the finale", over, _Director.current())
 	await h.wait(0.5)
 	h.check("the client's tentacles stop", not chase.running, _facts(chase))
 	var done = await shared(h, "done", 30.0)

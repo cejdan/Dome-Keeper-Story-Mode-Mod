@@ -7,8 +7,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # Ends by saving to slot 12 for t93_reload.
 
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
 
 const LINE := "Every hole you make, it *breathes*."
@@ -42,7 +44,7 @@ func _reaches_top(td, at: Vector2i) -> bool:
 func _chamber_report(h) -> void:
 	var bad: Array = []
 	for s in 20:
-		var td = h.generate_map(MapConfig.make_archetype(), 2000 + s)
+		var td = h.generate_map(_MapConfig.make_archetype(), 2000 + s)
 		if td == null:
 			bad.append([2000 + s, "no map"])
 			continue
@@ -132,11 +134,11 @@ func run(h) -> void:
 		h.check("translator %d installed at the dome" % (i + 1), got, h.inv("translator"))
 		var id: String = await h.read_beat("translator%d_beat" % (i + 1), 8.0)
 		h.check("the horror's translator_%d beat plays" % (i + 1), id == "translator_%d" % (i + 1), id)
-		h.check("translation stage is %d" % (i + 1), Runes.stage() == i + 1, Runes.stage())
+		h.check("translation stage is %d" % (i + 1), _Runes.stage() == i + 1, _Runes.stage())
 		pd.say("arrive", null, LINE, 6.0)
 		await h.wait(1.2)
 		await h.shot("plea_at_stage%d" % (i + 1))
 	h.check("chambers are spent", chambers.all(func(c): return c.currentState == c.State.EMPTY))
 	await SaveGame.saveGame("singleplayer", 12, true)
 	await h.wait(1.0)
-	h.note("saved slot 12", {"stage": Runes.stage(), "translators": h.inv("translator")})
+	h.note("saved slot 12", {"stage": _Runes.stage(), "translators": h.inv("translator")})

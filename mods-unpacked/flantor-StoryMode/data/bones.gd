@@ -8,6 +8,7 @@ extends RefCounted
 # dollars, by biome index. Starting values for the user to tune.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TYPE := "minerbones"
 const TILE_ID := 50
@@ -21,7 +22,7 @@ static func value_for(biome: int) -> int:
 
 
 static func sheet() -> Texture2D:
-	return Assets.tex(SHEET)
+	return _Assets.tex(SHEET)
 
 
 static func register() -> void:
@@ -29,4 +30,4 @@ static func register() -> void:
 	if not Data.DROP_TYPES.has(TYPE):
 		Data.DROP_TYPES.append(TYPE)
 	Data.DROP_SCENES[TYPE] = load("res://mods-unpacked/flantor-StoryMode/drops/minerbones_drop.tscn")
-	Data.DROP_ICONS[TYPE] = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/minerbones.png")
+	Data.DROP_ICONS[TYPE] = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/minerbones.png")

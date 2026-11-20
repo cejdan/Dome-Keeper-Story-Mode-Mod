@@ -32,6 +32,7 @@ extends Node
 # the wanted one on the next frame. No vanilla file is touched.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 var _conf: Resource
 var _mode_id: String = ""
@@ -42,14 +43,14 @@ static func wanted() -> bool:
 	if not OS.has_feature("editor"):
 		return false
 	for n: String in ["story", "scenario", "mode", "loadout", "load", "netload", "nethost", "netjoin", "title"]:
-		if Story.has_user_arg(n):
+		if _Story.has_user_arg(n):
 			return true
 	return false
 
 
 func _ready() -> void:
-	_mode_id = Story.user_arg("mode", "")
-	if _mode_id == "" and not Story.has_user_arg("loadout"):
+	_mode_id = _Story.user_arg("mode", "")
+	if _mode_id == "" and not _Story.has_user_arg("loadout"):
 		_mode_id = Story.MODE_ID
 	_conf = load("res://addons/dome_editor_ext/dome_editor_conf.gd").new()
 	_conf.custom_play_pressed = true
@@ -62,19 +63,19 @@ func _process(_delta: float) -> void:
 		return
 	_done = true
 	set_process(false)
-	if Story.has_user_arg("title"):
+	if _Story.has_user_arg("title"):
 		# The title screen, as a player starts (#231: its Splitscreen button).
 		print("RUNNING IN DEV MODE (Story Mode dev boot: title)")
 		StageManager.startStage("stages/title/title")
 		return
-	if Story.has_user_arg("netjoin"):
+	if _Story.has_user_arg("netjoin"):
 		# A second instance on this machine joins the host. Vanilla's client
 		# path shows the loading stage and follows whatever stage the host is in.
 		print("RUNNING IN DEV MODE (Story Mode dev boot: join 127.0.0.1)")
 		Network.create_enet_client("127.0.0.1", Network.ENET_LISTEN_PORT)
 		return
-	if Story.has_user_arg("netload"):
-		var nslot: int = int(Story.user_arg("netload"))
+	if _Story.has_user_arg("netload"):
+		var nslot: int = int(_Story.user_arg("netload"))
 		print("RUNNING IN DEV MODE (Story Mode dev boot: load online save slot %d)" % nslot)
 		StageManager.startStage("stages/title/title")
 		while StageManager.currentStage == null or StageManager.isSwitchingStage():
@@ -87,17 +88,17 @@ func _process(_delta: float) -> void:
 		if nerr != OK:
 			push_error("Dev boot: loading online save slot %d failed (%s)" % [nslot, str(nerr)])
 		return
-	if Story.has_user_arg("nethost"):
+	if _Story.has_user_arg("nethost"):
 		print("RUNNING IN DEV MODE (Story Mode dev boot: host ENet session)")
-		if Story.has_user_arg("splitscreen"):
+		if _Story.has_user_arg("splitscreen"):
 			# Online with local splitscreen on the host (#231): the option's
 			# setting, for this run only (not saved).
 			Options.enableSplitScreen = true
 		Network.create_enet_host()
 		StageManager.startStage("stages/loadout/multiplayerloadout")
 		return
-	if Story.has_user_arg("load"):
-		var slot: int = int(Story.user_arg("load"))
+	if _Story.has_user_arg("load"):
+		var slot: int = int(_Story.user_arg("load"))
 		print("RUNNING IN DEV MODE (Story Mode dev boot: load slot %d)" % slot)
 		# Load from the title stage, as the Continue button does. With no stage
 		# running, StageManager starts the landing stage synchronously and
@@ -110,7 +111,7 @@ func _process(_delta: float) -> void:
 		if err != OK:
 			push_error("Dev boot: loading save slot %d failed (%s)" % [slot, str(err)])
 	elif _mode_id == "":
-		if Story.has_user_arg("splitscreen"):
+		if _Story.has_user_arg("splitscreen"):
 			# The title's Splitscreen button (#231): the loadout then adds a
 			# local keeper for each device that presses a key.
 			print("RUNNING IN DEV MODE (Story Mode dev boot: splitscreen loadout)")
@@ -122,26 +123,26 @@ func _process(_delta: float) -> void:
 
 func _start_run(mode_id: String) -> void:
 	print("RUNNING IN DEV MODE (Story Mode dev boot: " + mode_id + ")")
-	if Story.has_user_arg("seed"):
-		Level.setSeed(int(Story.user_arg("seed")))
+	if _Story.has_user_arg("seed"):
+		Level.setSeed(int(_Story.user_arg("seed")))
 	var loadout: Loadout = Loadout.default()
 	var ld1: LoadoutDome = LoadoutDome.new()
-	ld1.primaryGadgetId = Story.user_arg("gadget", "shield")
-	ld1.domeId = Story.user_arg("dome", "dome1")
+	ld1.primaryGadgetId = _Story.user_arg("gadget", "shield")
+	ld1.domeId = _Story.user_arg("dome", "dome1")
 	ld1.teamId = "team1"
 	ld1.petId = ""
 	ld1.additionalGadgets = []
 	loadout.domes = [ld1]
 	loadout.modeId = mode_id
-	loadout.modeConfig = {CONST.MODE_CONFIG_MAP_ARCHETYPE: Story.user_arg("mapsize", CONST.MAP_MEDIUM)}
-	var diff: int = int(Story.user_arg("difficulty", "0"))
+	loadout.modeConfig = {CONST.MODE_CONFIG_MAP_ARCHETYPE: _Story.user_arg("mapsize", CONST.MAP_MEDIUM)}
+	var diff: int = int(_Story.user_arg("difficulty", "0"))
 	loadout.difficultyByTeamId = {"team1": diff, "map": diff}
-	loadout.worldId = Story.user_arg("world", "")
-	loadout.palette = Story.user_arg("palette", "")
+	loadout.worldId = _Story.user_arg("world", "")
+	loadout.palette = _Story.user_arg("palette", "")
 	var lk1: LoadoutKeeper = LoadoutKeeper.new()
 	lk1.playerId = "player1"
 	lk1.teamId = "team1"
-	lk1.keeperId = Story.user_arg("keeper", "keeper1")
+	lk1.keeperId = _Story.user_arg("keeper", "keeper1")
 	lk1.skinId = "skin0"
 	lk1.deviceId = 0
 	lk1.peerId = 1

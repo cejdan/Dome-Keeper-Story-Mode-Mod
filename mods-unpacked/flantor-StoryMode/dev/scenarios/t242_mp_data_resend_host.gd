@@ -11,8 +11,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # resend off to show the race. Pair: t242_mp_data_resend_client.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd")
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const KEY := "team1.story.t242"
 const TIMEOUT := 300
 
@@ -28,7 +30,7 @@ func boot() -> Dictionary:
 
 
 func run(h) -> void:
-	if Story.has_user_arg("noresend"):
+	if _Story.has_user_arg("noresend"):
 		StoryNet.resend_on = false
 	h.note("resend on", StoryNet.resend_on)
 	var stage = Level.stage
@@ -63,10 +65,10 @@ func run(h) -> void:
 	await h.until(func(): return _stopped and not _in_flight(), 10.0)
 	tree.process_frame.disconnect(watch)
 	h.check("changed the keys again while a big Data message to the client was in flight", _changes > 1, {"frames changed": _changes, "chunks left each frame": _remaining})
-	var want := {"money": Data.of("team1.inventory.money"), "water": Data.of("team1.inventory.water"), "story": Data.of(KEY), "boss": Director.current()}
+	var want := {"money": Data.of("team1.inventory.money"), "water": Data.of("team1.inventory.water"), "story": Data.of(KEY), "boss": _Director.current()}
 	h.note("final values", want)
 	await h.wait(4.0)
-	h.check("the host's values held", Data.of("team1.inventory.money") == want["money"] and Data.of(KEY) == want["story"] and Director.current() == want["boss"])
+	h.check("the host's values held", Data.of("team1.inventory.money") == want["money"] and Data.of(KEY) == want["story"] and _Director.current() == want["boss"])
 	h.note("resends", StoryNet.resends)
 	if StoryNet.resend_on:
 		h.check("a settled resend to the client after it reached sync", StoryNet.resends.any(func(r): return r["story"]), StoryNet.resends)
@@ -76,7 +78,7 @@ func run(h) -> void:
 
 # The boss director's own repeat of its state, held off all run.
 func _hold_repeat() -> void:
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	if boss != null:
 		boss._net_repeat = 1.0e9
 

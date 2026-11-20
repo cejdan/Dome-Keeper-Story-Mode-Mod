@@ -16,7 +16,7 @@ extends Node
 # Through all of it the keeper has hearts (boss/keeper_health.gd), the suit's
 # overheat recall is jammed (overheating costs a heart instead) and the
 # monster waves stop: the monsters are watching. Nobody talks either (#174):
-# story beats wait and the monsters' pleas are off (Story.boss_active()), so
+# story beats wait and the monsters' pleas are off (_Story.boss_active()), so
 # no text breaks the flow. The monsters' thanks after the finale still show.
 #
 # With a team (#230, online): the host runs the sequence and keeps the state
@@ -42,13 +42,20 @@ extends Node
 #   Director.overheated()
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
+static var _Boss = Boss  # calls go through this: lazy_preload makes const-preload calls slow
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
+static var _Awakening = Awakening  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd")
+static var _StoryNet = StoryNet  # calls go through this: lazy_preload makes const-preload calls slow
 const KeeperHealth = preload("res://mods-unpacked/flantor-StoryMode/boss/keeper_health.gd")
 const Chase = preload("res://mods-unpacked/flantor-StoryMode/boss/chase.gd")
+static var _Chase = Chase  # calls go through this: lazy_preload makes const-preload calls slow
 
 const GROUP := "story-boss"
 const STATE := Story.BOSS_STATE
@@ -93,7 +100,7 @@ static func current() -> String:
 
 
 static func jams_recall() -> bool:
-	return instance() != null and Story.boss_active()
+	return instance() != null and _Story.boss_active()
 
 
 # A keeper of this instance overheated during the boss sequence: a heart, not a
@@ -101,7 +108,7 @@ static func jams_recall() -> bool:
 # first local one (splitscreen passes the one that overheated, #231).
 static func overheated(keeper = null) -> void:
 	var n = instance()
-	var k = keeper if keeper != null and is_instance_valid(keeper) else Story.local_keeper()
+	var k = keeper if keeper != null and is_instance_valid(keeper) else _Story.local_keeper()
 	if n == null or k == null:
 		return
 	if Network.is_client():
@@ -135,17 +142,17 @@ func _set_state(s: String) -> void:
 
 
 func _ready_to_run() -> bool:
-	if not enabled or not multiplayer.is_server() or not Story.is_story():
+	if not enabled or not multiplayer.is_server() or not _Story.is_story():
 		return false
 	# A playtest scenario's boot() can switch the sequence off: `boss: false`.
-	if Story.scenario_boot().get("boss", true) == false:
+	if _Story.scenario_boot().get("boss", true) == false:
 		return false
 	var stage = Level.stage
 	if stage == null or not (stage is LevelStage) or not stage.keeperInputStarted:
 		return false
 	if Level.map == null or not is_instance_valid(Level.map) or not Level.map.isMapReady():
 		return false
-	if SaveGame.currentLoadingSavegame or Story.local_keeper() == null:
+	if SaveGame.currentLoadingSavegame or _Story.local_keeper() == null:
 		return false
 	return true
 
@@ -185,13 +192,13 @@ func _physics_process(delta: float) -> void:
 	if not _booted:
 		_booted = true
 		_resume()
-		if OS.has_feature("editor") and Story.user_arg("scenario") == "" and Story.has_user_arg("boss"):
-			_dev_boss(Story.user_arg("boss"))
+		if OS.has_feature("editor") and _Story.user_arg("scenario") == "" and _Story.has_user_arg("boss"):
+			_dev_boss(_Story.user_arg("boss"))
 	_net_host(delta)
 	match current():
 		"":
 			_held.clear()
-			if not Awakening.is_awake() or StoryBeats.is_open() or not StoryBeats.has_played("boss_chamber"):
+			if not _Awakening.is_awake() or _StoryBeats.is_open() or not _StoryBeats.has_played("boss_chamber"):
 				return
 			if not _ensure_layer():
 				return
@@ -225,7 +232,7 @@ func _process(delta: float) -> void:
 	# (each local keeper's own camera, #231).
 	if Level.viewports == null or layer == null or not is_instance_valid(layer):
 		return
-	for keeper in Story.local_keepers():
+	for keeper in _Story.local_keepers():
 		var cam = Level.viewports.getPlayerCam(keeper.playerId)
 		if cam == null or not ("targetOffset" in cam):
 			continue
@@ -250,7 +257,7 @@ func _resume() -> void:
 			# A save made during the chase: the tentacles come up from below again.
 			if _ensure_layer():
 				_stop_waves()
-				var k = Story.local_keeper()
+				var k = _Story.local_keeper()
 				_start_chase(layer.to_local(k.global_position) + Vector2(0, 220))
 				_chase_left_dome = true
 		"finale":
@@ -279,10 +286,10 @@ func _start_fight() -> void:
 # The chamber seals and Velle roars, for a keeper who is there.
 func _fight_opens() -> void:
 	_seal_flash = 1.0
-	if not Story.local_keepers().any(func(k): return arena.grow(220.0).has_point(layer.to_local(k.global_position))):
+	if not _Story.local_keepers().any(func(k): return arena.grow(220.0).has_point(layer.to_local(k.global_position))):
 		return
-	Sfx.play("seal", -4.0, 0.7)
-	Sfx.play("roar", -3.0, 0.7)
+	_Sfx.play("seal", -4.0, 0.7)
+	_Sfx.play("roar", -3.0, 0.7)
 	InputSystem.shake(20.0, 1.2, 14.0)
 
 
@@ -315,7 +322,7 @@ func _seal(delta: float) -> void:
 			keeper.move = Vector2.ZERO
 		if _seal_flash <= 0.0:
 			_seal_flash = 0.5
-			Sfx.play("clang", -10.0, 0.8)
+			_Sfx.play("clang", -10.0, 0.8)
 
 
 func _recharge_blaster(keeper, delta: float) -> void:
@@ -338,10 +345,10 @@ func _velle_defeated() -> void:
 	if current() != "fight":
 		return
 	# Hearts for the run home, by difficulty (#174).
-	var got: int = health.give(Boss.hearts_after_velle())
+	var got: int = health.give(_Boss.hearts_after_velle())
 	if got > 0:
-		Sfx.play("heart", -2.0, 1.0)
-	ModLoaderLog.info("Boss: Velle is dead; %d hearts back (%s)" % [got, Boss.TIER_NAMES[Boss.tier()]], Story.LOG)
+		_Sfx.play("heart", -2.0, 1.0)
+	ModLoaderLog.info("Boss: Velle is dead; %d hearts back (%s)" % [got, Boss.TIER_NAMES[_Boss.tier()]], Story.LOG)
 	_net_velle_now()
 	_set_state("chase")
 	_start_chase(velle.eye_pos())
@@ -355,7 +362,7 @@ func _start_chase(origin: Vector2) -> void:
 	layer.add_child(chase)
 	chase.setup(health, origin)
 	_chase_left_dome = false
-	Sfx.play("roar", -2.0, 1.2)
+	_Sfx.play("roar", -2.0, 1.2)
 	InputSystem.shake(18.0, 1.0, 18.0)
 
 
@@ -373,7 +380,7 @@ func _all_home() -> bool:
 	for k in Keepers.getAll():
 		if k == null or not is_instance_valid(k):
 			continue
-		if not Chase.in_dome(k):
+		if not _Chase.in_dome(k):
 			_chase_left_dome = true
 			home = false
 		elif k.global_position.distance_to(dome.global_position) >= 240.0:
@@ -413,7 +420,7 @@ func _finale_done() -> void:
 
 # The dome fell in the finale (the game mode's own loss): the lost ending.
 func dome_lost() -> void:
-	if Story.boss_active():
+	if _Story.boss_active():
 		_set_state("lost")
 		music.stop()
 
@@ -432,7 +439,7 @@ func _finish_won() -> void:
 
 
 func _keeper_died(cause: String) -> void:
-	if not Story.boss_active():
+	if not _Story.boss_active():
 		return
 	_set_state("lost")
 	music.stop()
@@ -450,7 +457,7 @@ func _keeper_died(cause: String) -> void:
 
 # The hearts are the team's: at zero every keeper is gone, and the chase with them.
 func _team_down() -> void:
-	Sfx.play("keeper_down", 0.0, 0.7)
+	_Sfx.play("keeper_down", 0.0, 0.7)
 	if chase != null and is_instance_valid(chase):
 		chase.running = false
 	for k in Keepers.getAll():
@@ -459,7 +466,7 @@ func _team_down() -> void:
 
 
 func _overheat(keeper) -> void:
-	if health == null or not is_instance_valid(health) or not Story.boss_active():
+	if health == null or not is_instance_valid(health) or not _Story.boss_active():
 		return
 	health.set_safe(keeper, 0.0)
 	health.hurt(health.to_local(keeper.global_position) + Vector2(0, 10), "overheat", keeper)
@@ -606,14 +613,14 @@ func _net_overheated(player_id: String) -> void:
 # A client's side: follow the host's state, draw its Velle, hold our own
 # keeper in the chamber.
 func _client_process(delta: float) -> void:
-	if not enabled or not Story.is_story() or GameWorld.paused:
+	if not enabled or not _Story.is_story() or GameWorld.paused:
 		return
 	var stage = Level.stage
 	if stage == null or not (stage is LevelStage) or not stage.keeperInputStarted:
 		return
-	if Level.map == null or not is_instance_valid(Level.map) or not Level.map.isMapReady() or not StoryNet.map_meta_ready(Level.map):
+	if Level.map == null or not is_instance_valid(Level.map) or not Level.map.isMapReady() or not _StoryNet.map_meta_ready(Level.map):
 		return
-	if Story.local_keeper() == null:
+	if _Story.local_keeper() == null:
 		return
 	var st: String = current()
 	if st != _client_state:
@@ -664,7 +671,7 @@ func _client_process(delta: float) -> void:
 				_reveal_chamber()
 				_chase_asked = -10.0
 				_ask_chase()
-				Sfx.play("roar", -2.0, 1.2)
+				_Sfx.play("roar", -2.0, 1.2)
 				InputSystem.shake(18.0, 1.0, 18.0)
 			music.chase(1.0 - chase.my_gap() / 260.0)
 		"finale":
@@ -716,7 +723,7 @@ func _dev_boss(what: String) -> void:
 	if not _ensure_layer():
 		return
 	var dev = load(Story.MOD_DIR + "dev/boss_dev.gd")
-	var keeper = Story.local_keeper()
+	var keeper = _Story.local_keeper()
 	# Every keeper's gear, Heat Shielding IV included (#265: per keeper).
 	var gear: Array = dev.give_gear()
 	ModLoaderLog.info("Dev command: gear " + ", ".join(PackedStringArray(gear)), Story.LOG)

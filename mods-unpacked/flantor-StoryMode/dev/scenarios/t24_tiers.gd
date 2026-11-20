@@ -6,7 +6,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # instead of closing, and that vanilla's "Paused" label stays hidden.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Glitch = preload("res://mods-unpacked/flantor-StoryMode/beats/fx_glitch.gd")
+static var _Glitch = Glitch  # calls go through this: lazy_preload makes const-preload calls slow
 
 # One-page beats where the script has them; the boss chamber (tier 4) pages,
 # and its last page is the {big shake} cue (#285).
@@ -31,8 +33,8 @@ func run(h) -> void:
 	await h.wait(1.0)
 	for tier: int in [1, 2, 3, 4]:
 		var id: String = BY_TIER[tier]
-		h.check("tier %d beat %s queues" % [tier, id], StoryBeats.fire(id))
-		await h.until(func(): return StoryBeats.is_open(), 5.0)
+		h.check("tier %d beat %s queues" % [tier, id], _StoryBeats.fire(id))
+		await h.until(func(): return _StoryBeats.is_open(), 5.0)
 		await h.wait(0.6 if tier < 4 else 0.95)
 		var box = _box(h)
 		h.check("tier %d: the box is up with tier %d" % [tier, tier], box != null and box.tier == tier)
@@ -40,7 +42,7 @@ func run(h) -> void:
 		await h.shot("tier%d_typing" % tier)
 		await h.press("ui_select")
 		await h.frames(2)
-		h.check("tier %d: select while typing shows all the text, keeps the box" % tier, StoryBeats.is_open() and not box.is_revealing())
+		h.check("tier %d: select while typing shows all the text, keeps the box" % tier, _StoryBeats.is_open() and not box.is_revealing())
 		await h.wait(0.8)
 		var labels: Array = h.get_tree().get_nodes_in_group("pauseL").filter(func(n): return n.name == "PauseLabel")
 		h.check("tier %d: vanilla's Paused label is hidden" % tier, labels.all(func(n): return not n.isIn), labels.size())
@@ -50,7 +52,7 @@ func run(h) -> void:
 		if tier >= 3:
 			# Catch a glitch moment (rare by design) and shoot it.
 			var rate: float = 0.25 if tier == 3 else 0.7
-			var caught: bool = await h.until(func(): return Glitch.burst(box._time, rate), 15.0)
+			var caught: bool = await h.until(func(): return _Glitch.burst(box._time, rate), 15.0)
 			h.check("tier %d: a glitch flicker happens within 15 s" % tier, caught)
 			if caught:
 				await h.shot("tier%d_glitch" % tier)
@@ -63,7 +65,7 @@ func run(h) -> void:
 			await h.wait(0.5)
 			await h.shot("tier%d_page%d" % [tier, p + 1])
 		await h.press("ui_select")
-		h.check("tier %d: select pages through its %d page(s), then closes it" % [tier, pages], await h.until(func(): return not StoryBeats.is_open(), 3.0))
+		h.check("tier %d: select pages through its %d page(s), then closes it" % [tier, pages], await h.until(func(): return not _StoryBeats.is_open(), 3.0))
 		await h.wait(1.2)
 	await h.shot("after_all")
 	h.check("the game runs again", not GameWorld.paused)

@@ -6,6 +6,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # in a fresh process and checks what comes back.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const CD := "team1.monsters.wavecooldown"
 const SLOT := 11
 
@@ -40,7 +41,7 @@ func _close(h, id: String) -> bool:
 	await h.wait(1.0)
 	for i in 8:
 		await h.press("ui_select")
-		if await h.until(func(): return StoryBeats.instance().open_id != id, 0.8):
+		if await h.until(func(): return _StoryBeats.instance().open_id != id, 0.8):
 			return true
 	return false
 
@@ -54,7 +55,7 @@ func run(h) -> void:
 	GameWorld.runStarted = true
 	Data.apply("team1.monsters.wavedelay", 0.0)
 	Data.apply(CD, 300.0)
-	h.check("the beats node is in the run", StoryBeats.instance() != null)
+	h.check("the beats node is in the run", _StoryBeats.instance() != null)
 	var before: Array = await _samples(h, 2.0)
 	h.note("countdown before", before)
 	h.check("the countdown runs before any beat", _falling(before), before)
@@ -62,13 +63,13 @@ func run(h) -> void:
 
 	# One beat, by id. The keeper holds Right the whole time it is open.
 	var kp0: Vector2 = h.keeper().global_position
-	h.check("fire(translator_2) queues it", StoryBeats.fire("translator_2"))
-	var opened: bool = await h.until(func(): return StoryBeats.is_open(), 5.0)
-	h.check("the beat box opens", opened and StoryBeats.instance().open_id == "translator_2")
+	h.check("fire(translator_2) queues it", _StoryBeats.fire("translator_2"))
+	var opened: bool = await h.until(func(): return _StoryBeats.is_open(), 5.0)
+	h.check("the beat box opens", opened and _StoryBeats.instance().open_id == "translator_2")
 	# A select pressed the moment it opens (a key already in use) doesn't close it.
 	await h.press("ui_select")
 	await h.frames(3)
-	h.check("the box ignores select in its first moment", StoryBeats.is_open())
+	h.check("the box ignores select in its first moment", _StoryBeats.is_open())
 	h.down("ui_right")
 	var open_t0: float = h.now()
 	await h.wait(0.5)
@@ -89,32 +90,32 @@ func run(h) -> void:
 	var after: Array = await _samples(h, 2.0)
 	h.note("countdown after", after)
 	h.check("the countdown runs again after the box closes", _falling(after) and not GameWorld.paused, after)
-	h.check("translator_2 is marked played", StoryBeats.has_played("translator_2"))
+	h.check("translator_2 is marked played", _StoryBeats.has_played("translator_2"))
 
 	# Once per run.
-	h.check("fire(translator_2) again is refused", not StoryBeats.fire("translator_2"))
+	h.check("fire(translator_2) again is refused", not _StoryBeats.fire("translator_2"))
 	await h.wait(1.0)
-	h.check("and nothing opens", not StoryBeats.is_open())
-	h.check("an unknown id is refused", not StoryBeats.fire("no_such_beat"))
+	h.check("and nothing opens", not _StoryBeats.is_open())
+	h.check("an unknown id is refused", not _StoryBeats.fire("no_such_beat"))
 
 	# A trigger name, plus a second beat fired while the first is open: it waits.
-	h.check("trigger(biome:B2) queues one beat", StoryBeats.trigger("biome:B2") == 1)
-	await h.until(func(): return StoryBeats.is_open(), 5.0)
-	h.check("biome_b2 opens", StoryBeats.instance().open_id == "biome_b2")
-	h.check("fire(gate_broken) while a beat is open queues it", StoryBeats.fire("gate_broken"))
+	h.check("trigger(biome:B2) queues one beat", _StoryBeats.trigger("biome:B2") == 1)
+	await h.until(func(): return _StoryBeats.is_open(), 5.0)
+	h.check("biome_b2 opens", _StoryBeats.instance().open_id == "biome_b2")
+	h.check("fire(gate_broken) while a beat is open queues it", _StoryBeats.fire("gate_broken"))
 	await h.wait(0.5)
-	h.check("the open beat stays on screen", StoryBeats.instance().open_id == "biome_b2")
+	h.check("the open beat stays on screen", _StoryBeats.instance().open_id == "biome_b2")
 	h.check("biome_b2 closes", await _close(h, "biome_b2"))
-	var next: bool = await h.until(func(): return StoryBeats.instance().open_id == "gate_broken", 5.0)
+	var next: bool = await h.until(func(): return _StoryBeats.instance().open_id == "gate_broken", 5.0)
 	h.check("gate_broken opens after it", next)
 	await h.wait(0.5)
 	await h.shot("second_beat")
 	h.check("gate_broken closes", await _close(h, "gate_broken"))
-	h.check("trigger(biome:B2) again queues nothing", StoryBeats.trigger("biome:B2") == 0)
+	h.check("trigger(biome:B2) again queues nothing", _StoryBeats.trigger("biome:B2") == 0)
 
 	# Save with translator_1 open; t23_beat_reload loads it.
-	StoryBeats.fire("translator_1")
-	await h.until(func(): return StoryBeats.is_open(), 5.0)
+	_StoryBeats.fire("translator_1")
+	await h.until(func(): return _StoryBeats.is_open(), 5.0)
 	await h.wait(0.5)
 	var cd_saved: float = _cd()
 	await SaveGame.saveGame("singleplayer", SLOT, true)

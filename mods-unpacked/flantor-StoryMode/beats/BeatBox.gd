@@ -30,6 +30,7 @@ extends Control
 # the data file's English lines as a fallback, so it is always readable.
 
 const Glitch = preload("res://mods-unpacked/flantor-StoryMode/beats/fx_glitch.gd")
+static var _Glitch = Glitch  # calls go through this: lazy_preload makes const-preload calls slow
 
 const VIOLET_DEEP := Color("2e1f8f")
 const VIOLET := Color("6b5cff")
@@ -154,7 +155,7 @@ func _ready() -> void:
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size = Vector2(_style["width"], 0)
 	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_text.install_effect(Glitch.new())
+	_text.install_effect(_Glitch.new())
 	var font: Font = load("res://gui/fonts/FontVeryLarge.tres" if tier >= 3 else "res://gui/fonts/FontLarge.tres")
 	_text.add_theme_font_override("normal_font", font)
 	# The narrator's lines ride the [i] tag, drawn in their own font.
@@ -426,8 +427,8 @@ func _process(delta: float) -> void:
 		_panel_box.border_color = Color("8a7cff").lerp(VIOLET_SPARK, p * 0.5)
 		_panel_box.shadow_size = int(26 + 14 * p)
 	if _style.get("shudder", 0.0) > 0.0 and _frame != null and not _calm:
-		if Glitch.burst(_time, _style["shudder"]):
-			var r: float = Glitch._rand(int(_time * 10.0) * 31)
+		if _Glitch.burst(_time, _style["shudder"]):
+			var r: float = _Glitch._rand(int(_time * 10.0) * 31)
 			_frame.pivot_offset = _frame.size / 2.0
 			_frame.rotation = (r - 0.5) * 0.012
 			_frame.scale = Vector2.ONE * (1.0 + (r - 0.5) * 0.02)

@@ -8,7 +8,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 300
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Host = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t265_mp_heat_host.gd")
+static var _Host = Host  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -58,9 +60,9 @@ func run(h) -> void:
 	await h.wait(1.0)
 	var blaster: bool = await h.until(func(): return gw.boughtUpgrades.has(me.playerId + ".suitblaster"), 10.0)
 	await h.wait(1.0)
-	var view := {"mine": LavaData.shield_tier(me), "host's": LavaData.shield_tier(hpid), "blasters": gw.boughtUpgrades.filter(func(k): return k.ends_with(".suitblaster"))}
+	var view := {"mine": _LavaData.shield_tier(me), "host's": _LavaData.shield_tier(hpid), "blasters": gw.boughtUpgrades.filter(func(k): return k.ends_with(".suitblaster"))}
 	h.note("client view", view)
-	h.check("this keeper is at tier II, the host's at 0", LavaData.shield_tier(me) == 2 and LavaData.shield_tier(hpid) == 0, view)
+	h.check("this keeper is at tier II, the host's at 0", _LavaData.shield_tier(me) == 2 and _LavaData.shield_tier(hpid) == 0, view)
 	h.check("this keeper got the Suit Blaster, the host's didn't", blaster and not gw.boughtUpgrades.has(hpid + ".suitblaster"), view)
 
 	# ---- this keeper in lava, at tier II's rate
@@ -71,7 +73,7 @@ func run(h) -> void:
 	var lava = Level.map.get_node("StoryLavaField")
 	var r: Array = room_of(rooms["client"])
 	await h.until(func(): return lava.mass.get(Vector2i(r[0].x, r[1].y), 0.0) > 0.5, 10.0)
-	var rate: float = await Host.lava_rate(h, me, r, lava)
+	var rate: float = await _Host.lava_rate(h, me, r, lava)
 	var want: float = LavaData.HEAT_PER_SECOND * LavaData.HEAT_SHIELD_LAVA_MULT[2]
 	h.check("this keeper (tier II) heats at %.0f/s in lava" % want, absf(rate - want) <= want * 0.15, rate)
 	await h.shot("client_in_lava")

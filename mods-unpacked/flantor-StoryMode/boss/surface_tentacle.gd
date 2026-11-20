@@ -26,9 +26,12 @@ extends "res://content/monster/Monster.gd"
 # the host (net_apply()); it never decides anything, nor hurts the dome.
 
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const BossMonster = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_monster.gd")
+static var _BossMonster = BossMonster  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TECH := "storytentacle"
 
@@ -72,14 +75,14 @@ const EARTH: Array = [Color("2a2130"), Color("3b2f44"), Color("1c1622"), Color("
 
 
 static func register(tentacle_hp: float) -> void:
-	BossMonster.register(TECH, tentacle_hp, 3, CONST.MONSTER_MEDIUM)
+	_BossMonster.register(TECH, tentacle_hp, 3, CONST.MONSTER_MEDIUM)
 
 
 # A new tentacle at `pos` (global), not yet in the tree. `p_crack_seed` is the
 # seed the finale drew its warning cracks from, so the break matches them.
 static func make(pos: Vector2, dome_x: float, p_crack_seed: int = 0):
 	_uid += 1
-	var m = BossMonster.make("res://mods-unpacked/flantor-StoryMode/boss/surface_tentacle.gd", "StoryTentacle", TECH, _uid, RectangleShape2D.new())
+	var m = _BossMonster.make("res://mods-unpacked/flantor-StoryMode/boss/surface_tentacle.gd", "StoryTentacle", TECH, _uid, RectangleShape2D.new())
 	m.height = randf_range(88.0, 108.0)
 	m.eyes_total = Boss.FINALE_TENTACLE_EYES
 	m.eyes_left = m.eyes_total
@@ -178,8 +181,8 @@ func init():
 	for i in 14:
 		debris.append({"p": Vector2(randf_range(-16, 16), -2.0), "v": Vector2(randf_range(-40, 40), randf_range(-90, -30)), "s": float(3 + randi() % 3),
 			"col": Color(0.42, 0.36, 0.47, 0.5), "life": randf_range(0.6, 1.3), "rest": false, "dust": true})
-	Sfx.play("grow", -3.0, randf_range(0.9, 1.2))
-	Sfx.play("boom", -8.0, randf_range(1.0, 1.3))
+	_Sfx.play("grow", -3.0, randf_range(0.9, 1.2))
+	_Sfx.play("boom", -8.0, randf_range(1.0, 1.3))
 	InputSystem.shake(16.0, 0.5, 20.0, global_position)
 
 
@@ -294,7 +297,7 @@ func subProcess(delta: float) -> void:
 # The body's points, root to tip (this node's space).
 func _points() -> PackedVector2Array:
 	var bend: float = _slam_bend()
-	return Pix.tentacle_points(Vector2.ZERO, tip(), time, 7.0 * (1.0 - absf(bend) * 0.6), seed_f, 1.0, -dome_dir * 16.0 * (1.0 - maxf(bend, 0.0)) + dome_dir * 34.0 * maxf(bend, 0.0))
+	return _Pix.tentacle_points(Vector2.ZERO, tip(), time, 7.0 * (1.0 - absf(bend) * 0.6), seed_f, 1.0, -dome_dir * 16.0 * (1.0 - maxf(bend, 0.0)) + dome_dir * 34.0 * maxf(bend, 0.0))
 
 
 # Where eye `k` sits (0 the lowest, eyes_total - 1 the one at the tip).
@@ -311,7 +314,7 @@ func _pop_eye() -> void:
 	eyes_left -= 1
 	popped += 1
 	flash = 0.08
-	Sfx.play("pop", -5.0, randf_range(1.3, 1.6))
+	_Sfx.play("pop", -5.0, randf_range(1.3, 1.6))
 	for i in 6:
 		debris.append({"p": eye_slot(k), "v": Vector2(randf_range(-60, 60), randf_range(-90, -20)), "s": 2.0,
 			"col": Color(Pix.IRIS_DEEP, 0.9), "life": randf_range(0.3, 0.6), "rest": false, "dust": true})
@@ -326,7 +329,7 @@ func _hit_dome() -> void:
 	if not puppet:
 		dome.requestMeleeDamage(int(Boss.FINALE_SLAM_DAMAGE), to_global(tip()), self)
 	InputSystem.shake(16.0, 0.4, 20.0, global_position)
-	Sfx.play("whip", -2.0, 1.0)
+	_Sfx.play("whip", -2.0, 1.0)
 
 
 func handleDamage():
@@ -386,7 +389,7 @@ func net_apply(d: PackedFloat32Array) -> void:
 
 
 func animateDeath():
-	Sfx.play("pop", -2.0, randf_range(0.8, 1.1))
+	_Sfx.play("pop", -2.0, randf_range(0.8, 1.1))
 	InputSystem.shake(12.0, 0.6, 18.0, global_position)
 	slam_t = -1.0
 	# The eyes it still had all tear free at once.
@@ -417,7 +420,7 @@ func _draw() -> void:
 	draw_light(self, Vector2.ZERO, crack_seed, 1.0, after * after, great)
 	for i in 7:
 		var rx: float = (i - 3) * 6.0 + sin(seed_f + i) * 2.0
-		Pix.disc(self, Vector2(rx, -1.0 - absf(sin(seed_f * 3.0 + i)) * 3.0), 3.0 + (i % 2), EARTH[i % EARTH.size()])
+		_Pix.disc(self, Vector2(rx, -1.0 - absf(sin(seed_f * 3.0 + i)) * 3.0), 3.0 + (i % 2), EARTH[i % EARTH.size()])
 	if emerge > 0.01 and sink < 0.99:
 		_draw_body()
 	for d: Dictionary in debris:
@@ -425,7 +428,7 @@ func _draw() -> void:
 		draw_rect(Rect2((d["p"] - Vector2(d["s"], d["s"]) * 0.5).round(), Vector2(d["s"], d["s"])), Color(d["col"], a))
 	if _burst_flash > 0.0:
 		var r: float = (26.0 if great else 18.0) * (1.6 - _burst_flash * 0.6)
-		Pix.ellipse(self, Vector2(0, -2), r * 1.8, r * 0.7, Color(Pix.VIOLET_LIGHT, _burst_flash * 0.8), -1.0, 0.2)
+		_Pix.ellipse(self, Vector2(0, -2), r * 1.8, r * 0.7, Color(Pix.VIOLET_LIGHT, _burst_flash * 0.8), -1.0, 0.2)
 		# A column of light where it came through.
 		var cw: float = (22.0 if great else 14.0) * _burst_flash
 		var chh: float = 170.0 if great else 120.0
@@ -444,7 +447,7 @@ func _draw_body() -> void:
 	elif dead:
 		col = Color("231a30")
 	var pts: PackedVector2Array = _points()
-	var tipp: Vector2 = Pix.tentacle(self, pts, 9.0, 3.5, col)
+	var tipp: Vector2 = _Pix.tentacle(self, pts, 9.0, 3.5, col)
 	var look: Vector2 = Vector2(_dome_gap(), -30.0)
 	var gone: int = eyes_total - eyes_left
 	for k in eyes_total:
@@ -452,8 +455,8 @@ func _draw_body() -> void:
 		var at_tip: bool = k == eyes_total - 1
 		if k < gone:
 			# A torn socket: this eye has gone.
-			Pix.disc(self, c, 5.0 if at_tip else 4.0, Pix.EDGE)
-			Pix.disc(self, c, 3.0 if at_tip else 2.0, Pix.IRIS_DEEP)
+			_Pix.disc(self, c, 5.0 if at_tip else 4.0, Pix.EDGE)
+			_Pix.disc(self, c, 3.0 if at_tip else 2.0, Pix.IRIS_DEEP)
 			continue
 		var r: float = 9.0 if at_tip else 8.0
 		var mod: Color = Color.WHITE if flash <= 0.0 else Color(3, 3, 3)
@@ -466,9 +469,9 @@ func _draw_body() -> void:
 			c += Vector2(sin(time * 60.0), cos(time * 47.0)) * f * 1.5
 			if fposmod(time * 12.0, 1.0) < 0.5:
 				mod = Color(2.2, 2.2, 2.2)
-			Pix.disc(self, c, r + 2.0, Color(Pix.VIOLET_LIGHT, 0.5 * f))
-		Pix.disc(self, c, r, Pix.EDGE)
-		Pix.eye(self, c, Pix.eye_frame_toward(c, look, time, seed_f + k * 0.37), 1.0, mod)
+			_Pix.disc(self, c, r + 2.0, Color(Pix.VIOLET_LIGHT, 0.5 * f))
+		_Pix.disc(self, c, r, Pix.EDGE)
+		_Pix.eye(self, c, _Pix.eye_frame_toward(c, look, time, seed_f + k * 0.37), 1.0, mod)
 	# The slam's warning: the tip glows red while it rears back.
 	if slam_t >= 0.0 and slam_t < SLAM_TELE:
 		var f2: float = slam_t / SLAM_TELE

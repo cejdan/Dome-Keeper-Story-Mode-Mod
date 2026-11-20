@@ -7,7 +7,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # pass, #285) in three and five. Shoots every page.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatBox = preload("res://mods-unpacked/flantor-StoryMode/beats/BeatBox.gd")
+static var _BeatBox = BeatBox  # calls go through this: lazy_preload makes const-preload calls slow
 
 const EXPECT := {
 	"biome_b2": 3,
@@ -26,13 +28,13 @@ func run(h) -> void:
 	await h.wait(1.0)
 	h.disable_waves()
 	for id: String in EXPECT:
-		StoryBeats.fire(id)
+		_StoryBeats.fire(id)
 		await h.until(func(): return h.beat_box() != null, 5.0)
 		var box = h.beat_box()
 		h.check("%s: %d pages" % [id, EXPECT[id]], box != null and box.page_count() == EXPECT[id], box.page_count() if box else null)
 		if box != null:
 			var first: String = box._pages[0]
-			var narr: bool = BeatBox.is_narration(first.split("\n")[0])
+			var narr: bool = _BeatBox.is_narration(first.split("\n")[0])
 			h.check("%s: opens with narration" % id, narr, first)
 			# The narrator's lines are drawn in their own font, not the horror's effects.
 			h.check("%s: narration is italic and not waved" % id, not narr or (box._text.text.contains("[i][color=#c7bfb4]") and not box._text.text.begins_with("[center][wave")), box._text.text)

@@ -1,7 +1,9 @@
 extends RefCounted
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 # The mineral ladder: every mineral Story Mode knows, in rising dollar value.
 # All numbers here are starting values for the user to tune.
@@ -43,16 +45,16 @@ static func is_mod_mineral(type: String) -> bool:
 # Iron uses the mod's grey sheet only in Story Mode.
 static func sheet_for_type(type: String) -> Texture2D:
 	if is_mod_mineral(type):
-		return Assets.tex(ART + "sheet_%s.png" % type)
-	if type == "iron" and Story.is_story():
-		return Assets.tex(ART + "sheet_iron.png")
+		return _Assets.tex(ART + "sheet_%s.png" % type)
+	if type == "iron" and _Story.is_story():
+		return _Assets.tex(ART + "sheet_iron.png")
 	return null
 
 
 # Tile-break debris strip for this type, or null for the vanilla look.
 static func particle_for_type(type: String) -> Texture2D:
-	if is_mod_mineral(type) or (type == "iron" and Story.is_story()):
-		return Assets.tex(ART + "particle_%s.png" % type)
+	if is_mod_mineral(type) or (type == "iron" and _Story.is_story()):
+		return _Assets.tex(ART + "particle_%s.png" % type)
 	return null
 
 
@@ -81,7 +83,7 @@ static func register() -> void:
 		if not Data.DROP_TYPES.has(m):
 			Data.DROP_TYPES.append(m)
 		Data.DROP_SCENES[m] = load(DROPS + m + "_drop.tscn")
-		Data.DROP_ICONS[m] = Assets.tex(ART + "icon_%s.png" % m)
+		Data.DROP_ICONS[m] = _Assets.tex(ART + "icon_%s.png" % m)
 
 
 static func is_mineral(type: String) -> bool:

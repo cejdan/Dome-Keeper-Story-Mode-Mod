@@ -4,6 +4,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # the right total.
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -68,7 +69,7 @@ func run(h) -> void:
 	var total: int = 0
 	for m: String in Minerals.ORDER:
 		await h.deliver(m, 1)
-		total += Minerals.value_of(m)
+		total += _Minerals.value_of(m)
 	await h.until(func(): return h.inv("money") >= money0 + total, 15.0)
 	h.check("one of each pays $%d" % total, h.inv("money") == money0 + total, [money0, h.inv("money")])
 	h.check("total is $101,966", total == 101966, total)

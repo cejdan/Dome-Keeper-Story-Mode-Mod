@@ -7,8 +7,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # open its data log (captured page by page). Saves to slot 13 for t94_reload.
 
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -18,7 +21,7 @@ func boot() -> Dictionary:
 func _report(h) -> void:
 	var bad: Array = []
 	for s in 20:
-		var td = h.generate_map(MapConfig.make_archetype(), 3000 + s)
+		var td = h.generate_map(_MapConfig.make_archetype(), 3000 + s)
 		if td == null:
 			bad.append([3000 + s, "no map"])
 			continue
@@ -66,7 +69,7 @@ func run(h) -> void:
 		# Uncover the bones: no log yet, it comes home with them.
 		await h.reveal([at])
 		await h.wait(1.5)
-		h.check("B%d: uncovering the bones opens no log" % (b + 1), not StoryBeats.is_open() and not StoryBeats.has_played("log_b%d" % (b + 1)), StoryBeats.instance().open_id)
+		h.check("B%d: uncovering the bones opens no log" % (b + 1), not _StoryBeats.is_open() and not _StoryBeats.has_played("log_b%d" % (b + 1)), _StoryBeats.instance().open_id)
 		await h.shot("bones_b%d" % (b + 1))
 		# Drill them out and bring them home.
 		var m0: int = int(h.inv("money"))
@@ -76,17 +79,17 @@ func run(h) -> void:
 		for d in Level.drops.find_children("*", "", true, false):
 			if d.get("type") == Bones.TYPE and not d.absorbed:
 				drop = d
-		h.check("B%d: the bones drop, worth $%d" % [b + 1, Bones.value_for(b)], drop != null and drop.value == Bones.value_for(b), drop.value if drop else null)
+		h.check("B%d: the bones drop, worth $%d" % [b + 1, _Bones.value_for(b)], drop != null and drop.value == _Bones.value_for(b), drop.value if drop else null)
 		if drop != null:
 			drop.global_position = dome.getDropTarget("iron").global_position + Vector2(0, -8)
 			drop.linear_velocity = Vector2.ZERO
 			await h.until(func(): return int(h.inv("money")) > m0, 10.0)
-		h.check("B%d: delivered bones pay $%d" % [b + 1, Bones.value_for(b)], int(h.inv("money")) - m0 == Bones.value_for(b), int(h.inv("money")) - m0)
+		h.check("B%d: delivered bones pay $%d" % [b + 1, _Bones.value_for(b)], int(h.inv("money")) - m0 == _Bones.value_for(b), int(h.inv("money")) - m0)
 		var id: String = await h.read_beat("log_b%d" % (b + 1), 5.0)
 		h.check("B%d: selling the bones opens log_b%d" % [b + 1, b + 1], id == "log_b%d" % (b + 1), id)
 	var logs: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false)).filter(func(x): return x.begins_with("log_"))
 	h.check("all 8 logs played once", logs.size() == 8, logs)
-	h.check("a log never plays twice", not StoryBeats.fire("log_b1"))
+	h.check("a log never plays twice", not _StoryBeats.fire("log_b1"))
 	# A bones drop keeps its value through a save: leave one in the mine.
 	var spare: Vector2i = Vector2i(int(placed[3][0]), int(placed[3][1])) + Vector2i(0, -2)
 	var d2 = Level.drops.network_spawn({"type": Bones.TYPE, "position": Level.map.getTilePos(spare), "impulse": Vector2.ZERO})

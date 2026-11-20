@@ -4,7 +4,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # rune cipher decoded back to English, key words English from stage 1.
 
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 const PleaData = preload("res://mods-unpacked/flantor-StoryMode/data/pleas.gd")
+static var _PleaData = PleaData  # calls go through this: lazy_preload makes const-preload calls slow
 
 const LINE := "Every hole you make, it *breathes*."
 const LINE2 := "*Stop* digging. We give anything."
@@ -27,24 +29,24 @@ func run(h) -> void:
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.0)
 	var pd = load("res://mods-unpacked/flantor-StoryMode/pleas/plea_director.gd").instance()
-	h.check("the rune font builds", Runes.font() != null)
+	h.check("the rune font builds", _Runes.font() != null)
 	# Text-only checks first. The runes have no case: they decode to lower case.
-	var r0: String = Runes.render(LINE, 0)
+	var r0: String = _Runes.render(LINE, 0)
 	h.check("stage 0: no Latin letters left", _latin(r0) == 0, r0)
-	h.check("stage 0: decoding the runes gives the English back", Runes.decode(r0) == PleaData.plain(LINE).to_lower(), Runes.decode(r0))
+	h.check("stage 0: decoding the runes gives the English back", _Runes.decode(r0) == _PleaData.plain(LINE).to_lower(), _Runes.decode(r0))
 	for line: String in [LINE, LINE2]:
-		var r1: String = Runes.render(line, 1)
-		h.note("stage 1", {"line": line, "shown": r1, "decoded": Runes.decode(r1)})
+		var r1: String = _Runes.render(line, 1)
+		h.note("stage 1", {"line": line, "shown": r1, "decoded": _Runes.decode(r1)})
 		var keys: Array = []
 		for m in RegEx.create_from_string("\\*([A-Za-z']+)\\*").search_all(line):
 			keys.append(m.get_string(1))
 		h.check("stage 1: key words %s are English" % [keys], keys.all(func(k): return r1.contains(k)), r1)
 	var counts: Array = []
 	for s in 4:
-		counts.append(_latin(Runes.render(LINE, s)))
+		counts.append(_latin(_Runes.render(LINE, s)))
 	h.check("English grows stage by stage (letters shown in Latin)", counts[0] == 0 and counts[0] < counts[1] and counts[1] < counts[2] and counts[2] < counts[3], counts)
-	h.check("stage 3 is all English", Runes.render(LINE, 3) == PleaData.plain(LINE))
-	h.check("a line looks the same every time at a stage", Runes.render(LINE, 2) == Runes.render(LINE, 2))
+	h.check("stage 3 is all English", _Runes.render(LINE, 3) == _PleaData.plain(LINE))
+	h.check("a line looks the same every time at a stage", _Runes.render(LINE, 2) == _Runes.render(LINE, 2))
 
 	# The same plea over a real fight at each stage.
 	Data.apply("team1.dome.maxHealth", 1000000)
@@ -59,18 +61,18 @@ func run(h) -> void:
 	pd.death_chance = 0.0
 	await h.wait(2.5)
 	for s in 4:
-		Runes.set_stage(s)
+		_Runes.set_stage(s)
 		pd.say("arrive", null, LINE)
 		await h.wait(1.2)
 		var shown = h.get_tree().get_nodes_in_group("story-plea").filter(func(n): return n.get_meta("line", "") == LINE)
 		var label = shown.back().get_child(0) if shown.size() > 0 else null
 		var txt: String = label.get_parsed_text() if label else ""
-		h.note("on screen at stage %d" % s, {"text": txt, "decoded": Runes.decode(txt)})
-		h.check("stage %d on screen decodes to the line" % s, Runes.decode(txt).to_lower() == PleaData.plain(LINE).to_lower(), txt)
+		h.note("on screen at stage %d" % s, {"text": txt, "decoded": _Runes.decode(txt)})
+		h.check("stage %d on screen decodes to the line" % s, _Runes.decode(txt).to_lower() == _PleaData.plain(LINE).to_lower(), txt)
 		await h.shot("stage%d" % s)
 		await h.wait(0.5)
 	# A screenshot at 4x of the stage-0 runes, for the record.
-	Runes.set_stage(0)
+	_Runes.set_stage(0)
 	pd.say("arrive", null, LINE)
 	await h.wait(1.0)
 	await h.shot("stage0_again")

@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # end screen). Pair: t229_mp_fallen_host.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const BossText = preload("res://mods-unpacked/flantor-StoryMode/data/boss_text.gd")
 const TIMEOUT := 360
 
@@ -16,8 +17,8 @@ func boot() -> Dictionary:
 func run(h) -> void:
 	h.check("this is a client", not h.multiplayer.is_server())
 	h.check("the host's fight is on", await shared(h, "fight", 150.0) != null)
-	var lost: bool = await h.until(func(): return Director.current() == "lost", 20.0)
-	h.check("the client reads `lost`", lost, Director.current())
+	var lost: bool = await h.until(func(): return _Director.current() == "lost", 20.0)
+	h.check("the client reads `lost`", lost, _Director.current())
 	var ending: bool = await h.until(func(): return Level.mode.is_ending(), 10.0)
 	h.check("the lost ending starts on the client", ending)
 	var endings = Level.mode.get_node("StoryEndings")

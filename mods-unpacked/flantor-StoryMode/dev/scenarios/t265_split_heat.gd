@@ -10,7 +10,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 420
 const Split = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t231_split_restart.gd")
+static var _Split = Split  # calls go through this: lazy_preload makes const-preload calls slow
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 
 var k1
 var k2
@@ -57,7 +59,7 @@ func _open_shop(h, k):
 
 
 func run(h) -> void:
-	if not await Split.start_split(h):
+	if not await _Split.start_split(h):
 		return
 	k1 = Keepers.getLocalKeeperByDeviceId(0)
 	k2 = Keepers.getLocalKeeperByDeviceId(1)
@@ -79,7 +81,7 @@ func run(h) -> void:
 	h.note("per player", own)
 	h.check("each player has its own Heat Shielding I-IV and Suit Blaster entries", own.values().all(func(o): return o["limit"] and o["entries"] == [true, true, true, true] and o["blaster"]), own)
 	h.check("the team has none", not gw.upgrades.has("team1.storyheatshield1") and not gw.upgrades.has("team1.storysuitblaster"))
-	h.check("both start at tier 0", LavaData.shield_tier(k1) == 0 and LavaData.shield_tier(k2) == 0, [LavaData.shield_tier(k1), LavaData.shield_tier(k2)])
+	h.check("both start at tier 0", _LavaData.shield_tier(k1) == 0 and _LavaData.shield_tier(k2) == 0, [_LavaData.shield_tier(k1), _LavaData.shield_tier(k2)])
 
 	# ---- keeper 2 buys tiers I and II in its own shop, with its gamepad
 	h.set_inv("money", 5000)
@@ -109,7 +111,7 @@ func run(h) -> void:
 		bought[pid] = range(1, 5).filter(func(n): return gw.boughtUpgrades.has("%s.storyheatshield%d" % [pid, n]))
 	h.note("bought", {"tiers": bought, "money": h.inv("money"), "data": [Data.ofOr("player1.suit.heatshield", null), Data.ofOr("player2.suit.heatshield", null), Data.ofOr("team1.suit.heatshield", null)]})
 	h.check("keeper 2 bought I and II in its shop ($1,200)", bought["player2"] == [1, 2] and int(h.inv("money")) == 5000 - 1200, [bought["player2"], h.inv("money")])
-	h.check("keeper 2's suit is at tier II, keeper 1's at 0", LavaData.shield_tier(k2) == 2 and LavaData.shield_tier(k1) == 0 and bought["player1"].is_empty(), [LavaData.shield_tier(k1), LavaData.shield_tier(k2)])
+	h.check("keeper 2's suit is at tier II, keeper 1's at 0", _LavaData.shield_tier(k2) == 2 and _LavaData.shield_tier(k1) == 0 and bought["player1"].is_empty(), [_LavaData.shield_tier(k1), _LavaData.shield_tier(k2)])
 	var hs3 = _panel(shop2, "player2.storyheatshield3")
 	h.check("keeper 2's shop offers tier III next", hs3 != null and gw.isUpgradeAddable("player2.storyheatshield3"))
 	await h.pad_press(1, "ui_cancel")
@@ -170,7 +172,7 @@ func run(h) -> void:
 
 	# ---- passive heat by suit tier, and the heat talk that goes with it
 	var b: int = LavaData.PASSIVE_HEAT_START_BIOME
-	h.check("keeper 1's suit feels biome %d, keeper 2's doesn't" % (b + 1), LavaData.passive_rate(b, k1) > 0.0 and LavaData.passive_rate(b, k2) == 0.0, [LavaData.passive_rate(b, k1), LavaData.passive_rate(b, k2)])
+	h.check("keeper 1's suit feels biome %d, keeper 2's doesn't" % (b + 1), _LavaData.passive_rate(b, k1) > 0.0 and _LavaData.passive_rate(b, k2) == 0.0, [_LavaData.passive_rate(b, k1), _LavaData.passive_rate(b, k2)])
 	var hot := _find_biome_row(b, 4)
 	h.check("a room in biome %d" % (b + 1), Level.map.tileData.get_biomev(hot) == b, [hot, Level.map.tileData.get_biomev(hot)])
 	await h.dig_room(hot + Vector2i(-4, -1), hot + Vector2i(4, 1))

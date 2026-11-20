@@ -10,6 +10,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # frame after, through a full sync landing (`--fullsync`).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const OrderedChunker = preload("res://mods-unpacked/flantor-StoryMode/net/ordered_chunker.gd")
 const TIMEOUT := 300
 
@@ -23,7 +24,7 @@ func boot() -> Dictionary:
 
 func run(h) -> void:
 	h.check("this is a client", not h.multiplayer.is_server())
-	var give: String = Story.user_arg("give", "suitblaster")
+	var give: String = _Story.user_arg("give", "suitblaster")
 	GameWorld.upgradeAdded.connect(func(id: String, _team: String):
 		# A team gadget's RPC carries its bare id ("drill", "team1").
 		if (id == give or id.ends_with("." + give)) and not _at_add.has(id):
@@ -40,7 +41,7 @@ func run(h) -> void:
 	if not given is Dictionary:
 		return
 	await h.wait(2.0)
-	var k = Story.local_keeper()
+	var k = _Story.local_keeper()
 	var mine: Array = given.get("ids", []).filter(func(id): return not String(id).begins_with("player") or (k != null and String(id).begins_with(k.playerId + ".")))
 	h.check("this client's keeper has the %s" % give, k != null and not mine.is_empty() and mine.all(func(id): return GameWorld.boughtUpgrades.has(id)), mine)
 	if give == "suitblaster":

@@ -17,16 +17,25 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # the run ends won. The saved ending is t97_saved.
 
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
+static var _BeatData = BeatData  # calls go through this: lazy_preload makes const-preload calls slow
 const LogData = preload("res://mods-unpacked/flantor-StoryMode/data/logs.gd")
+static var _LogData = LogData  # calls go through this: lazy_preload makes const-preload calls slow
 const PleaData = preload("res://mods-unpacked/flantor-StoryMode/data/pleas.gd")
+static var _PleaData = PleaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
+static var _Awakening = Awakening  # calls go through this: lazy_preload makes const-preload calls slow
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 
 # The whole story takes about 335 s on the dev machine, over the default 300 (#272).
 const TIMEOUT := 600
@@ -53,7 +62,7 @@ var _gem_early: bool = false
 
 
 func _expect(h, id: String, label: String, timeout: float = 8.0) -> void:
-	if BeatData.by_id(id).is_empty() and LogData.by_id(id).is_empty():
+	if _BeatData.by_id(id).is_empty() and _LogData.by_id(id).is_empty():
 		# Cut from the script (#285): its trigger still fires, nothing plays.
 		await _quiet(h, "%s (cut)" % id)
 		return
@@ -65,7 +74,7 @@ func _expect(h, id: String, label: String, timeout: float = 8.0) -> void:
 		_gem_early = true
 		h.note("first_gem played early: the %s room held a gem" % label)
 		got = await h.read_beat(label, timeout)
-	var what: String = "log" if not LogData.by_id(id).is_empty() else "tier %d" % int(BeatData.by_id(id).get("tier", 0))
+	var what: String = "log" if not _LogData.by_id(id).is_empty() else "tier %d" % int(_BeatData.by_id(id).get("tier", 0))
 	h.check("%s plays (%s)" % [id, what], got == id, got)
 
 
@@ -73,7 +82,7 @@ func _expect(h, id: String, label: String, timeout: float = 8.0) -> void:
 func _quiet(h, label: String) -> void:
 	await h.wait(1.0)
 	var q: String = str(Data.ofOr(StoryBeats.QUEUED, ""))
-	h.check("%s: no other beat opens" % label, not StoryBeats.is_open() and q == "", {"open": StoryBeats.instance().open_id, "queued": q})
+	h.check("%s: no other beat opens" % label, not _StoryBeats.is_open() and q == "", {"open": _StoryBeats.instance().open_id, "queued": q})
 
 
 func _cool() -> void:
@@ -115,10 +124,10 @@ func _plea(h, label: String, want_stage: String) -> void:
 	await h.wait(1.2)
 	var shown = h.get_tree().get_nodes_in_group("story-plea").filter(func(n): return n.get_meta("line", "") == line)
 	var text: String = shown.back().get_child(0).get_parsed_text() if not shown.is_empty() else ""
-	var st: int = Runes.stage()
+	var st: int = _Runes.stage()
 	h.check("plea %s: stage %s pool, translation stage %d" % [label, want_stage, st],
-			pd.stage() == want_stage and PleaData.pool(want_stage, "arrive").has(line) and text == Runes.render(line, st),
-			{"stage": pd.stage(), "line": line, "shown": text, "want": Runes.render(line, st)})
+			pd.stage() == want_stage and _PleaData.pool(want_stage, "arrive").has(line) and text == _Runes.render(line, st),
+			{"stage": pd.stage(), "line": line, "shown": text, "want": _Runes.render(line, st)})
 	await h.shot("plea_%s" % label)
 	await h.wait(1.0)
 
@@ -126,7 +135,7 @@ func _plea(h, label: String, want_stage: String) -> void:
 # ---------------------------------------------------------------- events
 
 func _first_gem(h, gem: Vector2i) -> void:
-	h.note("first gem", {"cell": gem, "type": Minerals.by_tile_id(td.get_resourcev(gem)), "biome": td.get_biomev(gem)})
+	h.note("first gem", {"cell": gem, "type": _Minerals.by_tile_id(td.get_resourcev(gem)), "biome": td.get_biomev(gem)})
 	await h.dig_room(gem + Vector2i(-2, -3), gem + Vector2i(2, -1))
 	await h.reveal([gem])
 	await h.teleport_tile(gem + Vector2i(0, -1))
@@ -147,8 +156,8 @@ func _gate(h, top: int) -> void:
 	await h.wait(1.0)
 	await h.shot("gate_before_blast")
 	await h.press("keeper_gadget1")
-	var opened_mid: bool = await h.until(func(): return StoryBeats.is_open(), 6.0)
-	h.check("the blast breaks the gate (beat opens mid-blast)", opened_mid and StoryBeats.instance().open_id == "gate_broken")
+	var opened_mid: bool = await h.until(func(): return _StoryBeats.is_open(), 6.0)
+	h.check("the blast breaks the gate (beat opens mid-blast)", opened_mid and _StoryBeats.instance().open_id == "gate_broken")
 	await _expect(h, "gate_broken", "gate_broken")
 	await h.wait(3.0)
 	var left: int = 0
@@ -178,7 +187,7 @@ func _bones(h, p: Array) -> void:
 		drop.global_position = dome.getDropTarget("iron").global_position + Vector2(0, -8)
 		drop.linear_velocity = Vector2.ZERO
 		await h.until(func(): return int(h.inv("money")) > m0, 10.0)
-	h.check("B%d bones delivered: +$%d" % [b + 1, Bones.value_for(b)], drop != null and int(h.inv("money")) - m0 == Bones.value_for(b), int(h.inv("money")) - m0)
+	h.check("B%d bones delivered: +$%d" % [b + 1, _Bones.value_for(b)], drop != null and int(h.inv("money")) - m0 == _Bones.value_for(b), int(h.inv("money")) - m0)
 	# Selling the bones opens the miner's log (#94).
 	await _expect(h, "log_b%d" % (b + 1), "log_b%d" % (b + 1), 5.0)
 
@@ -217,8 +226,8 @@ func _translator(h, ch) -> void:
 	h.check("translator %d installed" % n, got, h.inv("translator"))
 	await _expect(h, "translator_%d" % n, "translator_%d" % n)
 	translators = n
-	h.check("translation stage is %d" % n, Runes.stage() == n, Runes.stage())
-	await _plea(h, "translator%d" % n, PleaData.stage_for(StoryBeats.deepest()))
+	h.check("translation stage is %d" % n, _Runes.stage() == n, _Runes.stage())
+	await _plea(h, "translator%d" % n, _PleaData.stage_for(_StoryBeats.deepest()))
 
 
 func _lava_death(h) -> void:
@@ -232,7 +241,7 @@ func _lava_death(h) -> void:
 # ---------------------------------------------------------------- run
 
 func run(h) -> void:
-	StoryBeats.instance().beat_opened.connect(func(id): opened.append(id))
+	_StoryBeats.instance().beat_opened.connect(func(id): opened.append(id))
 	# The keeper's welcome log opens first (#123).
 	var welcome: String = await h.read_beat("keeper_welcome", 6.0)
 	h.check("the run opens with the keeper's welcome log", welcome == "keeper_welcome", welcome)
@@ -249,7 +258,7 @@ func run(h) -> void:
 	for n in range(1, 5):
 		await h.buy("storyheatshield%d" % n)
 	h.set_inv("money", 0)
-	h.check("Heat Shielding IV bought", LavaData.shield_tier() == 4 and LavaData.passive_rate(6) == 0.0, LavaData.shield_tier())
+	h.check("Heat Shielding IV bought", _LavaData.shield_tier() == 4 and _LavaData.passive_rate(6) == 0.0, _LavaData.shield_tier())
 	await h.shot("start")
 	await _plea(h, "start", "A")
 
@@ -300,8 +309,8 @@ func run(h) -> void:
 		if b == DEATH_BIOME:
 			await _lava_death(h)
 		await _quiet(h, "B%d" % (b + 1))
-	h.check("deepest reached is B8", StoryBeats.deepest() == 7, StoryBeats.deepest())
-	h.check("all 3 translators installed", translators == 3 and Runes.stage() == 3, Runes.stage())
+	h.check("deepest reached is B8", _StoryBeats.deepest() == 7, _StoryBeats.deepest())
+	h.check("all 3 translators installed", translators == 3 and _Runes.stage() == 3, _Runes.stage())
 
 	# ---- the lava ocean
 	var ocean: Dictionary = td.get_meta("story_ocean", {})
@@ -328,14 +337,14 @@ func run(h) -> void:
 			await _expect(h, seal[i + 1], "unob%02d" % (i + 1), 6.0)
 		else:
 			await _quiet(h, "unobtainium %d" % (i + 1))
-	h.check("10 mined, the seal at %.2f" % Awakening.level(), Awakening.mined() == 10, Awakening.mined())
+	h.check("10 mined, the seal at %.2f" % _Awakening.level(), _Awakening.mined() == 10, _Awakening.mined())
 
 	# ---- the boss chamber (the fight has its own scenarios, #160)
 	load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").enabled = false
 	var room: Rect2i = td.get_meta("story_boss_chamber", Rect2i())
 	await h.teleport_tile(room.position + room.size / 2)
 	await _expect(h, "boss_chamber", "chamber", 6.0)
-	h.check("the horror is awake", Awakening.is_awake(), Awakening.level())
+	h.check("the horror is awake", _Awakening.is_awake(), _Awakening.level())
 	await _quiet(h, "boss chamber")
 
 	# ---- Retire Rich, from inside the shop: the doom ending
@@ -359,7 +368,7 @@ func run(h) -> void:
 		await h.shot("last_words_%d" % (i + 1))
 		await h.wait(2.0)
 	var first: String = str(lines[0].back()) if lines.size() > 0 and lines[0].size() > 0 else ""
-	h.check("the monsters' last words, all in English (stage 3)", first == Runes.render(Endings.DOOM_LAST_WORDS[0], 3), lines)
+	h.check("the monsters' last words, all in English (stage 3)", first == _Runes.render(Endings.DOOM_LAST_WORDS[0], 3), lines)
 	await h.until(func(): return ed.last_step == "cards", 10.0)
 	var seen: Array = []
 	var t_end: float = h.now() + 40.0

@@ -22,9 +22,12 @@ extends Node2D
 # (net_state() -> net_apply(), sent by the director).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 
 const STEP := 6.0            # px between trail points
 const BODY := 300.0          # px of tentacle drawn behind each tip
@@ -93,14 +96,14 @@ func _out() -> Array:
 
 
 func _kp() -> Vector2:
-	var k = target if _ok(target) else Story.local_keeper()
+	var k = target if _ok(target) else _Story.local_keeper()
 	return to_local(k.global_position) if k != null and is_instance_valid(k) else trail[trail.size() - 1]
 
 
 # How close the tentacles are to this instance's own keeper: the path gap for
 # the hunted keeper, the straight distance to the lead tip for anyone else.
 func my_gap() -> float:
-	return gap_for(Story.local_keeper())
+	return gap_for(_Story.local_keeper())
 
 
 # The same for keeper `me` (each local keeper's own in splitscreen, #263).
@@ -154,7 +157,7 @@ func _choose_target(delta: float) -> void:
 			best = k
 			best_d = d
 	if not _ok(target):
-		target = best if best != null else Story.local_keeper()
+		target = best if best != null else _Story.local_keeper()
 		return
 	if best == null or best == target or _switch_t > 0.0:
 		return
@@ -230,7 +233,7 @@ func _touch() -> void:
 				var from: Vector2 = point_at(float(heads[i]) - 12.0)
 				if health != null and health.hurt(from, "chase", k):
 					hits += 1
-					Sfx.play("whip", -4.0, 0.9)
+					_Sfx.play("whip", -4.0, 0.9)
 				recoil = Boss.CHASE_RECOIL
 				return
 
@@ -243,7 +246,7 @@ func _feel(delta: float) -> void:
 		_rumble = 0.35
 		InputSystem.shake(2.0 + 7.0 * (1.0 - g / 260.0), 0.3, 26.0)
 		if g < 120.0 and fposmod(time, 1.4) < 0.36:
-			Sfx.play("burrow", -14.0 + 8.0 * (1.0 - g / 120.0), 0.8)
+			_Sfx.play("burrow", -14.0 + 8.0 * (1.0 - g / 120.0), 0.8)
 
 
 # ---------------------------------------------------------------- online (#230)
@@ -293,7 +296,7 @@ func net_apply(d: Array) -> bool:
 		speed = float(d[4])
 		keeper_speed = float(d[5])
 		if int(d[6]) > hits:
-			Sfx.play("whip", -4.0, 0.9)
+			_Sfx.play("whip", -4.0, 0.9)
 		hits = int(d[6])
 		var hs: PackedFloat32Array = d[7]
 		_net_heads = Array(hs)
@@ -339,14 +342,14 @@ func _draw() -> void:
 			# Each tentacle weaves on its own side of the trail, tight at the tip.
 			var weave: float = sin(d * 0.045 - time * 3.0 + float(seeds[i])) * 5.0 + side
 			pts.append(p + dir.orthogonal() * weave * (1.0 - u * 0.6))
-		var tip: Vector2 = Pix.tentacle(self, pts, 8.0 if i == 0 else 6.0, 3.0, Pix.FLESH_MID if i == 0 else Pix.FLESH)
+		var tip: Vector2 = _Pix.tentacle(self, pts, 8.0 if i == 0 else 6.0, 3.0, Pix.FLESH_MID if i == 0 else Pix.FLESH)
 		# Eyes along the tentacle, and one at its tip.
 		for j in range(n - 14, 0, -16):
 			if j < pts.size():
-				Pix.eye(self, pts[j], Pix.eye_frame_toward(pts[j], kp, time, j * 0.21 + i), 0.5)
-		Pix.disc(self, tip, 9.0, Pix.EDGE)
+				_Pix.eye(self, pts[j], _Pix.eye_frame_toward(pts[j], kp, time, j * 0.21 + i), 0.5)
+		_Pix.disc(self, tip, 9.0, Pix.EDGE)
 		var mod: Color = Color.WHITE if recoil <= 0.0 else Color(1.6, 1.2, 1.6)
-		Pix.eye(self, tip, Pix.eye_frame_toward(tip, kp, time, float(seeds[i])), 1.0, mod)
+		_Pix.eye(self, tip, _Pix.eye_frame_toward(tip, kp, time, float(seeds[i])), 1.0, mod)
 	_draw_warning()
 
 
@@ -359,9 +362,9 @@ var _marks: Dictionary = {}   # playerId -> Node2D, with 2+ local keepers
 
 
 func _draw_warning() -> void:
-	var locals: Array = Story.local_keepers()
+	var locals: Array = _Story.local_keepers()
 	if locals.size() <= 1 or Level.viewports == null:
-		_draw_warning_on(self, Story.local_keeper())
+		_draw_warning_on(self, _Story.local_keeper())
 		return
 	for k in locals:
 		var m: Node2D = _mark_for(k)
@@ -390,7 +393,7 @@ func _mark_for(k) -> Node2D:
 func _draw_warning_on(ci: CanvasItem, k) -> void:
 	if not _ok(k) or float(heads[0]) <= 2.0:
 		return
-	var r: Rect2 = Story.view_rect(k.playerId, -10.0)
+	var r: Rect2 = _Story.view_rect(k.playerId, -10.0)
 	if not r.has_area():
 		return
 	var view := Rect2(to_local(r.position), r.size)
@@ -400,5 +403,5 @@ func _draw_warning_on(ci: CanvasItem, k) -> void:
 	var p := Vector2(clampf(lead.x, view.position.x, view.end.x), clampf(lead.y, view.position.y, view.end.y))
 	var near: float = clampf(1.0 - gap_for(k) / 500.0, 0.2, 1.0)
 	var blink: float = 0.5 + 0.5 * sin(time * (6.0 + 10.0 * near))
-	Pix.disc(ci, p, 7.0 + 2.0 * blink, Color(Pix.VIOLET, 0.25 + 0.4 * near))
-	Pix.eye(ci, p, int(time * 6.0) % 4, 0.5, Color(1, 1, 1, 0.6 + 0.4 * blink))
+	_Pix.disc(ci, p, 7.0 + 2.0 * blink, Color(Pix.VIOLET, 0.25 + 0.4 * near))
+	_Pix.eye(ci, p, int(time * 6.0) % 4, 0.5, Color(1, 1, 1, 0.6 + 0.4 * blink))

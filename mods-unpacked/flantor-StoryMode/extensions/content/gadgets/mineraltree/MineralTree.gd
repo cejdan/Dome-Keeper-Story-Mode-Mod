@@ -6,20 +6,22 @@ extends "res://content/gadgets/mineraltree/MineralTree.gd"
 # vanilla's with only that mapping changed; vanilla modes run vanilla's.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 const GOLD := "gold"
 
 
 # A root tile's resource id as the tree sees it: every mineral reads as 0 (iron).
 static func _root_res(res: int) -> int:
-	if res >= 40 and Minerals.by_tile_id(res) != "":
+	if res >= 40 and _Minerals.by_tile_id(res) != "":
 		return 0
 	return res
 
 
 func updateFruitType():
-	if not Story.is_story():
+	if not _Story.is_story():
 		super()
 		return
 	var rooted: = {GOLD: 1}
@@ -51,7 +53,7 @@ func updateFruitType():
 
 
 func tryGrowingStem(growthStage: int):
-	if not Story.is_story():
+	if not _Story.is_story():
 		super(growthStage)
 		return
 	var resourceTiles: = 0
@@ -87,7 +89,7 @@ func tryGrowingStem(growthStage: int):
 
 
 func tryRooting():
-	if not Story.is_story():
+	if not _Story.is_story():
 		super()
 		return
 	# Vanilla's, with roots reaching for mineral tiles as they reach for iron.

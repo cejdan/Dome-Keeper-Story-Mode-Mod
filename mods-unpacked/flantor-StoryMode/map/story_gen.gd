@@ -6,7 +6,9 @@ extends RefCounted
 # seed always gives the same map.
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
@@ -340,7 +342,7 @@ static func _pool_cell_ok(map_data, c: Vector2i, taken: Dictionary, mine: Dictio
 				return false
 			# Plain rock and mineral tiles make walls; anything else is too close.
 			var r: int = map_data.get_resourcev(n)
-			if r != Data.TILE_DIRT_START and Minerals.by_tile_id(r) == "":
+			if r != Data.TILE_DIRT_START and _Minerals.by_tile_id(r) == "":
 				return false
 	return true
 
@@ -421,7 +423,7 @@ static func _cavern_cell_ok(map_data, c: Vector2i, taken: Dictionary, mine: Dict
 			if taken.has(n) or map_data.get_biomev(n) < 0:
 				return false
 			var r: int = map_data.get_resourcev(n)
-			if r != Data.TILE_DIRT_START and Minerals.by_tile_id(r) == "":
+			if r != Data.TILE_DIRT_START and _Minerals.by_tile_id(r) == "":
 				return false
 	return true
 
@@ -620,7 +622,7 @@ static func place_minerals(map_data, rand: RandomNumberGenerator) -> Array:
 			if centre == null:
 				break
 			centres.append(centre)
-			var range_: Array = MapConfig.size_range(mineral, b)
+			var range_: Array = _MapConfig.size_range(mineral, b)
 			var size: int = rand.randi_range(int(range_[0]), int(range_[1]))
 			var tiles: Array = _grow(map_data, centre, int(Minerals.TABLE[mineral]["tile_id"]), size, rand)
 			deposits.append({"mineral": mineral, "biome": b, "centre": centre, "tiles": tiles.size()})

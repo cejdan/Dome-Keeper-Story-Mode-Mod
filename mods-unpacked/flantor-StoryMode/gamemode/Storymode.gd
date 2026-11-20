@@ -5,10 +5,15 @@ extends Node
 # and calls init(), afterInitialized() and getRunWeight().
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const SalePops = preload("res://mods-unpacked/flantor-StoryMode/hud/sale_pops.gd")
+static var _SalePops = SalePops  # calls go through this: lazy_preload makes const-preload calls slow
 const KeeperUpgrades = preload("res://mods-unpacked/flantor-StoryMode/gamemode/keeper_upgrades.gd")
 
 const MONEY := "team1.inventory.money"
@@ -27,7 +32,7 @@ func init() -> void:
 	# The monsters' pleas during waves (#91).
 	add_child(load(Story.MOD_DIR + "pleas/plea_director.gd").new())
 	# "+$5" over the dome for each piece sold (#121).
-	add_child(SalePops.new())
+	add_child(_SalePops.new())
 	# The keeper's lines about the depth heat (#146).
 	add_child(load(Story.MOD_DIR + "hud/heat_talk.gd").new())
 	# The boss sequence: Velle's chamber fight and what follows (#160).
@@ -81,7 +86,7 @@ func afterInitialized() -> void:
 		Data.listen(self, "team1.inventory." + m)
 	# Translators installed at the dome (#93).
 	Data.listen(self, "team1.inventory.translator")
-	if OS.has_feature("editor") and Story.has_user_arg("horror-defeated"):
+	if OS.has_feature("editor") and _Story.has_user_arg("horror-defeated"):
 		_dev_horror_defeated()
 
 
@@ -95,7 +100,7 @@ func _welcome() -> void:
 	while Level.stage == null or not Level.stage.keeperInputStarted:
 		await get_tree().process_frame
 	await get_tree().create_timer(WELCOME_DELAY, false).timeout
-	StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").WELCOME)
+	_StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").WELCOME)
 
 
 # Retire Rich (#31, #54): the only way to win a Story Mode run until the boss.
@@ -117,7 +122,7 @@ func _on_upgrade_added(id: String, teamId: String) -> void:
 		_win()
 		return
 	if id == teamId + "." + EVACUATE_ENTRY:
-		StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").EVACUATION)
+		_StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").EVACUATION)
 		return
 	if not id.begins_with("player") or not id.ends_with("." + KeeperUpgrades.BLASTER_ENTRY):
 		return
@@ -136,18 +141,18 @@ func propertyChanged(property: String, oldValue, newValue) -> void:
 		# English, and the horror objects (#93).
 		var n: int = int(newValue) if newValue != null else 0
 		if n > (int(oldValue) if oldValue != null else 0):
-			Runes.set_stage(n)
-			StoryBeats.trigger("translator:%d" % n)
-			ModLoaderLog.info("Translator %d installed: plea stage %d" % [n, Runes.stage()], Story.LOG)
+			_Runes.set_stage(n)
+			_StoryBeats.trigger("translator:%d" % n)
+			ModLoaderLog.info("Translator %d installed: plea stage %d" % [n, _Runes.stage()], Story.LOG)
 		return
 	if property.begins_with("team1.inventory."):
 		var type: String = property.substr(16)
-		if Minerals.is_mineral(type) and oldValue != null and newValue > oldValue:
+		if _Minerals.is_mineral(type) and oldValue != null and newValue > oldValue:
 			var pieces: int = int(newValue - oldValue)
-			Data.changeByInt(MONEY, pieces * Minerals.value_of(type))
+			Data.changeByInt(MONEY, pieces * _Minerals.value_of(type))
 			Data.changeByInt("team1.story.pieces", pieces)
 			for _i in pieces:
-				SalePops.pop(Minerals.value_of(type))
+				_SalePops.pop(_Minerals.value_of(type))
 		return
 	match property:
 		"team1.dome.health":
@@ -312,7 +317,7 @@ func _lose() -> void:
 	_lost = true
 	# The dome fell while it fought Velle's tentacles (#162): the lost ending.
 	var boss = get_node_or_null("StoryBoss")
-	var fallen: bool = boss != null and Story.boss_active()
+	var fallen: bool = boss != null and _Story.boss_active()
 	if fallen and multiplayer.is_server():
 		boss.dome_lost()
 	Level.moveHudOut()

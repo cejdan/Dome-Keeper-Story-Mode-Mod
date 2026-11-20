@@ -6,6 +6,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const Prices = preload("res://mods-unpacked/flantor-StoryMode/data/prices.gd")
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -79,7 +80,7 @@ func run(h) -> void:
 		if td.get_hardnessv(c) != 2:
 			continue
 		var r: int = td.get_resourcev(c)
-		var type: String = "rock" if r == Data.TILE_DIRT_START else Minerals.by_tile_id(r) if (r >= 40 or r == Data.TILE_IRON) else ""
+		var type: String = "rock" if r == Data.TILE_DIRT_START else _Minerals.by_tile_id(r) if (r >= 40 or r == Data.TILE_IRON) else ""
 		if type == "":
 			continue
 		var key: String = "%s@%d" % [type, td.get_biomev(c)]

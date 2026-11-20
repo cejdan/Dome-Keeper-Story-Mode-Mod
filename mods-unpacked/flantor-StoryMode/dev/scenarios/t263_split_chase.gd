@@ -9,7 +9,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 300
 const Split = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t231_split_restart.gd")
+static var _Split = Split  # calls go through this: lazy_preload makes const-preload calls slow
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 
 var k1
 var k2
@@ -20,14 +22,14 @@ func boot() -> Dictionary:
 
 
 func run(h) -> void:
-	if not await Split.start_split(h):
+	if not await _Split.start_split(h):
 		return
 	k1 = Keepers.getLocalKeeperByDeviceId(0)
 	k2 = Keepers.getLocalKeeperByDeviceId(1)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	boss._dev_boss("chase")
-	var started: bool = await h.until(func(): return Director.current() == "chase" and boss.chase != null, 10.0)
-	h.check("the chase starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "chase" and boss.chase != null, 10.0)
+	h.check("the chase starts", started, _Director.current())
 	if not started:
 		return
 	var chase = boss.chase

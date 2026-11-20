@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # their own depths (B4's beat was cut in #285).
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatBox = preload("res://mods-unpacked/flantor-StoryMode/beats/BeatBox.gd")
 
 
@@ -27,7 +28,7 @@ func _font_size(box) -> int:
 func _play(h, id: String, deepest: int, label: String) -> Array:
 	Data.apply("team1.story.deepest", deepest)
 	Data.apply("team1.story.beatsplayed", "")
-	StoryBeats.fire(id)
+	_StoryBeats.fire(id)
 	await h.until(func(): return h.beat_box() != null, 5.0)
 	var box = h.beat_box()
 	var out: Array = [box.volume, -1, ""]

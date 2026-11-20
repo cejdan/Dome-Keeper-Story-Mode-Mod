@@ -19,8 +19,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # cell of the ocean's rows lies outside the funnel.
 
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
 const T21 = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t21_gate.gd")
+static var _T21 = T21  # calls go through this: lazy_preload makes const-preload calls slow
 
 const SEEDS := 20
 const TIMEOUT := 600
@@ -45,7 +47,7 @@ func run(h) -> void:
 	var bad_sizes: Array = []
 	var bad_funnels: Array = []
 	for s in SEEDS:
-		var td = h.generate_map(MapConfig.make_archetype(), 6000 + s)
+		var td = h.generate_map(_MapConfig.make_archetype(), 6000 + s)
 		if td == null:
 			continue
 		var o: Dictionary = td.get_meta("story_ocean", {})
@@ -140,7 +142,7 @@ func run(h) -> void:
 				for x in range(int(o["x0"]), int(o["x1"]) + 1):
 					if td.get_resourcev(Vector2i(x, y)) == Data.TILE_EMPTY:
 						overlay[Vector2i(x, y)] = Color("#ff5a00")
-			h.map_png("bottom_seed%d" % (6000 + s), T21.new()._colors(), 4, td, overlay)
+			h.map_png("bottom_seed%d" % (6000 + s), _T21.new()._colors(), 4, td, overlay)
 		td.queue_free()
 		await h.frames(1)
 	for r in per_seed:

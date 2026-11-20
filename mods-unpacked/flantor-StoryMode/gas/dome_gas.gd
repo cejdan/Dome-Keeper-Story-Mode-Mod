@@ -10,7 +10,9 @@ extends Node
 # A child of the gas field; the amount is saved with the field's own state.
 
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
+static var _GasData = GasData  # calls go through this: lazy_preload makes const-preload calls slow
 const GasSfx = preload("res://mods-unpacked/flantor-StoryMode/gas/gas_sfx.gd")
+static var _GasSfx = GasSfx  # calls go through this: lazy_preload makes const-preload calls slow
 const VENT_ID := "storyventdome"
 const HAZE_Z := 29                 # over the keeper and the dome's insides, under the glass (30)
 
@@ -51,7 +53,7 @@ func add(m: float) -> void:
 
 # Toxin a second while the keeper is in the dome (0 with only a trace).
 func toxin_rate() -> float:
-	return GasData.dome_toxin_rate(pockets())
+	return _GasData.dome_toxin_rate(pockets())
 
 
 # 0..1: how thick the haze should be.
@@ -74,7 +76,7 @@ func vent() -> void:
 	ModLoaderLog.info("Dome vented: %.1f pockets of gas" % pockets(), "flantor-StoryMode")
 	amount = 0.0
 	vents += 1
-	GasSfx.play("vent", 0.0, 0.8)
+	_GasSfx.play("vent", 0.0, 0.8)
 
 
 # Vent the Dome bought by any player: upgradeAdded is the one signal the host
@@ -84,7 +86,7 @@ func _on_upgrade_added(id: String, _team: String) -> void:
 		return
 	if field.net_client:
 		# The dome's gas is the host's: it clears it and sends the new amount.
-		GasSfx.play("vent", 0.0, 0.8)
+		_GasSfx.play("vent", 0.0, 0.8)
 	elif amount > 0.0:
 		# (The host gets the signal twice for a purchase of its own.)
 		vent()

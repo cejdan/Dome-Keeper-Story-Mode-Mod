@@ -5,7 +5,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # miner's bones, a translator chamber opened, and the first story beat (B2).
 
 const Shoot = preload("res://mods-unpacked/flantor-StoryMode/dev/workshop_shoot.gd")
+static var _Shoot = Shoot  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
 const TIMEOUT := 900
 
@@ -23,7 +25,7 @@ func _settle(h, at: Vector2i) -> void:
 
 
 func run(h) -> void:
-	Shoot.window_1080()
+	_Shoot.window_1080()
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.5)
 	h.disable_waves()
@@ -38,9 +40,9 @@ func run(h) -> void:
 	await h.wait(1.0)
 
 	# ---- minerals: bronze, iron, gold, sapphire in the walls of a B1/B2 room
-	var o: Vector2i = Shoot.find_rock(td, 12, 5, [0, 1], 6, 40, -30, 20)
+	var o: Vector2i = _Shoot.find_rock(td, 12, 5, [0, 1], 6, 40, -30, 20)
 	h.check("rock for the mineral room", o.x != -9999, o)
-	var room: Array = Shoot.rect(o + Vector2i(1, 1), 10, 3)
+	var room: Array = _Shoot.rect(o + Vector2i(1, 1), 10, 3)
 	var ores := {40: [Vector2i(1, 0), Vector2i(2, 0), Vector2i(0, 2), Vector2i(0, 3)],
 		0: [Vector2i(4, 0), Vector2i(5, 0), Vector2i(3, 4), Vector2i(4, 4)],
 		41: [Vector2i(7, 0), Vector2i(8, 0), Vector2i(7, 4), Vector2i(8, 4)],
@@ -48,7 +50,7 @@ func run(h) -> void:
 	for id in ores:
 		for d in ores[id]:
 			td.set_resourcev(o + d, id)
-	await h.reveal(Shoot.rect(o - Vector2i(2, 2), 16, 9))
+	await h.reveal(_Shoot.rect(o - Vector2i(2, 2), 16, 9))
 	await h.clear_tiles(room)
 	await _settle(h, o + Vector2i(5, 2))
 	await h.shot("minerals")
@@ -59,7 +61,7 @@ func run(h) -> void:
 		if td.get_resourcev(c) == Bones.TILE_ID and td.get_biomev(c) == 1:
 			bones = c
 	h.check("B2 has its bones", bones.x != -9999, bones)
-	await h.reveal(Shoot.rect(bones - Vector2i(4, 3), 10, 7))
+	await h.reveal(_Shoot.rect(bones - Vector2i(4, 3), 10, 7))
 	await h.clear_tiles([bones + Vector2i(1, 0), bones + Vector2i(2, 0), bones + Vector2i(3, 0), bones + Vector2i(1, -1), bones + Vector2i(2, -1)])
 	await _settle(h, bones + Vector2i(2, 0))
 	await h.shot("bones")
@@ -91,13 +93,13 @@ func run(h) -> void:
 	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
 	played.erase("biome_b2")
 	Data.apply("team1.story.beatsplayed", ",".join(PackedStringArray(played)))
-	StoryBeats.instance().set("muted", false)
-	StoryBeats.fire("biome_b2")
-	await h.until(func(): return StoryBeats.is_open(), 8.0)
+	_StoryBeats.instance().set("muted", false)
+	_StoryBeats.fire("biome_b2")
+	await h.until(func(): return _StoryBeats.is_open(), 8.0)
 	for page in 4:
 		await h.wait(5.0)
 		await h.shot("beat_b2_p%d" % (page + 1))
 		await h.press("ui_select")
 		await h.wait(0.4)
-		if not StoryBeats.is_open():
+		if not _StoryBeats.is_open():
 			break

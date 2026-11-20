@@ -4,8 +4,11 @@ extends "res://content/map/tile/Tile.gd"
 # with the mineral's extra health. Vanilla tile types run vanilla code only.
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func setType(type: String):
@@ -17,13 +20,13 @@ func setType(type: String):
 		max_health = max(1, round(hardnessMultiplier * Data.of("map.tileBaseHealth")))
 		health = max_health if fresh else min(health, max_health)
 		return
-	if Metal.is_metal(type):
+	if _Metal.is_metal(type):
 		_set_metal(fresh)
 		return
 	if type == Bones.TYPE:
 		_set_bones(fresh)
 		return
-	var sheet: Texture2D = Minerals.sheet_for_type(type)
+	var sheet: Texture2D = _Minerals.sheet_for_type(type)
 	if sheet == null:
 		return
 	if res_sprite:
@@ -32,7 +35,7 @@ func setType(type: String):
 		res_sprite.texture = sheet
 		res_sprite.show()
 		initResourceSprite(Vector2(rng.randi_range(0, 4), 5))
-	if not Minerals.is_mod_mineral(type):
+	if not _Minerals.is_mod_mineral(type):
 		return
 	# Vanilla has no branch for this type: make it drillable and give it the
 	# mineral's health bonus on top of the base, as vanilla does for iron.
@@ -53,7 +56,7 @@ func _set_metal(fresh: bool) -> void:
 	if res_sprite:
 		var rng: = RandomNumberGenerator.new()
 		rng.seed = Level.levelSeed + hash(coord)
-		res_sprite.texture = Metal.sheet()
+		res_sprite.texture = _Metal.sheet()
 		res_sprite.show()
 		initResourceSprite(Vector2(rng.randi_range(0, 4), 5))
 	var baseHealth: float = Data.of("map.tileBaseHealth") + Metal.EXTRA_HEALTH
@@ -66,12 +69,12 @@ func _set_metal(fresh: bool) -> void:
 
 
 func _metal_refuses() -> bool:
-	if not Metal.is_metal(type):
+	if not _Metal.is_metal(type):
 		return false
-	if exploded and Metal.suit_blast_covers(coord):
+	if exploded and _Metal.suit_blast_covers(coord):
 		return false
 	# A Mine Driller or Drillbert with its Metal Bit (#147).
-	if not exploded and Metal.gadget_may_break():
+	if not exploded and _Metal.gadget_may_break():
 		return false
 	exploded = false
 	return true
@@ -128,7 +131,7 @@ func _set_bones(fresh: bool) -> void:
 	if res_sprite:
 		var rng: = RandomNumberGenerator.new()
 		rng.seed = Level.levelSeed + hash(coord)
-		res_sprite.texture = Bones.sheet()
+		res_sprite.texture = _Bones.sheet()
 		res_sprite.show()
 		initResourceSprite(Vector2(rng.randi_range(0, 4), 5))
 	var baseHealth: float = Data.of("map.tileBaseHealth") + Bones.EXTRA_HEALTH

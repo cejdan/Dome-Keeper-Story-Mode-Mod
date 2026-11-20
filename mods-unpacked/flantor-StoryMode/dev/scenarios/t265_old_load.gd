@@ -8,11 +8,13 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # written for a look; the second load is t265_old_load with `--reload`).
 
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
-	return {"load": 27 if Story.has_user_arg("reload") else 26}
+	return {"load": 27 if _Story.has_user_arg("reload") else 26}
 
 
 func run(h) -> void:
@@ -27,13 +29,13 @@ func run(h) -> void:
 		"limit": gw.isUpgradeLimitAvailable(pid + ".storykeeper"),
 		"bought": gw.boughtUpgrades.filter(func(x): return "storyheat" in x or "suitblaster" in x),
 		"team entries": gw.upgrades.keys().filter(func(x): return x.begins_with("team1.story") and ("heat" in x or "suit" in x)),
-		"tier": LavaData.shield_tier(k), "data": [Data.ofOr(pid + ".suit.heatshield", null), Data.ofOr("team1.suit.heatshield", null)],
+		"tier": _LavaData.shield_tier(k), "data": [Data.ofOr(pid + ".suit.heatshield", null), Data.ofOr("team1.suit.heatshield", null)],
 		"money": Data.ofOr("team1.inventory.money", -1),
 	}
 	h.note("loaded", view)
 	h.check("the money came back (the save is the one made)", int(view["money"]) == 1234, view["money"])
 	h.check("the keeper has its own limit", view["limit"])
-	h.check("the keeper has the team's tier III as its own", LavaData.shield_tier(k) == 3 and range(1, 4).all(func(n): return gw.boughtUpgrades.has("%s.storyheatshield%d" % [pid, n])) and not gw.boughtUpgrades.has(pid + ".storyheatshield4"), view)
+	h.check("the keeper has the team's tier III as its own", _LavaData.shield_tier(k) == 3 and range(1, 4).all(func(n): return gw.boughtUpgrades.has("%s.storyheatshield%d" % [pid, n])) and not gw.boughtUpgrades.has(pid + ".storyheatshield4"), view)
 	h.check("the team's entries are gone from the shop", view["team entries"].is_empty() and not view["bought"].any(func(x): return x.begins_with("team1.")), view)
 	h.check("tier IV is offered next in the keeper's own track", gw.upgrades.has(pid + ".storyheatshield4") and gw.isUpgradeAddable(pid + ".storyheatshield4"))
 	h.check("the keeper still has its Suit Blaster, and its own entry counts as bought", gw.boughtUpgrades.has(pid + ".suitblaster") and gw.boughtUpgrades.has(pid + ".storysuitblaster"), view["bought"])
@@ -68,7 +70,7 @@ func run(h) -> void:
 	lava.set_heat_of(k, 0.0)
 	for cc in lava.mass.keys():
 		lava.mass.erase(cc)
-	if not Story.has_user_arg("reload"):
+	if not _Story.has_user_arg("reload"):
 		# Saved again (now a #265 save): it must load the same (`--reload`).
 		await h.teleport_tile(Vector2i(0, 3))
 		await h.wait(0.5)

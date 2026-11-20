@@ -13,8 +13,10 @@ extends Node
 # `-- --horror-defeated`.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 
 signal step(name: String)
 
@@ -31,7 +33,7 @@ func _step(s: String) -> void:
 func play_doom() -> void:
 	playing = "doom"
 	_step("thanks")
-	var beats = StoryBeats.instance()
+	var beats = _StoryBeats.instance()
 	if beats != null:
 		await beats.play_now("doom_thanks")
 	_step("last_words")
@@ -88,7 +90,7 @@ func _cards(cards: Array, mood: String) -> void:
 	box.mood = mood
 	var i = load(Story.MOD_DIR + "beats/BeatInputProcessor.gd").new()
 	i.popup = box
-	var k = Story.local_keeper()
+	var k = _Story.local_keeper()
 	i.deviceId = k.deviceId if k != null else 0
 	i.globalInput = true
 	Level.stage.showPopup(box, null, "", LevelStage.PopupCanvas.GLOBAL)

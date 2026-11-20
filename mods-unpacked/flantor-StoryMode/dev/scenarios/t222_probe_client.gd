@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 420
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -82,7 +83,7 @@ func run(h) -> void:
 	h.check("client buys Heat Shielding I", GameWorld.boughtUpgrades.has(me + ".storyheatshield1") and m0 - m1 == _cost(me + ".storyheatshield1"), {"paid": m0 - m1, "price": _cost(me + ".storyheatshield1")})
 	# The gadget shop (#236): the host opens the choice, draws the offers and
 	# does the paying; this client shows the popup and sends its choices.
-	var entries: Array = GadgetShop.entries("team1")
+	var entries: Array = _GadgetShop.entries("team1")
 	var prices: Array = entries.map(func(e): return _cost(e))
 	var m2: int = _money()
 	var w0: int = int(Data.ofOr("team1.inventory.water", 0))
@@ -90,7 +91,7 @@ func run(h) -> void:
 	await h.shot("client_gadget_offers")
 	var first: Array = _shown(me)
 	h.note("client offers", {"shown": first, "data": _offers()})
-	h.check("the popup shows the host's offers, and no shred choice", first.size() == GadgetShop.offer_count("team1") and first == _sorted(_offers()), {"shown": first, "data": _offers()})
+	h.check("the popup shows the host's offers, and no shred choice", first.size() == _GadgetShop.offer_count("team1") and first == _sorted(_offers()), {"shown": first, "data": _offers()})
 	h.check("Cancel is available (the shop's input processor)", _popup(me) != null and _popup(me).inputProcessor.get_script().resource_path.ends_with("ShopChoiceInputProcessor.gd"))
 	h.check("opening charges nothing", _money() == m2, m2 - _money())
 	# Cancel: free, offers kept.

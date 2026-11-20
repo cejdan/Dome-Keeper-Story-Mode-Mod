@@ -15,8 +15,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # expected Laser III and the dev gear has had Laser IV since #195.)
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Dev = preload("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd")
+static var _Dev = Dev  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
@@ -26,8 +29,8 @@ func boot() -> Dictionary:
 
 func run(h) -> void:
 	h.disable_waves()
-	var what: String = Story.user_arg("what", "chase")
-	var boss = Director.instance()
+	var what: String = _Story.user_arg("what", "chase")
+	var boss = _Director.instance()
 	var k = h.keeper()
 	var ch: Rect2i = Level.map.tileData.get_meta("story_boss_chamber")
 	h.note("at the start", {"isInsideDome": k.isInsideDome})
@@ -36,28 +39,28 @@ func run(h) -> void:
 	var states: Dictionary = {}
 	for i in 50:
 		await h.wait(0.1)
-		states[Director.current()] = true
+		states[_Director.current()] = true
 	h.snap_camera()
 	h.note("states seen in the first 5 s", states.keys())
 	h.check("the keeper is in Velle's chamber, out of the dome", ch.has_point(h.keeper_tile()) and not k.isInsideDome, h.keeper_tile())
 	var path: Array = boss.dev_path
-	await h.until(func(): return Dev.blocked(path).is_empty(), 10.0)
+	await h.until(func(): return _Dev.blocked(path).is_empty(), 10.0)
 	if what == "chase":
-		h.check("`--boss=chase` starts the chase and never leaves it for the finale", Director.current() == "chase" and not states.has("finale") and boss.finale == null, states.keys())
+		h.check("`--boss=chase` starts the chase and never leaves it for the finale", _Director.current() == "chase" and not states.has("finale") and boss.finale == null, states.keys())
 		h.check("the tentacles are there", boss.chase != null and is_instance_valid(boss.chase) and boss.chase.running)
 		await h.shot("chase")
-		h.check("a shaft is open from the chamber to the dome (%d cells)" % path.size(), not path.is_empty() and Dev.blocked(path).is_empty(), Dev.blocked(path).slice(0, 8))
+		h.check("a shaft is open from the chamber to the dome (%d cells)" % path.size(), not path.is_empty() and _Dev.blocked(path).is_empty(), _Dev.blocked(path).slice(0, 8))
 		return
-	h.check("`--boss` starts the fight", Director.current() == "fight" and not states.has("finale") and not states.has("chase"), states.keys())
-	h.check("with the shaft home already drilled (%d cells)" % path.size(), not path.is_empty() and Dev.blocked(path).is_empty(), Dev.blocked(path).slice(0, 8))
+	h.check("`--boss` starts the fight", _Director.current() == "fight" and not states.has("finale") and not states.has("chase"), states.keys())
+	h.check("with the shaft home already drilled (%d cells)" % path.size(), not path.is_empty() and _Dev.blocked(path).is_empty(), _Dev.blocked(path).slice(0, 8))
 	h.check("it reaches from the chamber roof to under the dome", path[0].y == ch.position.y - 1 and path[path.size() - 1].y <= 1 and absi(path[path.size() - 1].x) <= 2, [path[0], path[path.size() - 1]])
 	await h.shot("fight")
 	var velle = boss.velle
 	await h.until(func(): return velle.state == "fight", 8.0)
 	boss.health.invulnerable = 9999.0
 	velle._damage_core(9999.0)
-	var chased: bool = await h.until(func(): return Director.current() == "chase", 15.0)
+	var chased: bool = await h.until(func(): return _Director.current() == "chase", 15.0)
 	await h.wait(3.0)
-	h.check("Velle dies and the chase starts", chased and Director.current() == "chase", Director.current())
-	h.check("the shaft is still open for the run home", Dev.blocked(path).is_empty(), Dev.blocked(path).slice(0, 8))
+	h.check("Velle dies and the chase starts", chased and _Director.current() == "chase", _Director.current())
+	h.check("the shaft is still open for the run home", _Dev.blocked(path).is_empty(), _Dev.blocked(path).slice(0, 8))
 	await h.shot("chase_after_fight")

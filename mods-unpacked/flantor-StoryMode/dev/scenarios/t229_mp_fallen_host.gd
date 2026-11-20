@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # fallen cards once and the "fallen" end screen once. Pair: t229_mp_fallen_client.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
 const BossText = preload("res://mods-unpacked/flantor-StoryMode/data/boss_text.gd")
 const TIMEOUT := 360
@@ -18,7 +19,7 @@ func run(h) -> void:
 	if not await host_start(h):
 		return
 	await h.wait(2.0)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	h.check("boss director on the host", boss != null)
 	if boss == null:
 		return
@@ -34,8 +35,8 @@ func run(h) -> void:
 	Data.apply(Awakening.AWAKE, true)
 	await h.wait(1.0)
 	await h.teleport_tile(ch.position + Vector2i(3, 2))
-	var started: bool = await h.until(func(): return Director.current() == "fight", 40.0)
-	h.check("the fight starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "fight", 40.0)
+	h.check("the fight starts", started, _Director.current())
 	if not started:
 		return
 	await h.wait(3.0)
@@ -43,8 +44,8 @@ func run(h) -> void:
 	await h.wait(1.0)
 	# The team's hearts run out.
 	boss._keeper_died("playtest")
-	var lost: bool = await h.until(func(): return Director.current() == "lost" and Level.mode.is_ending(), 10.0)
-	h.check("the boss state is `lost` and the lost ending plays on the host", lost, Director.current())
+	var lost: bool = await h.until(func(): return _Director.current() == "lost" and Level.mode.is_ending(), 10.0)
+	h.check("the boss state is `lost` and the lost ending plays on the host", lost, _Director.current())
 	var endings = Level.mode.get_node("StoryEndings")
 	var cards: bool = await h.until(func(): return endings.cards_shown >= 1, 20.0)
 	h.check("the fallen cards on the host", cards and endings.playing == "fallen", endings.playing)

@@ -8,7 +8,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 const PleaData = preload("res://mods-unpacked/flantor-StoryMode/data/pleas.gd")
+static var _PleaData = PleaData  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -23,7 +25,7 @@ func run(h) -> void:
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.0)
 	h.disable_waves()
-	Runes.set_stage(stage())
+	_Runes.set_stage(stage())
 	var ed = Level.mode.get_node_or_null("StoryEndings")
 	h.check("the ending director is in the run", ed != null)
 	h.set_inv("money", 1000000)
@@ -49,9 +51,9 @@ func run(h) -> void:
 		await h.wait(2.0)
 	h.note("last words on screen", lines)
 	var first: String = str(lines[0].back()) if lines.size() > 0 and lines[0].size() > 0 else ""
-	h.check("last words show at stage %d" % stage(), first == Runes.render(Endings.DOOM_LAST_WORDS[0], stage()) or Runes.decode(first).to_lower() == PleaData.plain(Endings.DOOM_LAST_WORDS[0]).to_lower(), first)
+	h.check("last words show at stage %d" % stage(), first == _Runes.render(Endings.DOOM_LAST_WORDS[0], stage()) or _Runes.decode(first).to_lower() == _PleaData.plain(Endings.DOOM_LAST_WORDS[0]).to_lower(), first)
 	if stage() == 0:
-		h.check("at stage 0 they are all runes", Runes.decode(first) != first and not first.contains("enough"), first)
+		h.check("at stage 0 they are all runes", _Runes.decode(first) != first and not first.contains("enough"), first)
 	# The planet's end, card by card.
 	await h.until(func(): return ed.last_step == "cards", 10.0)
 	var seen: Array = []

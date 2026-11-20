@@ -3,6 +3,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # Ticket 48: the keeper burns only where its body overlaps lava as drawn.
 
 const FieldUtil = preload("res://mods-unpacked/flantor-StoryMode/util/field_util.gd")
+static var _FieldUtil = FieldUtil  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -78,7 +79,7 @@ func run(h) -> void:
 	h.keeper().teleport(above)
 	await h.frames(2)
 	await h.shot("hover_above_shallow")
-	h.note("hover", {"keeper": h.keeper().global_position, "set": above, "lava rect (field space)": field._lava_shape(c)["rect"], "keeper box": FieldUtil.keeper_rect(h.keeper())})
+	h.note("hover", {"keeper": h.keeper().global_position, "set": above, "lava rect (field space)": field._lava_shape(c)["rect"], "keeper box": _FieldUtil.keeper_rect(h.keeper())})
 	h.check("hovering above a 0.4 cell's drawn surface: no heat", g1 == 0.0, g1)
 	var into: Vector2 = Vector2(o.x + 12, surface_y + 4)
 	var g2: float = await _hold_at(h, into, 1.0)

@@ -13,6 +13,7 @@
 #   GGGG............####      the room                   y 0..2
 
 const Shoot = preload("res://mods-unpacked/flantor-StoryMode/dev/workshop_shoot.gd")
+static var _Shoot = Shoot  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 900
 
 var R := Vector2i.ZERO
@@ -47,18 +48,18 @@ func _fly(h, action: String, done: Callable, timeout: float) -> void:
 
 
 func run(h) -> void:
-	Shoot.window_1080()
+	_Shoot.window_1080()
 	h.disable_waves()
 	await h.until(func(): return Level.map.get_node_or_null("StoryGasField") != null, 10.0)
 	field = Level.map.get_node("StoryGasField")
 	lava = Level.map.get_node("StoryLavaField")
 	var td = Level.map.tileData
-	var found: Vector2i = Shoot.find_rock(td, 17, 7, [1, 2, 3], 8, 90, -70, 70)
+	var found: Vector2i = _Shoot.find_rock(td, 17, 7, [1, 2, 3], 8, 90, -70, 70)
 	h.check("found rock in B2/B3 for the set", found.x != -9999, found)
 	R = found + Vector2i(4, 2)
 	h.note("set", {"room": R, "biome": td.get_biomev(R)})
-	Shoot.clear_hazards(lava, field, found, 17, 7)
-	await h.reveal(Shoot.rect(found, 17, 7))
+	_Shoot.clear_hazards(lava, field, found, 17, 7)
+	await h.reveal(_Shoot.rect(found, 17, 7))
 	var open: Array = []
 	for x in 12:
 		open.append(_c(x, 0))
@@ -82,25 +83,25 @@ func run(h) -> void:
 	await h.wait(1.0)
 	_guard(h)
 
-	Shoot.clip(h, "fire_sealed")
+	_Shoot.clip(h, "fire_sealed")
 	await h.wait(2.0)
 	await h.shot("sealed")
 	await _fly(h, "ui_left", func(): return field.breaches > 0, 30.0)
 	h.check("the keeper's drill opened the pocket", field.breaches > 0, field.stats())
-	Shoot.clip(h, "fire_burst")
+	_Shoot.clip(h, "fire_burst")
 	await h.wait(0.3)
 	await _fly(h, "ui_right", func(): return h.keeper_tile().x >= R.x + 5, 4.0)
 	await h.wait(1.0)
 	await h.shot("gas_rolls")
 	var lit: bool = await h.until(func(): return field.ignitions > 0, 25.0)
 	h.check("the gas caught on the lava", lit, field.stats())
-	Shoot.clip(h, "fire_lit")
+	_Shoot.clip(h, "fire_lit")
 	for i in 6:
 		await h.wait(0.5)
 		await h.shot("fire_%d" % i)
 	await h.until(func(): return field.fire.is_empty(), 20.0)
 	await h.wait(2.0)
 	await h.shot("burnt_out")
-	Shoot.clip(h, "fire_end")
+	_Shoot.clip(h, "fire_end")
 	h.note("stats", field.stats())
 	guard = false

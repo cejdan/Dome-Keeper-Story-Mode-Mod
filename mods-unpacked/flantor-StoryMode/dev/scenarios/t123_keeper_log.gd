@@ -7,7 +7,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # t123_reload (a loaded run must not show it, even then).
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const LogData = preload("res://mods-unpacked/flantor-StoryMode/data/logs.gd")
+static var _LogData = LogData  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -17,8 +19,8 @@ func boot() -> Dictionary:
 func run(h) -> void:
 	var t0: float = h.now()
 	var opened: Array = []
-	StoryBeats.instance().beat_opened.connect(func(id): opened.append([id, h.now() - t0]))
-	await h.until(func(): return StoryBeats.is_open(), 6.0)
+	_StoryBeats.instance().beat_opened.connect(func(id): opened.append([id, h.now() - t0]))
+	await h.until(func(): return _StoryBeats.is_open(), 6.0)
 	var box = h.beat_box()
 	var header: String = ""
 	if box != null:
@@ -28,10 +30,10 @@ func run(h) -> void:
 	h.check("a new run opens the welcome log", id == LogData.WELCOME, id)
 	h.check("it opens about a second after the keeper can move (0.8 to 3 s)", not opened.is_empty() and opened[0][1] >= 0.8 and opened[0][1] <= 3.0, opened)
 	h.check("the box shows the company header, not a salvaged log", header.begins_with("HALCYON MINERALS"), header)
-	var entry: Dictionary = LogData.by_id(LogData.WELCOME)
+	var entry: Dictionary = _LogData.by_id(LogData.WELCOME)
 	var text: String = " ".join(PackedStringArray(entry.get("lines", []))) + entry.get("title", "") + entry.get("header", "")
 	h.check("the welcome never gives the keeper's number", not text.contains("9"), text)
-	h.check("it plays once", not StoryBeats.fire(LogData.WELCOME))
+	h.check("it plays once", not _StoryBeats.fire(LogData.WELCOME))
 	await h.wait(3.0)
 	h.check("nothing else opened", opened.size() == 1, opened)
 	# For t123_reload: a save that hasn't played the welcome (as an old save).

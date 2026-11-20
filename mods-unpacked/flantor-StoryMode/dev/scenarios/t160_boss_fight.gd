@@ -6,6 +6,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # with a shot of every attack, and finishes the fight.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 420
 
@@ -31,16 +32,16 @@ func _enter(h) -> Rect2i:
 func _pop_all(h, velle) -> void:
 	for s: Dictionary in velle.stalks.duplicate():
 		if s["alive"]:
-			Director.explosion_at(velle.to_global(s["pos"]), "bomb")
+			_Director.explosion_at(velle.to_global(s["pos"]), "bomb")
 			await h.wait(0.3)
 
 
 func run(h) -> void:
 	var ch: Rect2i = await _enter(h)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	h.check("the boss director runs in a Story Mode run", boss != null)
-	var started: bool = await h.until(func(): return Director.current() == "fight", 8.0)
-	h.check("entering the chamber after the awakening beat starts the fight", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "fight", 8.0)
+	h.check("entering the chamber after the awakening beat starts the fight", started, _Director.current())
 	if not started:
 		return
 	var velle = boss.velle
@@ -115,7 +116,7 @@ func run(h) -> void:
 
 	# ---- the lid holds while stalks live
 	var hp0: float = velle.hp
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.2)
 	await h.shot("lid_holds")
 	h.check("the shut eye takes no damage", velle.hp == hp0 and velle.stats["blocked"] == 1, velle.stats)
@@ -146,16 +147,16 @@ func run(h) -> void:
 	await h.wait(0.6)
 	await h.shot("eye_open")
 	h.check("with every stalk popped the great eye opens", opened, velle.state)
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "blast", 60.0)
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "blast", 60.0)
 	await h.wait(0.15)
 	await h.shot("core_hit")
 	h.check("a Suit Blaster blast hurts the open eye", velle.hp == hp0 - Boss.DAMAGE["blast"]["core"], velle.hp)
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.2)
 	h.check("a bomb hurts it more", velle.hp == hp0 - Boss.DAMAGE["blast"]["core"] - Boss.DAMAGE["bomb"]["core"], velle.hp)
 
 	# ---- phase 2
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.5)
 	await h.shot("roar")
 	h.check("at %d health phase 2 begins" % Boss.PHASE_AT[0], velle.phase == 1, [velle.phase, velle.hp])
@@ -174,9 +175,9 @@ func run(h) -> void:
 	await h.until(func(): return velle.is_open(), 6.0)
 	await h.wait(2.2)
 	await h.shot("ring_burst")
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.2)
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.5)
 	h.check("at %d health phase 3 begins" % Boss.PHASE_AT[1], velle.phase == 2, [velle.phase, velle.hp])
 
@@ -208,14 +209,14 @@ func run(h) -> void:
 	await h.wait(0.5)
 	for i in 6:
 		if velle.state == "open":
-			Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+			_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 			await h.wait(0.2)
 	await h.wait(0.4)
 	await h.burst("dying", 4, 12)
 	h.check("at zero health Velle is dying", velle.state == "dying", [velle.state, velle.hp])
-	var ended: bool = await h.until(func(): return Director.current() != "fight", 8.0)
+	var ended: bool = await h.until(func(): return _Director.current() != "fight", 8.0)
 	await h.wait(0.5)
 	await h.shot("husk")
-	h.check("the fight ends when Velle falls", ended, Director.current())
+	h.check("the fight ends when Velle falls", ended, _Director.current())
 	h.note("velle stats", velle.stats)
 	h.note("sounds played", load("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd").played)

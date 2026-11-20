@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # apply their property changes when bought (the user saw "nothing happens").
 
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -20,7 +21,7 @@ func _popup_open() -> bool:
 
 
 func _ids(arr: Array) -> Array:
-	var out: Array = arr.map(func(x): return GadgetShop._base(x))
+	var out: Array = arr.map(func(x): return _GadgetShop._base(x))
 	out.sort()
 	return out
 
@@ -56,12 +57,12 @@ func _check_upgrade(h, id: String) -> void:
 func run(h) -> void:
 	h.disable_waves()
 	await h.wait(1.0)
-	var entries: Array = GadgetShop.entries("team1")
+	var entries: Array = _GadgetShop.entries("team1")
 	var prices: Array = entries.map(func(e): return _cost(e))
 	h.note("chain prices", prices)
 	h.check("the shop lists New Gadget I-IV, each dearer than the last", prices.size() == 4 and prices.all(func(p): return p > 0) and prices[0] < prices[1] and prices[1] < prices[2] and prices[2] < prices[3], prices)
 	h.check("no slot-specific entries are left", GameWorld.upgrades.keys().filter(func(k): return "storygadget" in k).is_empty(), GameWorld.upgrades.keys().filter(func(k): return "storygadget" in k))
-	var pool: Array = _ids(GadgetShop.candidates("team1", "player1"))
+	var pool: Array = _ids(_GadgetShop.candidates("team1", "player1"))
 	h.note("offer pool", pool)
 	var suit: Array = pool.filter(func(x): return x in ["probe", "prospectionmeter", "resourcepacker", "suitblaster", "keeperonewayteleporter"])
 	h.check("the pool has no keeper-suit gadget", suit.is_empty() and pool.size() > 3, {"suit": suit, "pool": pool})
@@ -79,28 +80,28 @@ func run(h) -> void:
 
 	# ---- New Gadget I: open, cancel (free), reopen (same offers), reroll (1 water), pick (pays I)
 	await _open(h)
-	var first: Array = GadgetShop.offers("team1", "player1").duplicate()
+	var first: Array = _GadgetShop.offers("team1", "player1").duplicate()
 	await h.shot("new_gadget_1_offers")
-	h.check("vanilla's number of offers (%d)" % GadgetShop.offer_count("team1"), first.size() == GadgetShop.offer_count("team1"), first)
+	h.check("vanilla's number of offers (%d)" % _GadgetShop.offer_count("team1"), first.size() == _GadgetShop.offer_count("team1"), first)
 	h.check("opening charges nothing", h.inv("money") == 100000, h.inv("money"))
 	await h.press("ui_cancel")
 	await h.wait(1.5)
 	h.check("Cancel closes it without buying", not _popup_open() and h.inv("money") == 100000 and not GameWorld.boughtUpgrades.has(entries[0]))
 	await _open(h)
-	h.check("reopening shows the same offers", GadgetShop.offers("team1", "player1") == first, [first, GadgetShop.offers("team1", "player1")])
+	h.check("reopening shows the same offers", _GadgetShop.offers("team1", "player1") == first, [first, _GadgetShop.offers("team1", "player1")])
 	Level.stage.rerollOffers("team1", "player1")
 	await h.wait(1.0)
-	var rerolled: Array = GadgetShop.offers("team1", "player1")
+	var rerolled: Array = _GadgetShop.offers("team1", "player1")
 	h.check("a reroll costs 1 water and changes the offers", h.inv("water") == 0 and rerolled != first, {"water": h.inv("water"), "before": first, "after": rerolled})
 	await h.shot("new_gadget_1_rerolled")
 	Level.stage.rerollOffers("team1", "player1")
 	await h.wait(0.5)
-	h.check("no water, no reroll", GadgetShop.offers("team1", "player1") == rerolled)
+	h.check("no water, no reroll", _GadgetShop.offers("team1", "player1") == rerolled)
 	var picks: Array = []
 	for tier in 4:
 		if tier > 0:
 			await _open(h)
-		var offers: Array = GadgetShop.offers("team1", "player1")
+		var offers: Array = _GadgetShop.offers("team1", "player1")
 		if offers.is_empty():
 			h.check("New Gadget %d has offers" % (tier + 1), false)
 			break
@@ -109,12 +110,12 @@ func run(h) -> void:
 		Level.stage.onGadgetSelected(pick, CONST.GADGET, "player1", "team1")
 		await h.wait(2.0)
 		picks.append(pick)
-		h.check("New Gadget %d: picking %s pays $%d, installs it and marks the entry bought" % [tier + 1, GadgetShop._base(pick), prices[tier]],
+		h.check("New Gadget %d: picking %s pays $%d, installs it and marks the entry bought" % [tier + 1, _GadgetShop._base(pick), prices[tier]],
 			m0 - int(h.inv("money")) == prices[tier] and GameWorld.boughtUpgrades.has(pick) and GameWorld.boughtUpgrades.has(entries[tier]) and not _popup_open(),
 			{"paid": m0 - int(h.inv("money")), "pick": pick})
 	await h.shot("after_four_gadgets")
 	h.check("all four entries bought", entries.all(func(e): return GameWorld.boughtUpgrades.has(e)))
-	h.check("a fifth open does nothing", GadgetShop.next_entry("team1") == "")
+	h.check("a fifth open does nothing", _GadgetShop.next_entry("team1") == "")
 
 	# ---- upgrades of the bought gadgets, the primary gadget and the dome apply.
 	# Up to 3 per root, every root tried. Many cost water or cobalt as well as
@@ -122,7 +123,7 @@ func run(h) -> void:
 	h.set_inv("money", 1000000)
 	h.set_inv("water", 500)
 	h.set_inv("sand", 500)
-	var roots: Array = picks.map(func(p): return GadgetShop._base(p)) + [Level.loadout.domes[0].primaryGadgetId, "laser"]
+	var roots: Array = picks.map(func(p): return _GadgetShop._base(p)) + [Level.loadout.domes[0].primaryGadgetId, "laser"]
 	var tried: Array = []
 	var per_root: Dictionary = {}
 	for pass_i in 4:
@@ -130,7 +131,7 @@ func run(h) -> void:
 			var u: Dictionary = GameWorld.upgrades[id]
 			if GameWorld.boughtUpgrades.has(id) or u.get("type", "") == "gadget" or u.get("propertychanges", []).is_empty():
 				continue
-			var base: String = GadgetShop._base(id)
+			var base: String = _GadgetShop._base(id)
 			var root: String = ""
 			for r: String in roots:
 				if base.begins_with(r):

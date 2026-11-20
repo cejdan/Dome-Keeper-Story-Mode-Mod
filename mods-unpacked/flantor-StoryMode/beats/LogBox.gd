@@ -8,7 +8,9 @@ extends Control
 # drive both.
 
 const LogData = preload("res://mods-unpacked/flantor-StoryMode/data/logs.gd")
+static var _LogData = LogData  # calls go through this: lazy_preload makes const-preload calls slow
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 const GREEN := Color("2fbf78")
 const GREEN_TEXT := Color("9ef5c8")
@@ -44,7 +46,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	var log: Dictionary = LogData.by_id(beat_id)
+	var log: Dictionary = _LogData.by_id(beat_id)
 	var dim: ColorRect = ColorRect.new()
 	dim.color = Color(0.0, 0.03, 0.02, 0.55)
 	_full(dim)
@@ -75,7 +77,7 @@ func _ready() -> void:
 	head.add_theme_constant_override("separation", 16)
 	col.add_child(head)
 	var icon: TextureRect = TextureRect.new()
-	icon.texture = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/datalog_icon.png")
+	icon.texture = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/datalog_icon.png")
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.custom_minimum_size = Vector2(42, 42)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

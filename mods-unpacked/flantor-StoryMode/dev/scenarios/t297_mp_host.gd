@@ -12,8 +12,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 300
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const K = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t297_keeper2.gd")
+static var _K = K  # calls go through this: lazy_preload makes const-preload calls slow
 const KEEPERS := ["keeper2", "keeper4"]
 const MONEY := 5000
 
@@ -56,11 +59,11 @@ func run(h) -> void:
 	await h.wait(0.5)
 
 	# ---- the host's own shop
-	var shop = await K.open_shop(h, me)
+	var shop = await _K.open_shop(h, me)
 	h.check("the host's shop opens", shop != null)
 	if shop != null:
-		K.check_keeper_shop(h, me, shop, "host: ")
-		await K.focus(h, shop, me.playerId + ".storyheatshield1")
+		_K.check_keeper_shop(h, me, shop, "host: ")
+		await _K.focus(h, shop, me.playerId + ".storyheatshield1")
 		await h.shot("host_shop")
 		await h.press("ui_cancel")
 		await h.wait(1.0)
@@ -77,7 +80,7 @@ func run(h) -> void:
 		var room_metal := false
 		for dy in range(-3, 0):
 			for dx in range(-1, 2):
-				if Metal.is_metal_id(td.get_resourcev(c + Vector2i(dx, dy))):
+				if _Metal.is_metal_id(td.get_resourcev(c + Vector2i(dx, dy))):
 					room_metal = true
 		if absi(c.x) > 2 and not room_metal and _clear_of_hazards(c, 4):
 			gate = c
@@ -93,7 +96,7 @@ func run(h) -> void:
 	var done: bool = await h.until(func(): return gw.boughtUpgrades.has(cpid + ".storyheatshield1") and gw.boughtUpgrades.has(cpid + ".suitblaster"), 90.0)
 	await h.wait(1.0)
 	var view := {
-		"client tier": LavaData.shield_tier(ck), "host tier": LavaData.shield_tier(me),
+		"client tier": _LavaData.shield_tier(ck), "host tier": _LavaData.shield_tier(me),
 		"bought": gw.boughtUpgrades.filter(func(k): return "storyheat" in k or "suitblaster" in k),
 		"money": int(Data.ofOr("team1.inventory.money", -1)),
 	}
@@ -101,7 +104,7 @@ func run(h) -> void:
 	h.check("the client bought Heat Shielding I and the Suit Blaster", done, view)
 	h.check("the client's keeper4 is at tier I, the host's keeper2 at 0", view["client tier"] == 1 and view["host tier"] == 0, view)
 	h.check("the Suit Blaster went to the client's keeper only", gw.boughtUpgrades.has(cpid + ".suitblaster") and not gw.boughtUpgrades.has(me.playerId + ".suitblaster"), view["bought"])
-	var paid: int = K.story_price("storyheatshield1") + K.story_price("storysuitblaster")
+	var paid: int = _K.story_price("storyheatshield1") + _K.story_price("storysuitblaster")
 	h.check("the team paid $%d once" % paid, view["money"] == MONEY - paid, view["money"])
 
 	# ---- the client's blast

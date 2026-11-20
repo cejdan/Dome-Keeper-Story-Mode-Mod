@@ -4,10 +4,11 @@ extends "res://content/drop/Drop.gd"
 # sets `type`; the sprite comes from the mineral art by that type.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func _ready():
-	var tex: Texture2D = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/minerals/drop_%s.png" % type)
+	var tex: Texture2D = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/minerals/drop_%s.png" % type)
 	if tex != null:
 		$Sprite2D.texture = tex
 	var trigger: Node = get_node_or_null("DropEnterTrigger")

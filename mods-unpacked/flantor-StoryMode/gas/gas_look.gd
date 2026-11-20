@@ -14,6 +14,7 @@ extends Node2D
 # Draw-only: nothing here is saved or changes the game.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const DIR := "res://mods-unpacked/flantor-StoryMode/gas/look/"
 const TILE := 24.0
 const SUB := 8                      # field texels per tile
@@ -187,7 +188,7 @@ func _process(delta: float) -> void:
 func _keeper():
 	if keeper != null and is_instance_valid(keeper):
 		return keeper
-	var k = Story.local_keeper()
+	var k = _Story.local_keeper()
 	return k if k != null and is_instance_valid(k) else null
 
 

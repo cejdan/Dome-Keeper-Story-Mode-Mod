@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
+static var _BeatData = BeatData  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -23,7 +24,7 @@ func run(h) -> void:
 		return
 	var room: Vector2i = Vector2i(0, 6)
 	await h.dig_room(room + Vector2i(-1, -1), room + Vector2i(1, 1))
-	h.check("one lava death beat, on the first death (2 to 5 cut, #285)", BeatData.ids_for("lava_death:1") == ["lava_death_1"] and range(2, 6).all(func(n): return BeatData.ids_for("lava_death:%d" % n).is_empty()))
+	h.check("one lava death beat, on the first death (2 to 5 cut, #285)", _BeatData.ids_for("lava_death:1") == ["lava_death_1"] and range(2, 6).all(func(n): return _BeatData.ids_for("lava_death:%d" % n).is_empty()))
 
 	var want: Array = ["lava_death_1", "", "", "", "", "", ""]
 	var got: Array = []

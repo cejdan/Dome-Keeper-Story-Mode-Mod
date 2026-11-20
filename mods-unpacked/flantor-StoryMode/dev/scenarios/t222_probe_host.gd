@@ -6,7 +6,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 420
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -16,7 +18,7 @@ func boot() -> Dictionary:
 func run(h) -> void:
 	if not await host_start(h):
 		return
-	var opened: bool = await h.until(func(): return StoryBeats.is_open(), 15.0)
+	var opened: bool = await h.until(func(): return _StoryBeats.is_open(), 15.0)
 	h.check("welcome log open on the host", opened)
 	share("beat_open", true)
 	await h.wait(5.0)
@@ -31,7 +33,7 @@ func run(h) -> void:
 	share("go", true)
 	# The client buys Heat Shielding I, then uses the gadget shop: open, Cancel,
 	# reopen, one reroll, a pick (New Gadget I) and a second pick (New Gadget II).
-	var entries: Array = GadgetShop.entries("team1")
+	var entries: Array = _GadgetShop.entries("team1")
 	var cost := func(id: String) -> int: return int(GameWorld.upgrades.get(id, {}).get("cost", {}).get("money", -1))
 	var spent: int = cost.call(Keepers.first().playerId + ".storyheatshield1") + cost.call(entries[0]) + cost.call(entries[1])
 	var both: bool = await h.until(func(): return GameWorld.boughtUpgrades.has(entries[0]) and GameWorld.boughtUpgrades.has(entries[1]), 90.0)

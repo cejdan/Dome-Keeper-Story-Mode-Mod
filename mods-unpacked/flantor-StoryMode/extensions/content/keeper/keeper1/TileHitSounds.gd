@@ -6,6 +6,7 @@ extends "res://content/keeper/keeper1/TileHitSounds.gd"
 # hit here is refused. Shared by the Engineer's drill and the Assessor's ball.
 
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 
 # Unused anywhere in vanilla, so they mean only this.
 const METAL_STREAMS: Array[String] = [
@@ -22,7 +23,7 @@ var _metal_sound: Node
 
 
 func hit(tile, buffed: bool, playHitPitch: bool):
-	if not Metal.is_metal(tile.type):
+	if not _Metal.is_metal(tile.type):
 		super(tile, buffed, playHitPitch)
 		return
 	metal_hits += 1

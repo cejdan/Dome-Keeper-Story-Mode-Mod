@@ -8,8 +8,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 300
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const K = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t297_keeper2.gd")
+static var _K = K  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -28,14 +30,14 @@ func run(h) -> void:
 	await h.until(func(): return int(Data.ofOr("team1.inventory.money", 0)) > 0, 10.0)
 
 	# ---- its own shop, its own buttons
-	var shop = await K.open_shop(h, me)
+	var shop = await _K.open_shop(h, me)
 	h.check("the client's shop opens", shop != null)
 	if shop == null:
 		return
-	K.check_keeper_shop(h, me, shop, "client: ")
+	_K.check_keeper_shop(h, me, shop, "client: ")
 	for raw in ["storyheatshield1", "storysuitblaster"]:
 		var id: String = me.playerId + "." + raw
-		if not await K.focus(h, shop, id):
+		if not await _K.focus(h, shop, id):
 			h.check("panel " + id, false)
 			break
 		await h.press("ui_select")
@@ -46,7 +48,7 @@ func run(h) -> void:
 	await h.press("ui_cancel")
 	await h.wait(1.0)
 	var blaster: bool = await h.until(func(): return gw.boughtUpgrades.has(me.playerId + ".suitblaster"), 10.0)
-	h.check("this keeper is at tier I and has the Suit Blaster", LavaData.shield_tier(me) == 1 and blaster, [LavaData.shield_tier(me), blaster])
+	h.check("this keeper is at tier I and has the Suit Blaster", _LavaData.shield_tier(me) == 1 and blaster, [_LavaData.shield_tier(me), blaster])
 
 	# ---- the gate
 	var g = go.get("gate")

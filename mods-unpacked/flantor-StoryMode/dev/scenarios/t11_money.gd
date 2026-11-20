@@ -3,6 +3,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # Ticket 11: deliveries credit dollars and the HUD shows the balance.
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -16,7 +17,7 @@ func run(h) -> void:
 	await h.deliver("iron", 3)
 	await h.until(func(): return h.inv("iron") >= 3, 8.0)
 	var s1: Dictionary = h.snap("after 3 iron")
-	h.check("3 iron pay 3 x $5", s1["team1.inventory.money"] == 3 * Minerals.value_of("iron"), s1["team1.inventory.money"])
+	h.check("3 iron pay 3 x $5", s1["team1.inventory.money"] == 3 * _Minerals.value_of("iron"), s1["team1.inventory.money"])
 	await h.deliver("water", 2)
 	await h.until(func(): return h.inv("water") >= 2, 8.0)
 	var s2: Dictionary = h.snap("after 2 water")

@@ -15,9 +15,13 @@ extends Node
 # installed (pleas/runes.gd, #92).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const PleaData = preload("res://mods-unpacked/flantor-StoryMode/data/pleas.gd")
+static var _PleaData = PleaData  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 
 const GROUP := "story-pleas"
 const RED := Color("ff3b30")
@@ -72,7 +76,7 @@ func propertyChanged(property: String, oldValue, newValue) -> void:
 
 
 func stage() -> String:
-	return PleaData.stage_for(StoryBeats.deepest())
+	return _PleaData.stage_for(_StoryBeats.deepest())
 
 
 func _wave_arrived() -> void:
@@ -86,7 +90,7 @@ func _wave_arrived() -> void:
 func _process(delta: float) -> void:
 	if not _pins.is_empty():
 		_place_pins()
-	if GameWorld.paused or not Story.is_story():
+	if GameWorld.paused or not _Story.is_story():
 		return
 	_time += delta
 	var present: bool = bool(Data.ofOr("team1.monsters.wavepresent", false))
@@ -124,10 +128,10 @@ func say(kind: String, at = null, forced: String = "", life: float = -1.0, from_
 		return ""
 	# No pleas during the boss sequence (#174); a line the boss itself asks
 	# for (`forced`: the thanks after the finale) still shows.
-	if forced == "" and Story.boss_active():
+	if forced == "" and _Story.boss_active():
 		return ""
 	var st: String = stage()
-	var pool: Array = PleaData.pool(st, kind)
+	var pool: Array = _PleaData.pool(st, kind)
 	var line: String = forced
 	if line == "":
 		if pool.is_empty():
@@ -150,10 +154,10 @@ func say(kind: String, at = null, forced: String = "", life: float = -1.0, from_
 		var dome = Level.getDome("team1")
 		pos = (dome.global_position if dome != null else Vector2.ZERO) + DOME_OFFSET
 		if _split():
-			for k in Story.local_keepers():
+			for k in _Story.local_keepers():
 				if not _keeper_sees(k, pos, -24):
 					away.append(k)
-			if away.size() == Story.local_keepers().size():
+			if away.size() == _Story.local_keepers().size():
 				where = "screen"
 			elif not away.is_empty():
 				where = "both"
@@ -186,21 +190,21 @@ func _net_say(kind: String, at, line: String, life: float) -> void:
 
 # The line as it shows: runes for whatever the translators can't read yet (#92).
 func render(line: String) -> String:
-	return Runes.render(line, Runes.stage(), true)
+	return _Runes.render(line, _Runes.stage(), true)
 
 
 # On any local keeper's split view (#231), 24 px in from its edge.
 func _on_screen(world_pos: Vector2) -> bool:
-	return Story.on_any_view(world_pos, -24)
+	return _Story.on_any_view(world_pos, -24)
 
 
 # More than one local keeper, each with its own view (splitscreen, #263).
 func _split() -> bool:
-	return Story.local_keepers().size() > 1 and Level.viewports != null and is_instance_valid(Level.viewports)
+	return _Story.local_keepers().size() > 1 and Level.viewports != null and is_instance_valid(Level.viewports)
 
 
 func _keeper_sees(k, world_pos: Vector2, grow: float) -> bool:
-	var r: Rect2 = Story.view_rect(k.playerId, grow)
+	var r: Rect2 = _Story.view_rect(k.playerId, grow)
 	return not r.has_area() or r.has_point(world_pos)
 
 
@@ -215,7 +219,7 @@ func _place_pins() -> void:
 		if not is_instance_valid(pin) or not is_instance_valid(k):
 			_pins.remove_at(i)
 			continue
-		var r: Rect2 = Story.view_rect(k.playerId)
+		var r: Rect2 = _Story.view_rect(k.playerId)
 		if r.has_area():
 			pin.global_position = r.position
 			pin.scale = Vector2.ONE / Level.viewports.getPlayerCam(k.playerId).zoom
@@ -229,7 +233,7 @@ func _make(line: String, st: String, kind: String, pos: Vector2, where: String, 
 	label.scroll_active = false
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var font: Font = Runes.font()
+	var font: Font = _Runes.font()
 	label.add_theme_font_override("normal_font", font if font != null else load("res://gui/fonts/FontLarge.tres"))
 	label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	label.add_theme_color_override("default_color", RED if kind != "death" else RED.lerp(Color.WHITE, 0.25))

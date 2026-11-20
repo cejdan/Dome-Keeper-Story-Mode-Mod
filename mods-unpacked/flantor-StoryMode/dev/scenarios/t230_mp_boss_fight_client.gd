@@ -7,7 +7,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t230_mp_boss_fight_host.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
+static var _Boss = Boss  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
 const TIMEOUT := 480
 
@@ -47,30 +49,30 @@ func run(h) -> void:
 	h.note("chamber cell before the reveal", cell_facts.call())
 	await h.reveal(cells)
 	h.note("chamber cell after the reveal", cell_facts.call())
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	h.check("the boss director is on the client", boss != null)
-	h.check("no boss state yet", Director.current() == "" and not Director.jams_recall(), Director.current())
+	h.check("no boss state yet", _Director.current() == "" and not _Director.jams_recall(), _Director.current())
 	await h.teleport_tile(ch.position + Vector2i(ch.size.x - 4, 2))
 
 	# ---- the fight, as the client reads and sees it
-	var reads: bool = await h.until(func(): return Director.current() == "fight", 15.0)
-	h.check("the boss state reads `fight` on the client", reads, Director.current())
+	var reads: bool = await h.until(func(): return _Director.current() == "fight", 15.0)
+	h.check("the boss state reads `fight` on the client", reads, _Director.current())
 	var built: bool = await h.until(func(): return boss.velle != null and boss.velle.puppet and boss.velle.time > 0.5, 10.0)
 	h.check("the client has the boss layer and a puppet Velle", built and boss.layer != null, [boss.layer != null, boss.velle != null])
 	if not built:
 		return
 	# The boss state lost from this client's Data comes back (the repeat, kept as insurance).
 	Data.values.erase(Director.STATE)
-	h.check("state gone from the client's Data", Director.current() == "")
-	var back: bool = await h.until(func(): return Director.current() == "fight", 5.0)
-	h.check("the host's repeat brings the boss state back within %.0f s" % Director.NET_REPEAT, back, Director.current())
+	h.check("state gone from the client's Data", _Director.current() == "")
+	var back: bool = await h.until(func(): return _Director.current() == "fight", 5.0)
+	h.check("the host's repeat brings the boss state back within %.0f s" % Director.NET_REPEAT, back, _Director.current())
 	await h.until(func(): return boss.velle != null and is_instance_valid(boss.velle) and boss.velle.puppet and boss.velle.time > 0.5, 5.0)
 	var velle = boss.velle
 	var health = boss.health
 	await h.shot("client_rising")
-	h.check("the recall is jammed for the client too", Director.jams_recall())
+	h.check("the recall is jammed for the client too", _Director.jams_recall())
 	await h.until(func(): return velle.state == "fight" and velle.stalks.size() > 0, 8.0)
-	h.check("Velle's stalks grow on the client", velle.stalks.size() == Boss.stalks(0), _facts(velle))
+	h.check("Velle's stalks grow on the client", velle.stalks.size() == _Boss.stalks(0), _facts(velle))
 	await h.teleport_tile(ch.position + Vector2i(ch.size.x - 4, -3))
 	await h.wait(0.5)
 	h.check("the client's keeper cannot leave the chamber", ch.has_point(h.keeper_tile()), h.keeper_tile())
@@ -135,7 +137,7 @@ func run(h) -> void:
 	var done = await shared(h, "done", 120.0)
 	await h.wait(1.0)
 	await h.shot("client_husk")
-	h.check("the won fight moves the client to the chase", done != null and Director.current() == "chase", [done, Director.current()])
+	h.check("the won fight moves the client to the chase", done != null and _Director.current() == "chase", [done, _Director.current()])
 	h.check("Velle is dead on the client", velle.state == "dead" and velle.hp <= 0.0, _facts(velle))
 	h.check("the chase music plays on the client", boss.music.mode == "chase" and boss.music.playing().size() > 0, boss.music.playing())
 	h.note("client sounds", Sfx.played)

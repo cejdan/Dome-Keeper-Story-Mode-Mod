@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t230_mp_boss_finale_host.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 480
 
@@ -52,8 +53,8 @@ func _kinds(fin) -> Dictionary:
 func run(h) -> void:
 	h.check("this is a client", not h.multiplayer.is_server())
 	await shared(h, "finale", 120.0)
-	var boss = Director.instance()
-	var built: bool = await h.until(func(): return Director.current() == "finale" and boss.finale != null and is_instance_valid(boss.finale), 15.0)
+	var boss = _Director.instance()
+	var built: bool = await h.until(func(): return _Director.current() == "finale" and boss.finale != null and is_instance_valid(boss.finale), 15.0)
 	h.check("the client has a puppet finale", built and boss.finale.puppet)
 	if not built:
 		return
@@ -160,8 +161,8 @@ func run(h) -> void:
 	h.check("and thank the keepers there", thanks, fin.said)
 	await h.wait(1.0)
 	await h.shot("client_thanks")
-	var won: bool = await h.until(func(): return Director.current() == "won", 60.0)
-	h.check("the client reads `won`", won, Director.current())
+	var won: bool = await h.until(func(): return _Director.current() == "won", 60.0)
+	h.check("the client reads `won`", won, _Director.current())
 	var ending: bool = await h.until(func(): return Level.mode.get("_ending") == true, 10.0)
 	h.check("the saved ending plays on the client", ending)
 	await h.wait(3.0)

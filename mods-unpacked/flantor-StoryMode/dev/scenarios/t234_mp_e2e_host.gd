@@ -15,10 +15,14 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 1050
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const Runes = preload("res://mods-unpacked/flantor-StoryMode/pleas/runes.gd")
+static var _Runes = Runes  # calls go through this: lazy_preload makes const-preload calls slow
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 
 const MONEY := "team1.inventory.money"
@@ -58,7 +62,7 @@ static func shop_facts() -> Dictionary:
 	f["health meter"] = GameWorld.boughtUpgrades.has("team1.domehealthmeter")
 	f["metal bit"] = GameWorld.boughtUpgrades.has("team1." + Metal.DRILL_UPGRADE)
 	f["gadgets"] = gadgets_bought().size()
-	f["new gadget entries"] = GadgetShop.entries("team1").filter(func(e): return GameWorld.boughtUpgrades.has(e)).size()
+	f["new gadget entries"] = _GadgetShop.entries("team1").filter(func(e): return GameWorld.boughtUpgrades.has(e)).size()
 	return f
 
 
@@ -212,12 +216,12 @@ func run(h) -> void:
 	h.note("start", shop_facts())
 
 	# ---- 1. A second client buys the Teleporter (New Gadget I) and leaves.
-	var cands: Array = GadgetShop.candidates("team1", "player1")
+	var cands: Array = _GadgetShop.candidates("team1", "player1")
 	h.check("the Teleporter is a gadget-shop candidate", cands.has(TP), cands)
 	var others: Array = cands.filter(func(c): return c != TP)
-	var n: int = GadgetShop.offer_count("team1")
+	var n: int = _GadgetShop.offer_count("team1")
 	Data.apply("team1.story.gadgetoffers", ",".join([TP] + others.slice(0, n - 1)))
-	var entries: Array = GadgetShop.entries("team1")
+	var entries: Array = _GadgetShop.entries("team1")
 	var m0: int = money()
 	share("leaver_go", true)
 	var tp: bool = await h.until(func(): return GameWorld.boughtUpgrades.has(TP) and GameWorld.boughtUpgrades.has(entries[0]), 90.0)
@@ -236,7 +240,7 @@ func run(h) -> void:
 	# ---- 2. Selling as the host: iron at the dome.
 	m0 = money()
 	await h.deliver("iron", 3)
-	var iron: int = Minerals.value_of("iron")
+	var iron: int = _Minerals.value_of("iron")
 	var sold: bool = await h.until(func(): return money() - m0 == 3 * iron, 15.0)
 	h.check("host sells 3 iron for $%d" % (3 * iron), sold, money() - m0)
 	await h.wait(0.5)
@@ -275,7 +279,7 @@ func run(h) -> void:
 		await h.frames(4)
 	share("carry_home", true)
 	await _bring_home(h, carried, "sale")
-	var want: int = 3 * iron + Bones.value_for(0)
+	var want: int = 3 * iron + _Bones.value_for(0)
 	sold = await h.until(func(): return money() - m0 >= want, 30.0)
 	h.check("the client's keeper sells 3 iron and the bones for $%d" % want, sold and money() - m0 == want, {"got": money() - m0, "want": want})
 	await h.wait(1.0)
@@ -315,10 +319,10 @@ func run(h) -> void:
 	h.check("the client's hit spawns the translator on the host", tdrops.size() == 1, tdrops.size())
 	await _bring_home(h, tdrops, "translator")
 	var installed: bool = await h.until(func(): return int(Data.ofOr("team1.inventory.translator", 0)) >= 1, 60.0)
-	h.check("the client's translator is installed: plea stage 1", installed and Runes.stage() == 1, [Data.ofOr("team1.inventory.translator", 0), Runes.stage()])
+	h.check("the client's translator is installed: plea stage 1", installed and _Runes.stage() == 1, [Data.ofOr("team1.inventory.translator", 0), _Runes.stage()])
 	await h.wait(1.0)
 	await h.shot("host_translator")
-	share("translated", Runes.stage())
+	share("translated", _Runes.stage())
 
 	# ---- 5. The shop: the host's own drill; the client buys the rest.
 	Data.apply(MONEY, 200000)

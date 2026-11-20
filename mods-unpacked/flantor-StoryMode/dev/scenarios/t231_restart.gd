@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # t231_split_restart does the same with two local keepers.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 # `-Extra "--welcome"`: the keeper's welcome log opens as in a real run (it
 # opens again on the restarted run), and is read each time.
@@ -50,7 +51,7 @@ func restart(h) -> void:
 		h.check("welcome log after the restart", await h.read_beat("welcome_run2", 10.0) != "")
 	await h.wait(3.0)
 	h.check("new map", Level.levelSeed != seed0, [seed0, Level.levelSeed])
-	h.check("story mode", Story.is_story())
+	h.check("story mode", _Story.is_story())
 	var nk: int = Keepers.getAllOfTeam("team1").size()
 	h.check("no second laser until the team buys it (vanilla's Second Weapon)", not GameWorld.boughtUpgrades.has("team1.domesecondweapon") and Level.getDome("team1").stations[1].getControlledWeapons().size() == 0,
 		{"keepers": nk, "station 2 lasers": Level.getDome("team1").stations[1].getControlledWeapons().size()})

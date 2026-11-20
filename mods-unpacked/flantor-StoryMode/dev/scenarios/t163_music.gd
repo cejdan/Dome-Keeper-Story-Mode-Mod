@@ -6,6 +6,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # the sequence ends. Whether it fits is for a human ear.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
@@ -25,7 +26,7 @@ func run(h) -> void:
 		for x in range(ch.position.x - 2, ch.end.x + 2):
 			area.append(Vector2i(x, y))
 	await h.reveal(area)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var m = boss.music
 	h.check("no boss music before the fight", m.playing().is_empty(), m.playing())
 	# Mining music on, to see it step aside.
@@ -34,7 +35,7 @@ func run(h) -> void:
 	await h.wait(1.0)
 	h.check("the mining music is playing first", Audio.isMusicPlaying())
 	await h.teleport_tile(ch.position + Vector2i(3, 2))
-	await h.until(func(): return Director.current() == "fight", 8.0)
+	await h.until(func(): return _Director.current() == "fight", 8.0)
 	var velle = boss.velle
 	velle.attack_enabled = false
 	velle.spawn_bombs = false
@@ -58,8 +59,8 @@ func run(h) -> void:
 	velle.hp = 0.1
 	velle.state = "open"
 	velle.lid = 1.0
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
-	await h.until(func(): return Director.current() == "chase", 10.0)
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	await h.until(func(): return _Director.current() == "chase", 10.0)
 	await h.wait(4.0)
 	h.note("chase", m.playing())
 	h.check("the chase: the chase layers", m.playing().size() >= 1 and _files(m).all(func(f): return f.begins_with("boss_chase")), m.playing())
@@ -67,7 +68,7 @@ func run(h) -> void:
 	await h.dig_room(Vector2i(-1, 1), Vector2i(1, 9))
 	await h.teleport_tile(Vector2i(0, 3))
 	h.down("ui_up")
-	await h.until(func(): return Director.current() == "finale", 20.0)
+	await h.until(func(): return _Director.current() == "finale", 20.0)
 	h.up("ui_up")
 	var fin = boss.finale
 	# A breath of silence first (#196): the chase music fades out.
@@ -89,6 +90,6 @@ func run(h) -> void:
 			if is_instance_valid(mon) and not mon.dead:
 				mon.hit("laser", 99999.0, 0.0)
 		await h.until(func(): return fin.step in ["round2", "allies"] and fin.t > 1.6, 12.0)
-	await h.until(func(): return Director.current() == "won", 40.0)
+	await h.until(func(): return _Director.current() == "won", 40.0)
 	await h.wait(4.0)
 	h.check("when the horror is defeated the boss music fades out", m.playing().is_empty(), m.playing())

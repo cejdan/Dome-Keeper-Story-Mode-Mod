@@ -18,6 +18,7 @@ extends RefCounted
 # player2.suit.heatshield = 2 (LavaData.shield_tier reads it per keeper).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 const LIMIT := "storykeeper"
 const HEAT_SHIELD := "storyheatshield"   # + tier, 1..TIERS
@@ -94,7 +95,7 @@ static func mark_blaster_entries() -> void:
 # team's purchase protected everyone then), the team's entries leave the shop,
 # and a keeper with the Suit Blaster has its own entry marked bought.
 static func after_load() -> void:
-	if not Story.is_story() or not GameWorld.multiplayer.is_server():
+	if not _Story.is_story() or not GameWorld.multiplayer.is_server():
 		return
 	var pids: Array = player_ids()
 	var changed: bool = add_limits(pids)

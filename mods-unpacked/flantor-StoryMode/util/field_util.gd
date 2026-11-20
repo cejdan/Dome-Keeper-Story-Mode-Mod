@@ -4,6 +4,7 @@ extends RefCounted
 # share.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 const KEEPER_BOX := Vector2(10, 16)
 
@@ -27,7 +28,7 @@ static func per_player(d: Dictionary, key: String, old_key: String) -> Dictionar
 		for pid in v:
 			out[str(pid)] = float(v[pid])
 	else:
-		out[Story.local_pid()] = float(d.get(old_key, 0.0))
+		out[_Story.local_pid()] = float(d.get(old_key, 0.0))
 	return out
 
 

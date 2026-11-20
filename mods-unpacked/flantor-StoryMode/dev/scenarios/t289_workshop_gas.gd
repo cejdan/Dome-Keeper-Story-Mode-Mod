@@ -18,6 +18,7 @@
 #   ##GGGG........##      the tunnel                        y 5
 
 const Shoot = preload("res://mods-unpacked/flantor-StoryMode/dev/workshop_shoot.gd")
+static var _Shoot = Shoot  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 900
 
 var R := Vector2i.ZERO
@@ -48,18 +49,18 @@ func _fly(h, action: String, done: Callable, timeout: float) -> void:
 
 
 func run(h) -> void:
-	Shoot.window_1080()
+	_Shoot.window_1080()
 	h.disable_waves()
 	await h.until(func(): return Level.map.get_node_or_null("StoryGasField") != null, 10.0)
 	field = Level.map.get_node("StoryGasField")
 	var lava = Level.map.get_node("StoryLavaField")
 	var td = Level.map.tileData
-	var found: Vector2i = Shoot.find_rock(td, 18, 10, [1, 2, 3], 8, 90, -70, 70)
+	var found: Vector2i = _Shoot.find_rock(td, 18, 10, [1, 2, 3], 8, 90, -70, 70)
 	h.check("found rock in B2/B3 for the set", found.x != -9999, found)
 	R = found + Vector2i(1, 2)
 	h.note("set", {"room": R, "biome": td.get_biomev(R)})
-	Shoot.clear_hazards(lava, field, found, 18, 10)
-	await h.reveal(Shoot.rect(found, 18, 10))
+	_Shoot.clear_hazards(lava, field, found, 18, 10)
+	await h.reveal(_Shoot.rect(found, 18, 10))
 	var open: Array = [_c(3, -1), _c(4, -1), _c(10, -1), _c(11, -1), _c(13, 3), _c(13, 4)]
 	for x in 16:
 		for y in 3:
@@ -78,13 +79,13 @@ func run(h) -> void:
 	await h.wait(1.0)
 
 	# ---- 1. the breach
-	Shoot.clip(h, "gas_sealed")
+	_Shoot.clip(h, "gas_sealed")
 	await h.wait(3.0)
 	await h.shot("sealed")
-	Shoot.clip(h, "gas_drill")
+	_Shoot.clip(h, "gas_drill")
 	await _fly(h, "ui_left", func(): return field.breaches > 0, 30.0)
 	h.check("the keeper's drill opened the pocket", field.breaches > 0, field.stats())
-	Shoot.clip(h, "gas_burst")
+	_Shoot.clip(h, "gas_burst")
 	_guard(h)
 	await h.wait(0.5)
 	await _fly(h, "ui_right", func(): return h.keeper_tile().x >= R.x + 13, 6.0)
@@ -95,14 +96,14 @@ func run(h) -> void:
 	await h.shot("gas_climbs")
 	await h.wait(4.0)
 	await h.shot("gas_rolls")
-	Shoot.clip(h, "gas_wake")
+	_Shoot.clip(h, "gas_wake")
 	await _fly(h, "ui_left", func(): return h.keeper_tile().x <= R.x + 1, 4.0)
 	await h.wait(0.6)
 	await _fly(h, "ui_right", func(): return h.keeper_tile().x >= R.x + 14, 5.0)
 	await h.wait(1.0)
 	await h.shot("in_the_cloud")
 	await h.wait(2.0)
-	Shoot.clip(h, "gas_wake_end")
+	_Shoot.clip(h, "gas_wake_end")
 	h.note("toxin", {"toxin": field.toxin, "stats": field.stats()})
 
 	guard = false

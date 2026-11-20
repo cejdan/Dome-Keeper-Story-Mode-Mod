@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 420
 const Host = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t225_mp_host.gd")
+static var _Host = Host  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -18,7 +19,7 @@ func run(h) -> void:
 	# Since #228 a client's gas field starts empty and draws the host's stream.
 	var gas = Level.map.get_node_or_null("StoryGasField")
 	await h.until(func(): return gas != null and gas.net_packets > 0 and not gas.rock.is_empty(), 20.0)
-	var mine: Dictionary = Host._counts()
+	var mine: Dictionary = _Host._counts()
 	h.note("counts", {"host": host_counts, "client": mine})
 	h.check("story map facts arrived", Level.map.tileData.has_meta("story_meta_synced"))
 	for k in ["magma", "lava cells", "gas rock", "chains"]:

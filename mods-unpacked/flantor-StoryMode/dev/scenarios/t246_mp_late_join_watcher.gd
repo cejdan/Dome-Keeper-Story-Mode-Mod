@@ -9,6 +9,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t246_mp_late_join_host.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const KEY := "team1.story.t246"
 const LOG := "user://t246_host.json"
 const TIMEOUT := 420
@@ -92,7 +93,7 @@ func _n(v) -> int:
 
 func _watch() -> void:
 	var m = Data.ofOr("team1.inventory.money", null)
-	var now := [int(m) - 5000 if m != null and int(m) > 5000 else -1, _n(Data.ofOr(KEY, "")), _n(Director.current()) if Director.current().begins_with("t246_") else -1]
+	var now := [int(m) - 5000 if m != null and int(m) > 5000 else -1, _n(Data.ofOr(KEY, "")), _n(_Director.current()) if _Director.current().begins_with("t246_") else -1]
 	if now != _last:
 		_last = now
 		_seen.append([int(Time.get_unix_time_from_system() * 1000.0), now[0], now[1], now[2]])

@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # freed" for every sound that had finished on its own).
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const KeeperHealth = preload("res://mods-unpacked/flantor-StoryMode/boss/keeper_health.gd")
 const TIMEOUT := 300
@@ -53,11 +54,11 @@ func run(h) -> void:
 			area.append(Vector2i(x, y))
 	await h.reveal(area)
 	await h.teleport_tile(ch.position + Vector2i(3, 2))
-	var started: bool = await h.until(func(): return Director.current() == "fight", 8.0)
-	h.check("the fight starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "fight", 8.0)
+	h.check("the fight starts", started, _Director.current())
 	if not started:
 		return
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var velle = boss.velle
 	var health = boss.health
 	health.died.connect(func(cause: String): _cause = cause)
@@ -85,7 +86,7 @@ func run(h) -> void:
 	health.invulnerable = 0.0
 	var died: bool = await h.until(func(): return health.dead, 3.0)
 	h.check("an orb kills the keeper on its last heart", died and _cause == "orb" and health.hearts() == 0, {"dead": health.dead, "cause": _cause, "hearts": health.hearts()})
-	h.check("the boss sequence is lost", Director.current() == "lost", Director.current())
+	h.check("the boss sequence is lost", _Director.current() == "lost", _Director.current())
 	await h.wait(0.6)
 	await h.shot("keeper_down")
 	h.check("Velle's orbs and attacks are gone", velle.orbs.is_empty() and velle.attacks.is_empty(), [velle.orbs.size(), velle.attacks.size()])

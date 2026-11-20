@@ -14,6 +14,7 @@ extends RefCounted
 # looks the same every time at a given stage.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 const DIR := "res://mods-unpacked/flantor-StoryMode/art/runes/"
 const STAGE_KEY := "team1.story.translation"
@@ -120,7 +121,7 @@ static func font() -> FontFile:
 	if _font != null:
 		return _font
 	var m: Dictionary = meta()
-	var img: Image = Assets.image(DIR + "runes.png")
+	var img: Image = _Assets.image(DIR + "runes.png")
 	if img == null or m.is_empty():
 		return null
 	img = img.duplicate()

@@ -6,8 +6,11 @@ extends "res://content/drop/Drop.gd"
 # it through a save and reload. Selling them opens that biome's data log.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const SalePops = preload("res://mods-unpacked/flantor-StoryMode/hud/sale_pops.gd")
+static var _SalePops = SalePops  # calls go through this: lazy_preload makes const-preload calls slow
 
 # Seconds the bones' "+$X" pop stays readable before their log opens.
 const LOG_AFTER_POP := 1.1
@@ -17,7 +20,7 @@ var biome: int = 0
 
 
 func _ready():
-	var tex: Texture2D = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/minerbones.png")
+	var tex: Texture2D = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/minerbones.png")
 	if tex != null:
 		$Sprite2D.texture = tex
 	var trigger: Node = get_node_or_null("DropEnterTrigger")
@@ -31,12 +34,12 @@ func shred(teamId: String):
 	super(teamId)
 	if not was and multiplayer.is_server() and value > 0:
 		Data.changeByInt(teamId + ".inventory.money", value)
-		var pop_in: float = SalePops.pop(value, SalePops.BONES)
+		var pop_in: float = _SalePops.pop(value, SalePops.BONES)
 		ModLoaderLog.info("Miner bones from B%d sold for $%d" % [biome + 1, value], "flantor-StoryMode")
 		# The miner's pad comes home with the bones: its log opens once per run,
 		# after the bones' pop has been on screen long enough to read (#136).
-		if StoryBeats.fire("log_b%d" % (biome + 1)):
-			StoryBeats.hold(pop_in + LOG_AFTER_POP)
+		if _StoryBeats.fire("log_b%d" % (biome + 1)):
+			_StoryBeats.hold(pop_in + LOG_AFTER_POP)
 
 
 func serialize() -> Dictionary:
