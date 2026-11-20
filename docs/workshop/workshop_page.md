@@ -1,5 +1,7 @@
 # Steam Workshop page draft (#289)
 
+**Workshop item ID: 3842997822** (https://steamcommunity.com/sharedfiles/filedetails/?id=3842997822). Put it in the uploader's ID box for every update; an empty ID creates a duplicate item. Zip: `release_builds/<version>/flantor-StoryMode.zip` from `python release/package_mod.py`.
+
 Images are 960x540 (Steam shows description images at 630 px wide). Cover: `cover_512.png` (512x512). Hero banner: `hero.png` (1920x1080, gallery) and `hero_960.png` (top of the description). Pleas are only shown in runes; no boss, chase, finale, lava ocean or ending shots.
 
 ## Title
