@@ -4,6 +4,7 @@ extends RefCounted
 # generator (map/story_gen.gd) read them. All are starting values.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 # --- pockets -------------------------------------------------------------------
 const POCKET_MIN_DEPTH := 7            # first tile row that may hold magma
@@ -136,7 +137,7 @@ static func player_id(who = null) -> String:
 		return who
 	if who is Object and is_instance_valid(who) and "playerId" in who:
 		return str(who.playerId)
-	return Story.local_pid()
+	return _Story.local_pid()
 
 
 static func lava_heat_mult(who = null) -> float:

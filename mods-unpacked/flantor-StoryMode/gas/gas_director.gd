@@ -5,6 +5,7 @@ extends Node
 # the lava director; vanilla modes never get gas.
 
 const GasField = preload("res://mods-unpacked/flantor-StoryMode/gas/gas_field.gd")
+static var _GasField = GasField  # calls go through this: lazy_preload makes const-preload calls slow
 const FIELD_NAME := "StoryGasField"
 const LAVA_FIELD := "StoryLavaField"
 
@@ -20,7 +21,7 @@ func _process(_delta: float) -> void:
 	# A client builds its field from the host's map facts (#225).
 	if not load("res://mods-unpacked/flantor-StoryMode/net/story_net.gd").map_meta_ready(map):
 		return
-	var field := GasField.new()
+	var field := _GasField.new()
 	field.name = FIELD_NAME
 	map.add_child(field)
 	field.setup(map)

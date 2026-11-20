@@ -25,9 +25,13 @@ extends Node
 #   --gear               each Story Mode run starts with the boss gear
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const KeeperUpgrades = preload("res://mods-unpacked/flantor-StoryMode/gamemode/keeper_upgrades.gd")
+static var _KeeperUpgrades = KeeperUpgrades  # calls go through this: lazy_preload makes const-preload calls slow
 const BossDev = preload("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd")
+static var _BossDev = BossDev  # calls go through this: lazy_preload makes const-preload calls slow
 const Prices = preload("res://mods-unpacked/flantor-StoryMode/data/prices.gd")
+static var _Prices = Prices  # calls go through this: lazy_preload makes const-preload calls slow
 
 const COLUMN := "StoryModeCheats"
 const MONEY_STEPS := [1000, 10000, 100000, 1000000]
@@ -52,7 +56,7 @@ func _process(_delta: float) -> void:
 		# GameWorld.init() (Game._ready) has loaded the meta save by now, so the
 		# unlocks are not overwritten by it.
 		_booted = true
-		if Story.has_user_arg("unlockall"):
+		if _Story.has_user_arg("unlockall"):
 			unlock_all()
 	var stage = StageManager.currentStage
 	if stage == null or not is_instance_valid(stage):
@@ -70,17 +74,17 @@ func _process(_delta: float) -> void:
 func _apply_launch_switches(stage) -> void:
 	if _started_stage_id == stage.get_instance_id():
 		return
-	if not StageManager.isInLevel() or StageManager.isSwitchingStage() or not Story.is_story():
+	if not StageManager.isInLevel() or StageManager.isSwitchingStage() or not _Story.is_story():
 		return
 	if Keepers.getAll().is_empty() or not GameWorld.multiplayer.is_server():
 		return
 	_started_stage_id = stage.get_instance_id()
-	var money: int = int(Story.user_arg("money", "0"))
+	var money: int = int(_Story.user_arg("money", "0"))
 	if money > 0:
 		Data.apply(_team() + ".inventory.money", maxi(money, int(Data.ofOr(_team() + ".inventory.money", 0))))
 		print("[devcheats] start money $", money)
-	if Story.has_user_arg("gear"):
-		print("[devcheats] start gear: ", BossDev.give_gear())
+	if _Story.has_user_arg("gear"):
+		print("[devcheats] start gear: ", _BossDev.give_gear())
 
 
 func _build_column(cheats: Control) -> void:
@@ -103,7 +107,7 @@ func _build_column(cheats: Control) -> void:
 	money_grid.columns = 2
 	col.add_child(money_grid)
 	for step: int in MONEY_STEPS:
-		_button(money_grid, "+$" + Prices.short(step), add_money.bind(step))
+		_button(money_grid, "+$" + _Prices.short(step), add_money.bind(step))
 
 	_button(col, "Heat Shield +1 (all keepers)", heat_shield_up)
 	_button(col, "Heat Shield IV (all keepers)", heat_shield_up.bind(KeeperUpgrades.TIERS))
@@ -173,22 +177,22 @@ func add_money(amount: int) -> void:
 # Every keeper's Heat Shielding up one tier, or to `to_tier`.
 func heat_shield_up(to_tier: int = -1) -> void:
 	var given: Array = []
-	for pid: String in KeeperUpgrades.player_ids():
+	for pid: String in _KeeperUpgrades.player_ids():
 		var tier: int = to_tier
 		if tier < 0:
 			tier = int(Data.ofOr(pid + ".suit.heatshield", 0)) + 1
-		given.append_array(KeeperUpgrades.give_heat_shield(pid, tier))
+		given.append_array(_KeeperUpgrades.give_heat_shield(pid, tier))
 	_say("Heat Shielding: " + (", ".join(given) if not given.is_empty() else "already there"))
 
 
 func give_blaster() -> void:
 	var given: Array = []
-	for pid: String in KeeperUpgrades.player_ids():
+	for pid: String in _KeeperUpgrades.player_ids():
 		var id: String = pid + ".suitblaster"
 		if not GameWorld.boughtUpgrades.has(id):
-			GameWorld.serverAddUpgrade(id, KeeperUpgrades.team_of(pid))
+			GameWorld.serverAddUpgrade(id, _KeeperUpgrades.team_of(pid))
 			given.append(id)
-	KeeperUpgrades.mark_blaster_entries()
+	_KeeperUpgrades.mark_blaster_entries()
 	_say("Suit Blaster: " + (", ".join(given) if not given.is_empty() else "already there"))
 
 
@@ -203,7 +207,7 @@ func give_metal_bits() -> void:
 
 
 func give_boss_gear() -> void:
-	var given: Array = BossDev.give_gear()
+	var given: Array = _BossDev.give_gear()
 	_say("Boss gear: %d upgrades" % given.size())
 
 
@@ -213,8 +217,8 @@ func give_boss_gear() -> void:
 func buy_free(id: String) -> bool:
 	if not GameWorld.upgrades.has(id) or GameWorld.boughtUpgrades.has(id) and not _repeatable(id):
 		return false
-	var pid: String = id.get_slice(".", 0) if id.begins_with("player") else Story.local_pid()
-	var team: String = KeeperUpgrades.team_of(pid)
+	var pid: String = id.get_slice(".", 0) if id.begins_with("player") else _Story.local_pid()
+	var team: String = _KeeperUpgrades.team_of(pid)
 	var cost: Dictionary = GameWorld.upgrades[id].get("cost", {})
 	var before: Dictionary = {}
 	for k: String in cost:
@@ -275,7 +279,7 @@ func refresh_list() -> void:
 		var cost: Dictionary = GameWorld.upgrades[id].get("cost", {})
 		var price: Array = []
 		for k: String in cost:
-			price.append(("$" + Prices.short(int(cost[k]))) if k == "money" else "%d %s" % [int(cost[k]), k])
+			price.append(("$" + _Prices.short(int(cost[k]))) if k == "money" else "%d %s" % [int(cost[k]), k])
 		var i: int = _list.add_item("%s  %s" % [id, " ".join(price)])
 		_list.set_item_metadata(i, id)
 
@@ -287,14 +291,14 @@ func _repeatable(id: String) -> bool:
 # The shop's id for a raw upgrade id: as is, or with the team's or the local
 # player's prefix. "" when the shop has none.
 func _shop_id(raw: String) -> String:
-	for id: String in [raw, _team() + "." + raw, Story.local_pid() + "." + raw]:
+	for id: String in [raw, _team() + "." + raw, _Story.local_pid() + "." + raw]:
 		if GameWorld.upgrades.has(id):
 			return id
 	return ""
 
 
 func _team() -> String:
-	return KeeperUpgrades.team_of(Story.local_pid())
+	return _KeeperUpgrades.team_of(_Story.local_pid())
 
 
 static func _fmt(n: int) -> String:

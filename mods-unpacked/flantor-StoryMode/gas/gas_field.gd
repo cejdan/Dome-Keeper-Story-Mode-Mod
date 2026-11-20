@@ -13,10 +13,15 @@ extends Node2D
 # live in data/gas.gd.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
+static var _GasData = GasData  # calls go through this: lazy_preload makes const-preload calls slow
 const GasSfx = preload("res://mods-unpacked/flantor-StoryMode/gas/gas_sfx.gd")
+static var _GasSfx = GasSfx  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd")
+static var _StoryNet = StoryNet  # calls go through this: lazy_preload makes const-preload calls slow
 const FieldUtil = preload("res://mods-unpacked/flantor-StoryMode/util/field_util.gd")
+static var _FieldUtil = FieldUtil  # calls go through this: lazy_preload makes const-preload calls slow
 const SAVE_KEY := "story.gas"
 const LAVA_FIELD := "StoryLavaField"
 const TILE := 24.0
@@ -38,13 +43,13 @@ var caverns_skipped := 0           # caverns left empty because something opened
 var toxins: Dictionary = {}
 var toxin: float:
 	get:
-		return toxins.get(Story.local_pid(), 0.0)
+		return toxins.get(_Story.local_pid(), 0.0)
 	set(v):
-		toxins[Story.local_pid()] = v
+		toxins[_Story.local_pid()] = v
 var breaths: Dictionary = {}       # playerId -> the densest gas that keeper is in right now
 var breathing: float:
 	get:
-		return breaths.get(Story.local_pid(), 0.0)
+		return breaths.get(_Story.local_pid(), 0.0)
 var gassed := 0                    # times the bar filled this run
 var fx = null                      # the ToxinFx child: bar, vignette, muffled sound
 var _cracks: Dictionary = {}       # gas rock about to burst -> seconds left
@@ -109,7 +114,7 @@ func setup(p_map) -> void:
 	net_client = Network.is_client()
 	if net_client:
 		# Pockets, caverns and what has leaked so far all come from the host.
-		StoryNet.gas_full_request()
+		_StoryNet.gas_full_request()
 	elif not _restore(str(Data.ofOr(SAVE_KEY, ""))):
 		_place_pockets()
 		_fill_caverns()
@@ -151,7 +156,7 @@ func _place_pockets() -> void:
 		rock_set[c] = true
 	var rng := RandomNumberGenerator.new()
 	for s in rock_set:
-		var per: int = int(GasData.pocket_rock_per_pocket(td.get_biomev(s)))
+		var per: int = int(_GasData.pocket_rock_per_pocket(td.get_biomev(s)))
 		if hash([Level.levelSeed, "gas", s.x, s.y]) % per != 0:
 			continue
 		rng.seed = hash([Level.levelSeed, "gaspocket", s.x, s.y])
@@ -229,7 +234,7 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 		return
 	rock.erase(c)
 	InputSystem.shake(4.0, 0.4, 20.0, world_pos)
-	GasSfx.play("burst", -3.0, 0.5)
+	_GasSfx.play("burst", -3.0, 0.5)
 	if net_client:
 		return                         # the gas it lets out, and the rest bursting, are the host's
 	sources[c] = sources.get(c, 0.0) + GasData.VOLUME_PER_ROCK_CELL
@@ -299,7 +304,7 @@ func _burst(delta: float) -> void:
 			continue
 		var tile = map.getTile(Vector2(c))
 		if tile != null and is_instance_valid(tile):
-			StoryNet.tile_break(map, c)
+			_StoryNet.tile_break(map, c)
 			map.destroyTile("team1", "", tile)   # fires tile_destroyed -> breach
 		else:
 			rock.erase(c)
@@ -673,15 +678,15 @@ func _update_fire(delta: float) -> void:
 	_roar_t -= delta
 	if burning > 0 and _roar_t <= 0.0:
 		_roar_t = 0.35
-		GasSfx.play("ignite", clampf(-10.0 + burning * 0.6, -10.0, 2.0))
+		_GasSfx.play("ignite", clampf(-10.0 + burning * 0.6, -10.0, 2.0))
 		InputSystem.shake(minf(2.0 + burning * 0.25, 9.0), 0.3, 22.0)
 	# A keeper in the fire: suit heat, as lava gives it (every local keeper, #231).
 	if _lava == null:
 		return
-	for keeper in Story.local_keepers():
+	for keeper in _Story.local_keepers():
 		if keeper.killed or keeper.disabled:
 			continue
-		var r: Rect2 = FieldUtil.keeper_rect(keeper)
+		var r: Rect2 = _FieldUtil.keeper_rect(keeper)
 		var a: Vector2i = map.getTileCoord(r.position)
 		var b: Vector2i = map.getTileCoord(r.end)
 		var burning_here := false
@@ -696,7 +701,7 @@ func _update_fire(delta: float) -> void:
 
 
 func _on_screen_cell(c: Vector2i) -> bool:
-	if not FieldUtil.seen(map, c):
+	if not _FieldUtil.seen(map, c):
 		return false
 	for l in looks.values():
 		if is_instance_valid(l) and c.x >= l.c0.x and c.y >= l.c0.y and c.x < l.c0.x + l.WIN.x and c.y < l.c0.y + l.WIN.y:
@@ -715,7 +720,7 @@ func _ember(c: Vector2i) -> void:
 
 func _update_toxin(delta: float) -> void:
 	# Every keeper this instance plays breathes on its own (#231).
-	for keeper in Story.local_keepers():
+	for keeper in _Story.local_keepers():
 		_update_keeper_toxin(keeper, delta)
 
 
@@ -747,8 +752,8 @@ func _update_keeper_toxin(keeper, delta: float) -> void:
 		return
 	if keeper.disabled:
 		return
-	breaths[pid] = gas_in(FieldUtil.keeper_rect(keeper), true)
-	var rate: float = GasData.toxin_share(breaths[pid])
+	breaths[pid] = gas_in(_FieldUtil.keeper_rect(keeper), true)
+	var rate: float = _GasData.toxin_share(breaths[pid])
 	if rate > 0.0:
 		t = minf(GasData.TOXIN_MAX, t + GasData.TOXIN_PER_SECOND * rate * delta)
 	else:
@@ -783,7 +788,7 @@ var _looks_for := -1
 
 
 func _sync_looks() -> void:
-	var ks: Array = Story.local_keepers()
+	var ks: Array = _Story.local_keepers()
 	var want: Dictionary = {}
 	for k in ks:
 		want[k.playerId] = k
@@ -807,7 +812,7 @@ func _sync_looks() -> void:
 			looks[pid] = l
 			changed = true
 		looks[pid].keeper = want[pid]
-	var first = Story.local_keeper()
+	var first = _Story.local_keeper()
 	look = looks.get(first.playerId, null) if first != null and is_instance_valid(first) else null
 	if look == null and not looks.is_empty():
 		look = looks.values()[0]
@@ -851,7 +856,7 @@ func serialize() -> Dictionary:
 	var rocks: Array = []
 	for c in rock:
 		rocks.append([c.x, c.y])
-	StoryNet.save_blob(SAVE_KEY, JSON.stringify(_save_extra({"seed": Level.levelSeed, "mass": cells, "sources": src, "rock": rocks,
+	_StoryNet.save_blob(SAVE_KEY, JSON.stringify(_save_extra({"seed": Level.levelSeed, "mass": cells, "sources": src, "rock": rocks,
 		"breaches": breaches, "vented": vented, "faded": faded, "caverns": caverns.size(), "burned": burned, "ignitions": ignitions})))
 	return {"meta.priority": 9001, "meta.kind": "storygas"}
 
@@ -895,7 +900,7 @@ func _restore(blob: String) -> bool:
 
 
 func _restore_extra(d: Dictionary) -> void:
-	toxins = FieldUtil.per_player(d, "toxins", "toxin")
+	toxins = _FieldUtil.per_player(d, "toxins", "toxin")
 	gassed = int(d.get("gassed", 0))
 	if dome != null:
 		dome.amount = float(d.get("dome", 0.0))
@@ -956,9 +961,9 @@ func _net_send() -> void:
 		_net_dome = amount
 		return
 	if _net_all:
-		StoryNet.gas_cells(net_full(), true)
+		_StoryNet.gas_cells(net_full(), true)
 	elif not _net_dirty.is_empty() or not _net_fire_on.is_empty() or not _net_fire_off.is_empty() or not _net_vents.is_empty() or amount != _net_dome:
-		StoryNet.gas_cells(_net_pack(_net_dirty.keys(), _net_fire_on.keys(), _net_fire_off.keys(), _net_vents.keys(), false), false)
+		_StoryNet.gas_cells(_net_pack(_net_dirty.keys(), _net_fire_on.keys(), _net_fire_off.keys(), _net_vents.keys(), false), false)
 	_net_all = false
 	_net_dome = amount
 	_net_dirty.clear()
@@ -1048,7 +1053,7 @@ func _draw_gas() -> void:
 	if look != null:
 		return
 	for c in mass:
-		if not FieldUtil.seen(map, c):
+		if not _FieldUtil.seen(map, c):
 			continue
 		var a: float = clampf(mass[c], 0.0, 1.5) / 1.5
 		draw_rect(Rect2(_cell_origin(c), Vector2(TILE, TILE)), Color(0.45, 0.8, 0.2, 0.15 + 0.6 * a))
@@ -1085,7 +1090,7 @@ func _update_puffs(delta: float) -> void:
 		if age > 0.6:
 			vent_marks.erase(c)
 			continue
-		if not FieldUtil.seen(map, c):
+		if not _FieldUtil.seen(map, c):
 			continue
 		# (The surface/dome vent hiss is off: too grating on repeat.)
 		for i in 2:
@@ -1103,7 +1108,7 @@ func _update_puffs(delta: float) -> void:
 			var first: int = _puff_rng.randi() % 4
 			for k in 4:
 				var cand: Vector2i = DIRS[(first + k) % 4]
-				if map.is_tile_empty(c + cand) and FieldUtil.seen(map, c + cand):
+				if map.is_tile_empty(c + cand) and _FieldUtil.seen(map, c + cand):
 					d = cand
 					break
 			if d == Vector2i.ZERO:

@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # error instead, nothing is charged, and with the money it opens as before.
 
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -29,7 +30,7 @@ func _focus_entry(h):
 	await h.wait(1.5)
 	var shop = _shop(h)
 	var tree = shop.find_child("TechTree") if shop else null
-	var entry: String = GadgetShop.next_entry("team1")
+	var entry: String = _GadgetShop.next_entry("team1")
 	var panel = null
 	if tree:
 		for track in tree.get_node("Tracks").get_children():
@@ -45,8 +46,8 @@ func _focus_entry(h):
 func run(h) -> void:
 	h.disable_waves()
 	await h.wait(1.0)
-	var entry: String = GadgetShop.next_entry("team1")
-	var price: int = GadgetShop.price("team1")
+	var entry: String = _GadgetShop.next_entry("team1")
+	var price: int = _GadgetShop.price("team1")
 	h.set_inv("money", price - 1)
 	var panel = await _focus_entry(h)
 	h.check("the New Gadget I panel is focused", panel != null and _shop(h).find_child("TechTree").focussedTechPanel == panel, entry)

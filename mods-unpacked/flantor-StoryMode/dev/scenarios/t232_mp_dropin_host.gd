@@ -10,6 +10,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 #   mp_playtest.ps1 t232_mp_dropin_host t232_mp_dropin_leaver -Rejoin t232_mp_dropin_client
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
 const TIMEOUT := 360
@@ -28,7 +29,7 @@ func run(h) -> void:
 	var lava = Level.map.get_node("StoryLavaField")
 	h.get_tree().process_frame.connect(func(): lava.heat = 0.0)
 	# Velle's fight, with the host's keeper in the chamber (dev/boss_dev.gd's gear).
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var dev = load("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd")
 	dev.give_gear()
 	var ch: Rect2i = Level.map.tileData.get_meta("story_boss_chamber")
@@ -40,10 +41,10 @@ func run(h) -> void:
 	Data.apply(Awakening.AWAKE, true)
 	await h.wait(1.0)
 	await h.teleport_tile(ch.position + Vector2i(ch.size.x / 2, ch.size.y - 2))
-	var fight: bool = await h.until(func(): return Director.current() == "fight", 30.0)
-	h.check("Velle's fight is on", fight, Director.current())
+	var fight: bool = await h.until(func(): return _Director.current() == "fight", 30.0)
+	h.check("Velle's fight is on", fight, _Director.current())
 	h.get_tree().process_frame.connect(func():
-		if int(Data.ofOr("team1.story.hearts", Boss.HEARTS)) < Boss.HEARTS and Director.current() == "fight":
+		if int(Data.ofOr("team1.story.hearts", Boss.HEARTS)) < Boss.HEARTS and _Director.current() == "fight":
 			Data.apply("team1.story.hearts", Boss.HEARTS))
 	await h.wait(4.0)    # the lava and gas settle; the first client sees the fight
 	var leaver: String = ""
@@ -72,5 +73,5 @@ func run(h) -> void:
 		await h.wait(1.0)
 		if Network.clients.is_empty():
 			break
-	h.check("the fight held while the player was away and back", Director.current() == "fight", Director.current())
+	h.check("the fight held while the player was away and back", _Director.current() == "fight", _Director.current())
 	await host_wait_clients_left(h, 60.0)

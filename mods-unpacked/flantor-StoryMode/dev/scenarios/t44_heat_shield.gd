@@ -4,7 +4,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # vanilla doesn't offer it.
 
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -13,7 +15,7 @@ func boot() -> Dictionary:
 
 # The keeper's own entries (#265: per keeper, in its keeper track).
 func _id(i: int) -> String:
-	return "%s.storyheatshield%d" % [Story.local_keeper().playerId, i]
+	return "%s.storyheatshield%d" % [_Story.local_keeper().playerId, i]
 
 
 func _cost(i: int) -> int:
@@ -71,7 +73,7 @@ func run(h) -> void:
 	h.note("purchases", tiers)
 	h.check("I-IV cost $200, $1,000, $4,000, $25,000", tiers.map(func(t): return t["paid"]) == [200, 1000, 4000, 25000], tiers)
 	h.check("each tier unlocks the next", tiers[0]["next offered"] and tiers[1]["next offered"] and tiers[2]["next offered"], tiers)
-	h.check("the suit is at tier IV", LavaData.shield_tier(h.keeper()) == 4, LavaData.shield_tier(h.keeper()))
+	h.check("the suit is at tier IV", _LavaData.shield_tier(h.keeper()) == 4, _LavaData.shield_tier(h.keeper()))
 
 	# A sealed 3 x 3 room of deep lava to stand in.
 	var field = Level.map.get_node("StoryLavaField")
@@ -87,7 +89,7 @@ func run(h) -> void:
 	await h.shot("in_lava")
 	var rows: Array = []
 	for tier in range(0, 5):
-		Data.apply(LavaData.shield_key(h.keeper()), tier)
+		Data.apply(_LavaData.shield_key(h.keeper()), tier)
 		var want: float = 100.0 / (55.0 * float(LavaData.HEAT_SHIELD_LAVA_MULT[tier]))
 		var got: float = await _time_to_overheat(h, field, c)
 		rows.append({"tier": tier, "seconds": snappedf(got, 0.01), "expected": snappedf(want, 0.01)})

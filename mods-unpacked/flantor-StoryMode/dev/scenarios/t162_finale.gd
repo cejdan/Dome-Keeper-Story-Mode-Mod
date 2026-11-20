@@ -12,6 +12,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # the saved ending starts.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const BossText = preload("res://mods-unpacked/flantor-StoryMode/data/boss_text.gd")
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 420
@@ -47,7 +48,7 @@ func _kill_all(h, fin) -> void:
 func run(h) -> void:
 	h.disable_waves()
 	await h.wait(1.0)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var dome = Level.getDome("team1")
 	var k = h.keeper()
 	h.check("the keeper starts in the dome", k.isInsideDome)
@@ -61,8 +62,8 @@ func run(h) -> void:
 	boss._stop_waves()
 	boss._set_state("finale")
 	boss._start_finale()
-	var started: bool = await h.until(func(): return Director.current() == "finale", 5.0)
-	h.check("the finale starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "finale", 5.0)
+	h.check("the finale starts", started, _Director.current())
 	if not started:
 		return
 	var fin = boss.finale
@@ -292,4 +293,4 @@ func run(h) -> void:
 	var saved: bool = await h.until(func(): return ed.playing == "saved", 12.0)
 	await h.wait(2.0)
 	await h.shot("saved_ending")
-	h.check("then the saved ending plays", saved and Director.current() == "won", [ed.playing, Director.current()])
+	h.check("then the saved ending plays", saved and _Director.current() == "won", [ed.playing, _Director.current()])

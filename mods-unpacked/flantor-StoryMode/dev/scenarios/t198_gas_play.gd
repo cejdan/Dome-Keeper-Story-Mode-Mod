@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # to the surface. (What a full bar does is t202_toxin's.)
 
 const Finder = preload("res://mods-unpacked/flantor-StoryMode/gas/dev_gas_finder.gd")
+static var _Finder = Finder  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
@@ -19,12 +20,12 @@ func run(h) -> void:
 	await h.until(func(): return Level.map.get_node_or_null("StoryGasField") != null, 10.0)
 	var field = Level.map.get_node("StoryGasField")
 	var map = Level.map
-	var all: Array = Finder.pockets(field.rock)
+	var all: Array = _Finder.pockets(field.rock)
 	h.check("the map has gas pockets", all.size() > 5, all.size())
 	var pocket: Array = []
 	var cells: Array = []
 	for p in all:
-		cells = Finder.tunnel_beside(map, p)
+		cells = _Finder.tunnel_beside(map, p)
 		if not cells.is_empty():
 			pocket = p
 			break

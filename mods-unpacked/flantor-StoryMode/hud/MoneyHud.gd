@@ -3,7 +3,9 @@ extends HudElement
 # The Story Mode balance, always on the HUD: "$1,234".
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 var _groups: HBoxContainer
 var _flash: float = 0.0
@@ -25,7 +27,7 @@ func _init() -> void:
 	add_child(row)
 	var icon: TextureRect = TextureRect.new()
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.texture = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/icon_money.png")
+	icon.texture = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/icon_money.png")
 	icon.stretch_mode = TextureRect.STRETCH_KEEP
 	row.add_child(icon)
 	# The HUD font has digits but no comma, so thousands are shown as groups of
@@ -42,7 +44,7 @@ func init() -> void:
 
 func propertyChanged(_property: String, oldValue, newValue) -> void:
 	var amount: int = int(newValue) if newValue != null else 0
-	var parts: PackedStringArray = Minerals.dollars(amount).substr(1).split(",")
+	var parts: PackedStringArray = _Minerals.dollars(amount).substr(1).split(",")
 	while _groups.get_child_count() > parts.size():
 		var extra: Node = _groups.get_child(_groups.get_child_count() - 1)
 		_groups.remove_child(extra)

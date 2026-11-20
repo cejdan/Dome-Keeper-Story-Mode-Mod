@@ -32,7 +32,9 @@ extends Node2D
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const BossText = preload("res://mods-unpacked/flantor-StoryMode/data/boss_text.gd")
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 const TENTACLE := "res://mods-unpacked/flantor-StoryMode/boss/surface_tentacle.gd"
 const FLYER := "res://mods-unpacked/flantor-StoryMode/boss/eye_flyer.gd"
 const GREAT := "res://mods-unpacked/flantor-StoryMode/boss/great_eye.gd"
@@ -219,7 +221,7 @@ func _spawn_round(i: int) -> void:
 		add_child(great)
 		alive.append(great)
 		_net_register(great)
-		Sfx.hitstop(0.3, 0.35)
+		_Sfx.hitstop(0.3, 0.35)
 
 
 # The spots of round `i`: px left (-) or right (+) of the dome.
@@ -307,7 +309,7 @@ func _physics_process(delta: float) -> void:
 			if fposmod(t, 0.2) < delta:
 				InputSystem.shake(5.0 + t * 5.0, 0.22, 24.0)
 			if fposmod(t, 0.7) < delta:
-				Sfx.play("drop", -12.0 + t * 3.0, _rng.randf_range(0.6, 0.9))
+				_Sfx.play("drop", -12.0 + t * 3.0, _rng.randf_range(0.6, 0.9))
 			if fposmod(t, 0.09) < delta and t > 0.5:
 				var offs: Array = spots(round_i + 1)
 				var at: Vector2 = to_local(_ground(offs[_rng.randi() % offs.size()]))
@@ -316,7 +318,7 @@ func _physics_process(delta: float) -> void:
 			if t >= RUMBLE and not puppet:
 				_spawn_round(round_i + 1)
 				if round_i == SPOTS.size() - 1:
-					Sfx.play("roar", 0.0, 0.75)
+					_Sfx.play("roar", 0.0, 0.75)
 				_set_step("round%d" % (round_i + 1))
 		"round1", "round2", "round3":
 			if t > 1.5 and living() == 0 and not puppet:
@@ -415,7 +417,7 @@ func _call_allies() -> void:
 			if spr.sprite_frames != null and spr.sprite_frames.has_animation(k[1]):
 				spr.play(k[1])
 		allies.append({"node": m, "stand": stand, "from": from, "speed": float(k[4]) * (1.25 if not flies else 1.6), "walk": k[1], "attack": k[2], "there": false, "side": fall_side, "flies": flies})
-	Sfx.play("eerie", -4.0, 1.0)
+	_Sfx.play("eerie", -4.0, 1.0)
 
 
 func _move_allies(delta: float) -> void:
@@ -439,7 +441,7 @@ func _move_allies(delta: float) -> void:
 				_dust.append({"p": to_local(eye_at) + Vector2(_rng.randf_range(-16, 16), _rng.randf_range(-14, 0)),
 					"v": Vector2(_rng.randf_range(-80, 80), _rng.randf_range(-150, -40)), "life": _rng.randf_range(0.4, 0.9), "col": Pix.IRIS})
 			if _rng.randf() < 0.5:
-				Sfx.play("pop", -10.0, _rng.randf_range(0.9, 1.3))
+				_Sfx.play("pop", -10.0, _rng.randf_range(0.9, 1.3))
 
 
 func _say(i: int) -> void:
@@ -545,7 +547,7 @@ func _draw() -> void:
 			# A mound pushing up, shuddering.
 			var heave: float = grow * grow * (9.0 if big else 6.0) + pulse * 3.0
 			var jit: float = sin(t * 47.0 + i * 3.0) * grow
-			Pix.ellipse(self, p + Vector2(jit, 1), (16.0 if big else 11.0) * (0.5 + 0.5 * grow), heave, Color("2a2130"), -1.0, 0.0)
+			_Pix.ellipse(self, p + Vector2(jit, 1), (16.0 if big else 11.0) * (0.5 + 0.5 * grow), heave, Color("2a2130"), -1.0, 0.0)
 			draw_rect(Rect2((p + Vector2(-2, -heave)).round(), Vector2(4, 1)), Color(Pix.VIOLET_LIGHT, glow))
 
 
@@ -616,7 +618,7 @@ func _net_step(was: String) -> void:
 			m.finale()
 	match step:
 		"round3":
-			Sfx.play("roar", 0.0, 0.75)
+			_Sfx.play("roar", 0.0, 0.75)
 		"fall":
 			quiet_alarm(false)
 		"allies":
@@ -645,7 +647,7 @@ func apply_monsters(list: Array) -> void:
 			_net_register(m)
 			if r[0] == "great":
 				great = m
-				Sfx.hitstop(0.3, 0.35)
+				_Sfx.hitstop(0.3, 0.35)
 		if m.dead and r[0] != "great":
 			continue
 		# (The dead great eye still takes its fall from the host.)

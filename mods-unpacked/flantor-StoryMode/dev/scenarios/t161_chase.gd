@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # (a heart, no teleport), and that reaching the dome ends the chase.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 420
 
@@ -48,8 +49,8 @@ func run(h) -> void:
 	field.mass.clear()
 	field.freeze_flow = true
 	await h.teleport_tile(Vector2i(sx, ch.position.y + 2))
-	await h.until(func(): return Director.current() == "fight", 8.0)
-	var boss = Director.instance()
+	await h.until(func(): return _Director.current() == "fight", 8.0)
+	var boss = _Director.instance()
 	var velle = boss.velle
 	velle.attack_enabled = false
 	velle.spawn_bombs = false
@@ -57,20 +58,20 @@ func run(h) -> void:
 	await h.wait(1.3)
 	# Kill Velle quickly.
 	for round in 8:
-		if Director.current() != "fight" or velle.state == "dying":
+		if _Director.current() != "fight" or velle.state == "dying":
 			break
 		for s: Dictionary in velle.stalks.duplicate():
 			if s["alive"]:
-				Director.explosion_at(velle.to_global(s["pos"]), "bomb")
+				_Director.explosion_at(velle.to_global(s["pos"]), "bomb")
 		await h.until(func(): return velle.is_open() or velle.state == "dying", 6.0)
 		for i in 3:
 			if velle.state == "open":
-				Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+				_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 				await h.wait(0.15)
 		await h.until(func(): return velle.state in ["fight", "dying", "dead"], 6.0)
 		await h.wait(1.2)
-	var chasing: bool = await h.until(func(): return Director.current() == "chase", 10.0)
-	h.check("when Velle falls the chase begins", chasing, Director.current())
+	var chasing: bool = await h.until(func(): return _Director.current() == "chase", 10.0)
+	h.check("when Velle falls the chase begins", chasing, _Director.current())
 	if not chasing:
 		return
 	var chase = boss.chase
@@ -103,7 +104,7 @@ func run(h) -> void:
 	h.up("ui_up")
 	# A save mid-chase, for t161_reload.
 	await SaveGame.saveGame("singleplayer", 16, true)
-	h.note("saved slot 16", {"state": Director.current(), "hearts": health.hearts(), "keeper": h.keeper_tile()})
+	h.note("saved slot 16", {"state": _Director.current(), "hearts": health.hearts(), "keeper": h.keeper_tile()})
 	var hearts0: int = health.hearts()
 	var hit: bool = await h.until(func(): return chase.hits > hits0, 8.0)
 	await h.burst("caught", 5, 4)
@@ -151,4 +152,4 @@ func run(h) -> void:
 	await h.wait(0.3)
 	await h.shot("home")
 	h.check("the keeper reaches the dome", home, h.keeper_tile())
-	h.check("reaching the dome ends the chase", Director.current() != "chase", Director.current())
+	h.check("reaching the dome ends the chase", _Director.current() != "chase", _Director.current())

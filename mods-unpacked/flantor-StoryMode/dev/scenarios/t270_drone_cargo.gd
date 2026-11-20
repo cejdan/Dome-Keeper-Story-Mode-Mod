@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 180
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
 
 
@@ -43,7 +44,7 @@ func run(h) -> void:
 	h.note("drones", _drones(h).map(func(d): return {"state": d.state, "pos": d.global_position, "disp": d.dispatcherId, "path": Level.map.findPath(d.position, Level.map.getTilePos(Vector2i(2, 8)), "team1")}))
 	var carrying := func():
 		for d in _drones(h):
-			if Minerals.is_mod_mineral(d.carriedResource):
+			if _Minerals.is_mod_mineral(d.carriedResource):
 				return d
 		return null
 	var got: bool = await h.until(func(): return carrying.call() != null, 60.0)

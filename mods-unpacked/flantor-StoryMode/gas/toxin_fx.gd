@@ -6,9 +6,12 @@ extends Node2D
 # Draw and sound only; the toxin itself is the gas field's.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const FieldUtil = preload("res://mods-unpacked/flantor-StoryMode/util/field_util.gd")
+static var _FieldUtil = FieldUtil  # calls go through this: lazy_preload makes const-preload calls slow
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
 const GasSfx = preload("res://mods-unpacked/flantor-StoryMode/gas/gas_sfx.gd")
+static var _GasSfx = GasSfx  # calls go through this: lazy_preload makes const-preload calls slow
 const BAR_OFFSET := Vector2(-9, -15)      # under the heat bar (-20)
 const COL_BAR := Color("7ad11e")
 const COL_BAR_FULL := Color("d8ff4a")
@@ -46,7 +49,7 @@ func setup(p_field) -> void:
 
 
 func _first() -> Dictionary:
-	var k = Story.local_keeper()
+	var k = _Story.local_keeper()
 	if k != null and is_instance_valid(k) and views.has(k.playerId):
 		return views[k.playerId]
 	return views.values()[0] if not views.is_empty() else {}
@@ -90,7 +93,7 @@ func _free_view(v: Dictionary) -> void:
 
 # Each local keeper's vignette sits in that keeper's split view.
 func _sync_views() -> Array:
-	var ks: Array = Story.local_keepers()
+	var ks: Array = _Story.local_keepers()
 	var split: bool = ks.size() > 1 and Level.viewports != null
 	var ids: Dictionary = {}
 	for k in ks:
@@ -102,7 +105,7 @@ func _sync_views() -> Array:
 			views[k.playerId] = _make_view(k, split)
 		if split:
 			# Over the keeper's camera view, a margin past its edges.
-			var r: Rect2 = Story.view_rect(k.playerId, 8.0)
+			var r: Rect2 = _Story.view_rect(k.playerId, 8.0)
 			if r.has_area():
 				var rect: ColorRect = views[k.playerId]["rect"]
 				rect.position = to_local(r.position)
@@ -138,7 +141,7 @@ func _process(delta: float) -> void:
 		_choke_t -= delta
 		if _choke_t <= 0.0:
 			_choke_t = 0.45
-			GasSfx.play("choke", -4.0)
+			_GasSfx.play("choke", -4.0)
 	else:
 		_choke_t = 0.0
 	queue_redraw()
@@ -176,10 +179,10 @@ func _draw() -> void:
 	if field == null:
 		return
 	# A bar over each local keeper (#231).
-	for keeper in Story.local_keepers():
+	for keeper in _Story.local_keepers():
 		var t: float = field.toxin_of(keeper)
 		if t <= 0.5:
 			continue
 		var sh: float = clampf(t / GasData.TOXIN_MAX, 0.0, 1.0)
-		FieldUtil.draw_bar(self, (to_local(keeper.global_position) + BAR_OFFSET).round(), sh,
+		_FieldUtil.draw_bar(self, (to_local(keeper.global_position) + BAR_OFFSET).round(), sh,
 			COL_BAR.lerp(COL_BAR_FULL, sh), sh >= GasData.WARN_SHARE and fposmod(_time * 8.0, 1.0) < 0.5)

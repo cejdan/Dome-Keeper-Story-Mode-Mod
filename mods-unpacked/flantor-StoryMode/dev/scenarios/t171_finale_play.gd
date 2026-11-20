@@ -16,9 +16,12 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # early.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const Dev = preload("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd")
+static var _Dev = Dev  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 600
 
 var _held: Dictionary = {}
@@ -29,11 +32,11 @@ func boot() -> Dictionary:
 
 
 func laser_level() -> int:
-	return int(Story.user_arg("laser", "4"))
+	return int(_Story.user_arg("laser", "4"))
 
 
 func expect() -> String:
-	return Story.user_arg("expect", "any")
+	return _Story.user_arg("expect", "any")
 
 
 func _station(node: Node):
@@ -64,12 +67,12 @@ func _aim_point(m) -> Vector2:
 func run(h) -> void:
 	h.disable_waves()
 	await h.wait(1.0)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var dome = Level.getDome("team1")
 	var k = h.keeper()
 	boss._ensure_layer()
 	var level: int = laser_level()
-	var gear: Array = Dev.give_gear([], level)
+	var gear: Array = _Dev.give_gear([], level)
 	if level >= 4 and not gear.has("laserstrength4") and not GameWorld.boughtUpgrades.has("laserstrength4"):
 		GameWorld.serverAddUpgrade("laserstrength4", "team1")
 	await h.frames(5)
@@ -104,7 +107,7 @@ func run(h) -> void:
 	var great = null
 	while h.now() - t0 < 300.0 and not GameWorld.paused:
 		await h.frames(2)
-		if GameWorld.lost or Director.current() == "lost" or fin.step in ["allies", "thanks", "done"]:
+		if GameWorld.lost or _Director.current() == "lost" or fin.step in ["allies", "thanks", "done"]:
 			break
 		if not round_at.has(fin.step):
 			round_at[fin.step] = snappedf(h.now() - t0, 0.1)
@@ -144,7 +147,7 @@ func run(h) -> void:
 		_hold(h, a, false)
 	var took: float = snappedf(h.now() - t0, 0.1)
 	var won: bool = fin.step in ["allies", "thanks", "done"]
-	var lost: bool = GameWorld.lost or Director.current() == "lost"
+	var lost: bool = GameWorld.lost or _Director.current() == "lost"
 	await h.wait(1.0)
 	await h.shot("end")
 	var report: Dictionary = {"laser level": level, "laser dps": Data.of("team1.laser.dps"), "result": "won" if won else ("lost" if lost else "unfinished"),

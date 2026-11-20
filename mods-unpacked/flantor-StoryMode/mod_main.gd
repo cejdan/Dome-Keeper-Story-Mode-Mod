@@ -2,15 +2,24 @@ extends Node
 
 const STORYMODE_LOG = "flantor-StoryMode"
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Palette = preload("res://mods-unpacked/flantor-StoryMode/util/palette.gd")
+static var _Palette = Palette  # calls go through this: lazy_preload makes const-preload calls slow
 const Prices = preload("res://mods-unpacked/flantor-StoryMode/data/prices.gd")
+static var _Prices = Prices  # calls go through this: lazy_preload makes const-preload calls slow
 const Strings = preload("res://mods-unpacked/flantor-StoryMode/text/strings.gd")
+static var _Strings = Strings  # calls go through this: lazy_preload makes const-preload calls slow
 
 const Installer = preload("res://mods-unpacked/flantor-StoryMode/extensions/installer.gd")
+static var _Installer = Installer  # calls go through this: lazy_preload makes const-preload calls slow
 
 # Kept alive so resources that took over a vanilla path stay in the cache.
 var _held: Array = []
@@ -21,17 +30,17 @@ func _init():
 
 
 func _ready():
-	Strings.register()
+	_Strings.register()
 	# The game looks the mode's scene and icon up by id at fixed vanilla paths.
 	var scene: PackedScene = load(Story.MOD_DIR + "gamemode/Storymode.tscn")
 	scene.take_over_path("res://content/gamemode/storymode/Storymode.tscn")
 	_held.append(scene)
-	Assets.provide(Story.MOD_DIR + "art/loadout_storymode.png", "res://content/icons/loadout_storymode.png")
+	_Assets.provide(Story.MOD_DIR + "art/loadout_storymode.png", "res://content/icons/loadout_storymode.png")
 	# The Story Mode track's root in the shop (#134): the same drawing,
 	# palette-encoded like vanilla tech icons (art/tools/make_horror_icon.py).
-	Assets.provide(Story.MOD_DIR + "art/icons/storymode.png", "res://content/icons/storymode.png")
+	_Assets.provide(Story.MOD_DIR + "art/icons/storymode.png", "res://content/icons/storymode.png")
 	# Retire Rich: the money coin, blown up to a tech icon.
-	var coin: Image = Assets.image(Story.MOD_DIR + "art/icon_money.png")
+	var coin: Image = _Assets.image(Story.MOD_DIR + "art/icon_money.png")
 	if coin != null:
 		coin = coin.duplicate()
 		var f: int = maxi(1, 72 / maxi(coin.get_width(), coin.get_height()))
@@ -90,7 +99,7 @@ func _ready():
 	# New Gadget I-IV (#132): a cog with a spark and the tier in pips
 	# (art/tools/make_gear_icon.py).
 	for i in range(1, 5):
-		Assets.provide(Story.MOD_DIR + "art/icons/newgadget%d.png" % i, "res://content/icons/storynewgadget%d.png" % i)
+		_Assets.provide(Story.MOD_DIR + "art/icons/newgadget%d.png" % i, "res://content/icons/storynewgadget%d.png" % i)
 
 	# Living lava: the director gives each Story Mode run's map a LavaField.
 	var lava = load("res://mods-unpacked/flantor-StoryMode/lava/lava_director.gd").new()
@@ -133,7 +142,7 @@ func _ready():
 			boot.name = "DevBoot"
 			add_child(boot)
 	# Dev-only playtest harness; needs the dev/ folder and `-- --scenario=<name>`.
-	if OS.has_feature("editor") and Story.user_arg("scenario") != "" and ResourceLoader.exists(Story.MOD_DIR + "dev/harness.gd"):
+	if OS.has_feature("editor") and _Story.user_arg("scenario") != "" and ResourceLoader.exists(Story.MOD_DIR + "dev/harness.gd"):
 		var harness = load(Story.MOD_DIR + "dev/harness.gd").new()
 		harness.name = "PlaytestHarness"
 		add_child(harness)
@@ -143,7 +152,7 @@ func _ready():
 
 
 func _process(_delta: float) -> void:
-	Palette.keep_filled()
+	_Palette.keep_filled()
 
 
 # Called by the game once its data is loaded.
@@ -151,15 +160,15 @@ func modInit():
 	# Data messages to a peer keep their order in the chunker (#246; see
 	# net/ordered_chunker.gd). Set on vanilla's node before any session, so it
 	# keeps its name and RPC path. `--vanillachunker` (editor) leaves it vanilla.
-	if Network.chunker != null and not (OS.has_feature("editor") and Story.has_user_arg("vanillachunker")):
+	if Network.chunker != null and not (OS.has_feature("editor") and _Story.has_user_arg("vanillachunker")):
 		Network.chunker.set_script(load(Story.MOD_DIR + "net/ordered_chunker.gd"))
 		Network.chunker.set_process(true)
 		Data.full_sync_received.connect(Network.chunker.restore_ahead)
-		Network.chunker.tally_on = OS.has_feature("editor") and Story.has_user_arg("datasizes")
+		Network.chunker.tally_on = OS.has_feature("editor") and _Story.has_user_arg("datasizes")
 		# `--heldchunker` (editor): a small delta waits whole behind queued
 		# Data and a big one is chunked whole, as before #261 and #268, to
 		# show a gadget's keys landing after it.
-		Network.chunker.split_on = not (OS.has_feature("editor") and Story.has_user_arg("heldchunker"))
+		Network.chunker.split_on = not (OS.has_feature("editor") and _Story.has_user_arg("heldchunker"))
 	# Script extensions: each handles Story Mode and defers to vanilla otherwise.
 	# They are installed here, not in _init(): loading a vanilla script while
 	# ModLoader is still starting up pulls its dependencies in too early, and
@@ -168,10 +177,10 @@ func modInit():
 	# reason are in extensions/installer.gd). `--noclasshold` (editor) skips
 	# that, to show what it prevents.
 	var t0: int = Time.get_ticks_msec()
-	Installer.install(_held, not (OS.has_feature("editor") and Story.has_user_arg("noclasshold")))
+	_Installer.install(_held, not (OS.has_feature("editor") and _Story.has_user_arg("noclasshold")))
 	ModLoaderLog.info("Script extensions installed (%d ms)" % (Time.get_ticks_msec() - t0), STORYMODE_LOG)
-	Minerals.register()
-	Metal.register()
+	_Minerals.register()
+	_Metal.register()
 	# Miner bones (#94): a tile id and a carried, sellable drop.
 	load(Story.MOD_DIR + "data/bones.gd").register()
 	# The translator (#93): carried home like a relic.
@@ -236,8 +245,8 @@ func _badged_icon(base: String, badge: String) -> Texture2D:
 # Called by GameWorld.prepareLevelStart for every mode; vanilla sets nothing up
 # for an unknown mode id, so Story Mode does its own level preparation here.
 func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
-	Prices.apply(modeId == Story.MODE_ID)
-	Minerals.use_story_iron(modeId == Story.MODE_ID)
+	_Prices.apply(modeId == Story.MODE_ID)
+	_Minerals.use_story_iron(modeId == Story.MODE_ID)
 	if modeId != Story.MODE_ID:
 		# A loadout that ran Story Mode before keeps its modeConfig (the
 		# loadout screen reuses it), flag and all: without this a vanilla run
@@ -267,5 +276,5 @@ func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 	# prepareCleanData sets 2.1 again before every run.
 	Data.apply("map.tileHealthMultiplierPerLayer", MapConfig.TILE_HEALTH_PER_BIOME)
 	levelStartData.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
-	levelStartData.mapArchetype = MapConfig.make_archetype()
+	levelStartData.mapArchetype = _MapConfig.make_archetype()
 	GameWorld.prepareRegularLevelStart(levelStartData)

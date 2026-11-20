@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # drill still can't (t20_metal covers that).
 
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TIMEOUT := 420
 
@@ -24,7 +25,7 @@ func _metal_left(cells: Array) -> int:
 	var n: int = 0
 	for c: Vector2i in cells:
 		var t = Level.map.getTile(Vector2(c))
-		if t != null and Metal.is_metal(t.type):
+		if t != null and _Metal.is_metal(t.type):
 			n += 1
 	return n
 

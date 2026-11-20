@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 420
 const Split = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t231_split_restart.gd")
+static var _Split = Split  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -28,7 +29,7 @@ func run(h) -> void:
 			return
 		h.mute_beats()
 		h.disable_waves()
-	elif not await Split.start_split(h):
+	elif not await _Split.start_split(h):
 		return
 	await h.wait(2.0)
 	await h.shot("run1")

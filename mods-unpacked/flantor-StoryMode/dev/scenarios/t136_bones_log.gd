@@ -5,8 +5,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # batch of iron, so the bones' pop waits in line behind the iron pops.
 
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const SalePops = preload("res://mods-unpacked/flantor-StoryMode/hud/sale_pops.gd")
+static var _SalePops = SalePops  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -16,20 +19,20 @@ func boot() -> Dictionary:
 func _sell(h, b: int, iron: int) -> void:
 	var dome = Level.getDome("team1")
 	var target: Vector2 = dome.getDropTarget("iron").global_position + Vector2(0, -8)
-	var pops = SalePops.instance()
+	var pops = _SalePops.instance()
 	var shown0: int = pops.shown.size()
 	var m0: int = int(h.inv("money"))
 	for i in iron:
 		Level.drops.network_spawn({"type": "iron", "position": target + Vector2(randf_range(-4, 4), -4), "impulse": Vector2.ZERO})
 	var drop = Level.drops.network_spawn({"type": Bones.TYPE, "position": target + Vector2(0, -12), "impulse": Vector2.ZERO})
-	drop.value = Bones.value_for(b)
+	drop.value = _Bones.value_for(b)
 	drop.biome = b
 	var log_id: String = "log_b%d" % (b + 1)
 	await h.until(func(): return int(h.inv("money")) >= m0 + drop.value, 10.0)
 	var sold_t: float = h.now()
 	# Frames across the sale: the bones' pop, then the log.
 	await h.burst("b%d_sale" % (b + 1), 10, 6)
-	await h.until(func(): return StoryBeats.instance().open_id == log_id, 8.0)
+	await h.until(func(): return _StoryBeats.instance().open_id == log_id, 8.0)
 	var open_t: float = h.now()
 	var bones_pop_t: float = -1.0
 	for p in pops.shown.slice(shown0):

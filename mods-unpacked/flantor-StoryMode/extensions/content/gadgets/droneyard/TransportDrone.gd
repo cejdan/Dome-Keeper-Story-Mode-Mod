@@ -7,14 +7,15 @@ extends "res://content/gadgets/droneyard/TransportDrone.gd"
 # piece inside (util/carry_art.gd).
 
 const CarryArt = preload("res://mods-unpacked/flantor-StoryMode/util/carry_art.gd")
+static var _CarryArt = CarryArt  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func setCarriedResource(res: String):
-	var art: Texture2D = CarryArt.of(res)
+	var art: Texture2D = _CarryArt.of(res)
 	if art == null:
 		super(res)
 		if res == CONST.PACK:
-			CarryArt.fix_pack($CarriedResource, packedDropContent)
+			_CarryArt.fix_pack($CarriedResource, packedDropContent)
 		return
 	carriedResource = res
 	$CarriedResource.texture = art

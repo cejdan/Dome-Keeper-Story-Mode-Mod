@@ -74,8 +74,15 @@ static func local_pid() -> String:
 # in single player and on each online instance (a host with two local players
 # has two). Per-keeper systems (heat, toxin, recall, the HUD over a keeper)
 # loop over these; the team's side stays with the host.
+# A plain loop, no lambda: since the Nov 15 staging build (gdscript
+# runtime/lazy_preload=true) a lambda made in a static func costs ~260 us, and
+# this runs every frame (lava, gas, heat, toxin).
 static func local_keepers() -> Array:
-	return Keepers.local.keepers.filter(func(k): return k != null and is_instance_valid(k))
+	var out: Array = []
+	for k in Keepers.local.keepers:
+		if k != null and is_instance_valid(k):
+			out.append(k)
+	return out
 
 
 # The world rect player `pid`'s view shows, grown by `grow` px; an empty rect

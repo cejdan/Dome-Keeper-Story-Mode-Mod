@@ -6,6 +6,7 @@ extends Node
 # while the lava runs. Then it stands the keeper in the lava to test suit heat.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const FIELD_NAME := "StoryLavaField"
 
 var out_dir := ""
@@ -72,7 +73,7 @@ func _run() -> void:
 	for mm in Level.monstersByTeamId.values():
 		mm.disabled = true
 	var map = Level.map
-	var keeper = Story.local_keeper()
+	var keeper = _Story.local_keeper()
 	while not map.has_node(FIELD_NAME):
 		await get_tree().process_frame
 	var field = map.get_node(FIELD_NAME)

@@ -4,11 +4,13 @@ extends "res://content/map/tile/DirtParticle.gd"
 # iron). Everything else is vanilla.
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func _ready():
-	var tex: Texture2D = Metal.particle() if Metal.is_metal(type) else Minerals.particle_for_type(type)
+	var tex: Texture2D = _Metal.particle() if _Metal.is_metal(type) else _Minerals.particle_for_type(type)
 	if tex == null:
 		super._ready()
 		return

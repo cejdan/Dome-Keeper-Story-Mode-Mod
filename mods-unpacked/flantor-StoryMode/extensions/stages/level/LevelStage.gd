@@ -6,7 +6,9 @@ extends "res://stages/level/LevelStage.gd"
 # Everything else, and every vanilla mode, runs vanilla code.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
+static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
 
 # playerIds whose open gadget choice came from the shop
 var story_shop: Dictionary = {}
@@ -25,20 +27,20 @@ func openStoryGadgetChoice(teamId: String, playerId: String) -> void:
 
 @rpc("reliable", "any_peer")
 func requestStoryGadgetChoice(teamId: String, playerId: String) -> void:
-	if not (multiplayer.is_server() and Story.is_story()):
+	if not (multiplayer.is_server() and _Story.is_story()):
 		return
 	var keeper: Keeper = Keepers.getKeeper(playerId)
 	if keeper == null or keeper.peerId != multiplayer.get_remote_sender_id() or keeper.teamId != teamId:
 		return
 	# The shop panel checks the price before asking; the host checks it again.
-	var cost = GameWorld.upgrades.get(GadgetShop.next_entry(teamId), {}).get("cost", {})
+	var cost = GameWorld.upgrades.get(_GadgetShop.next_entry(teamId), {}).get("cost", {})
 	if cost is Dictionary and not GameWorld.canAfford(cost, teamId):
 		return
 	_open_story_gadget_choice(teamId, playerId)
 
 
 func _open_story_gadget_choice(teamId: String, playerId: String) -> void:
-	if GadgetShop.next_entry(teamId) == "" or GadgetShop.candidates(teamId, playerId).is_empty():
+	if _GadgetShop.next_entry(teamId) == "" or _GadgetShop.candidates(teamId, playerId).is_empty():
 		return
 	# Only with no choice open for the player: queued behind one, the mark would
 	# make that open choice (a found gadget, or the shop's own) the shop's.
@@ -59,7 +61,7 @@ func markStoryShopChoice(playerId: String) -> void:
 
 
 func startGadgetChoiceInput(teamId: String, playerId: String, offerType: String):
-	if not (Story.is_story() and offerType == CONST.GADGET and story_shop.has(playerId)):
+	if not (_Story.is_story() and offerType == CONST.GADGET and story_shop.has(playerId)):
 		super(teamId, playerId, offerType)
 		return
 	# Vanilla's setup, with the shop's processor (Cancel closes it).
@@ -102,21 +104,21 @@ func startGadgetChoiceInput(teamId: String, playerId: String, offerType: String)
 
 
 func _from_shop(playerId: String) -> bool:
-	return Story.is_story() and currentOfferTypeByPlayerId.get(playerId, "") == CONST.GADGET and story_shop.has(playerId)
+	return _Story.is_story() and currentOfferTypeByPlayerId.get(playerId, "") == CONST.GADGET and story_shop.has(playerId)
 
 
 func generateOffers(teamId: String, playerId: String) -> void:
 	if not _from_shop(playerId):
 		super(teamId, playerId)
 		return
-	var ids: Array = GadgetShop.offers(teamId, playerId)
+	var ids: Array = _GadgetShop.offers(teamId, playerId)
 	var newOffers: Array[Dictionary] = []
 	for id: String in ids:
 		var o: Dictionary = GameWorld.getGadgetOffer(id)
 		if o.size():
 			newOffers.append(o)
 	currentOffersByPlayerId[playerId] = newOffers
-	var rerollPossible: bool = GadgetShop.candidates(teamId, playerId).size() > newOffers.size()
+	var rerollPossible: bool = _GadgetShop.candidates(teamId, playerId).size() > newOffers.size()
 	var rerollCost: int = GadgetShop.REROLL_WATER
 	offersGenerated.emit(playerId, newOffers, rerollPossible, rerollCost, 0)
 	var offerIds: Array[String] = []
@@ -129,7 +131,7 @@ func generateOffers(teamId: String, playerId: String) -> void:
 @rpc("reliable", "any_peer")
 func remoteSetOffers(playerId: String, offerType: String, offerIds: Array[String], rerollPossible: bool, rerollCost: int, freeRerolls: int) -> void:
 	# Not _from_shop: a client has the shop mark but not the host's offer type.
-	if not (Story.is_story() and offerType == CONST.GADGET and story_shop.has(playerId)):
+	if not (_Story.is_story() and offerType == CONST.GADGET and story_shop.has(playerId)):
 		super(playerId, offerType, offerIds, rerollPossible, rerollCost, freeRerolls)
 		return
 	# As vanilla, minus the "shred to cobalt" choice: the shop was opened on purpose.
@@ -150,7 +152,7 @@ func rerollOffers(teamId: String, playerId: String) -> void:
 		return
 	Data.changeByInt(teamId + ".inventory.water", -GadgetShop.REROLL_WATER)
 	GameWorld.incrementRunStat("gadgets_rerolled", teamId)
-	GadgetShop.reroll(teamId, playerId)
+	_GadgetShop.reroll(teamId, playerId)
 	generateOffers(teamId, playerId)
 
 
@@ -159,9 +161,9 @@ func addGadgetUpgrade(id: String, offerType: String, playerId: String, teamId: S
 	if not _from_shop(playerId) or offerType != CONST.GADGET:
 		super(id, offerType, playerId, teamId)
 		return
-	var entry: String = GadgetShop.next_entry(teamId)
-	var cost: int = GadgetShop.price(teamId)
-	if entry == "" or not GadgetShop.offers(teamId, playerId).has(id) or Data.ofOr(teamId + ".inventory.money", 0) < cost:
+	var entry: String = _GadgetShop.next_entry(teamId)
+	var cost: int = _GadgetShop.price(teamId)
+	if entry == "" or not _GadgetShop.offers(teamId, playerId).has(id) or Data.ofOr(teamId + ".inventory.money", 0) < cost:
 		Network.rpc_or_local(Keepers.getKeeper(playerId).peerId, acceptGadgetSelection.bind(false, playerId))
 		return
 	# The entry is bought the vanilla way: that charges its price and unlocks the next one.
@@ -169,7 +171,7 @@ func addGadgetUpgrade(id: String, offerType: String, playerId: String, teamId: S
 	if not GameWorld.boughtUpgrades.has(entry):
 		Network.rpc_or_local(Keepers.getKeeper(playerId).peerId, acceptGadgetSelection.bind(false, playerId))
 		return
-	GadgetShop.clear(teamId)
+	_GadgetShop.clear(teamId)
 	ModLoaderLog.info("Gadget shop: %s bought with %s for $%d" % [id, entry, cost], Story.LOG)
 	super(id, offerType, playerId, teamId)
 

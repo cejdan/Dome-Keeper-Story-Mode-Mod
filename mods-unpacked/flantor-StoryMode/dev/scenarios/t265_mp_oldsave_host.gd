@@ -12,6 +12,7 @@ const TIMEOUT := 300
 const SLOT := 32
 const SAVED := "user://t265_saved.json"
 const OldSave = preload("res://mods-unpacked/flantor-StoryMode/dev/old_heat_save.gd")
+static var _OldSave = OldSave  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -25,7 +26,7 @@ func run(h) -> void:
 	if rooms.is_empty():
 		return
 	await h.wait(6.0)
-	var old: Dictionary = OldSave.make_old(2, true)
+	var old: Dictionary = _OldSave.make_old(2, true)
 	h.note("made old", old)
 	h.check("the run looks like a save from before #265", old["limits"].is_empty() and old["players"].size() == 2 and int(Data.ofOr("team1.suit.heatshield", 0)) == 2
 		and old["bought"].has("player2.suitblaster"), old)

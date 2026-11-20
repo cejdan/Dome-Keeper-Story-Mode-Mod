@@ -9,8 +9,11 @@ extends Node
 # Lives under the mod's main node, the same path on every peer.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Prices = preload("res://mods-unpacked/flantor-StoryMode/data/prices.gd")
+static var _Prices = Prices  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 # The map facts' Data key before #247: dropped from Data and never sent.
 const MAP_META := "story.mapmeta"
@@ -97,9 +100,9 @@ func _process(_delta: float) -> void:
 		return
 	if Network.is_client():
 		_client_prices()
-		if Story.is_story():
+		if _Story.is_story():
 			_client_meta()
-	elif Story.is_story():
+	elif _Story.is_story():
 		_host_meta()
 		_host_resend()
 		_log_tally()
@@ -332,7 +335,7 @@ func _log_message(r, full: bool, vals: Dictionary) -> void:
 			state = str(Network.ConnectionState.find_key(c.connection_state))
 	var entry: Dictionary = {"peer": r.target_peer_id, "kind": "full" if full else "delta", "sent": sent, "keys": vals.size(),
 		"raw": raw, "state": state, "top": rows.slice(0, 12), "groups": grows.slice(0, 12)}
-	var dev: bool = OS.has_feature("editor") and Story.has_user_arg("datasizes")
+	var dev: bool = OS.has_feature("editor") and _Story.has_user_arg("datasizes")
 	if full and dev:
 		var bytes: PackedByteArray = var_to_bytes(vals)
 		var zall: int = bytes.compress(FileAccess.CompressionMode.COMPRESSION_ZSTD).size()
@@ -450,12 +453,12 @@ func _client_meta_part(seed: int, size: int, index: int, total: int, part: Packe
 # Story Mode's prices and iron drop for a Story Mode run, vanilla's otherwise;
 # the host's mod_main.prepareGameMode does the same.
 func _client_prices() -> void:
-	var story: bool = Story.is_story()
+	var story: bool = _Story.is_story()
 	if story == _client_story:
 		return
 	_client_story = story
-	Prices.apply(story)
-	Minerals.use_story_iron(story)
+	_Prices.apply(story)
+	_Minerals.use_story_iron(story)
 	ModLoaderLog.info("Client: Story Mode prices %s" % ("on" if story else "off"), Story.LOG)
 
 
@@ -544,7 +547,7 @@ static func chamber_reached() -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _chamber_reached() -> void:
-	if not Network.is_client() and Story.is_story():
+	if not Network.is_client() and _Story.is_story():
 		load("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd").wake()
 
 

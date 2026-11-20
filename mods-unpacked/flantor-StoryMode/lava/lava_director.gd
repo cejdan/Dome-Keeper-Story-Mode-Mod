@@ -9,11 +9,15 @@ extends Node
 # `-- --lava` (dev switch).
 
 const LavaField = preload("res://mods-unpacked/flantor-StoryMode/lava/lava_field.gd")
+static var _LavaField = LavaField  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const MODE_FLAG := "flantor-storymode"
 const FIELD_NAME := "StoryLavaField"
 const Chains = preload("res://mods-unpacked/flantor-StoryMode/map/chains.gd")
+static var _Chains = Chains  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd")
+static var _StoryNet = StoryNet  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func _process(_delta: float) -> void:
@@ -31,17 +35,17 @@ func _process(_delta: float) -> void:
 	if not _wants_lava():
 		return
 	# A client builds its field from the host's map facts (#225).
-	if not StoryNet.map_meta_ready(map):
+	if not _StoryNet.map_meta_ready(map):
 		return
-	var field := LavaField.new()
+	var field := _LavaField.new()
 	field.name = FIELD_NAME
 	map.add_child(field)
 	field.setup(map)
 	ModLoaderLog.info("Lava field added: %d magma cells" % field.magma.size(), "flantor-StoryMode")
 	# Chains of the seal (#101): Story Mode maps only (the --lava dev switch can
 	# put lava on a vanilla map, which has no boss chamber).
-	if Story.is_story():
-		var chains := Chains.new()
+	if _Story.is_story():
+		var chains := _Chains.new()
 		chains.setup(map)
 		map.add_child(chains)
 		ModLoaderLog.info("Chains added: %d" % chains.chains.size(), "flantor-StoryMode")
@@ -51,4 +55,4 @@ func _wants_lava() -> bool:
 	if "--lava" in OS.get_cmdline_user_args():
 		return true
 	# A loaded save brings back the mode id but not the start-time flag.
-	return Story.is_story() or (Level.loadout != null and Level.loadout.modeConfig.get(MODE_FLAG, false))
+	return _Story.is_story() or (Level.loadout != null and Level.loadout.modeConfig.get(MODE_FLAG, false))

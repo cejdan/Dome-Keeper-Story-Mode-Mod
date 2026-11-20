@@ -9,8 +9,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 600
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 const Host = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t229_mp_story_host.gd")
+static var _Host = Host  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -19,7 +21,7 @@ func boot() -> Dictionary:
 
 func run(h) -> void:
 	h.check("this is a client", not h.multiplayer.is_server())
-	var sb = StoryBeats.instance()
+	var sb = _StoryBeats.instance()
 
 	# --- the welcome log: the host closes first, this player after.
 	var opened: bool = await h.until(func(): return sb.open_id == "keeper_welcome", 40.0)
@@ -35,9 +37,9 @@ func run(h) -> void:
 	h.up("ui_left")
 	h.check("still open here after the host closed theirs", sb.open_id == "keeper_welcome" and h.beat_box() != null and GameWorld.paused)
 	h.check("the keeper stood still", h.keeper().global_position.distance_to(p0) < 1.0, h.keeper().global_position - p0)
-	h.check("client closes its box", await Host.close_mine(h))
-	var closed: bool = await h.until(func(): return not StoryBeats.team_open(), 5.0)
-	h.check("the beat closes for the team", closed and StoryBeats.has_played("keeper_welcome"), Data.ofOr(StoryBeats.PLAYED, ""))
+	h.check("client closes its box", await _Host.close_mine(h))
+	var closed: bool = await h.until(func(): return not _StoryBeats.team_open(), 5.0)
+	h.check("the beat closes for the team", closed and _StoryBeats.has_played("keeper_welcome"), Data.ofOr(StoryBeats.PLAYED, ""))
 	await h.wait(0.5)
 	h.check("the client's game runs again", not GameWorld.paused)
 	h.check("it doesn't reopen", sb.open_id == "" and h.beat_box() == null)
@@ -54,15 +56,15 @@ func run(h) -> void:
 	await h.wait(1.0)
 	h.check("paused for the depth beat", GameWorld.paused)
 	await h.shot("client_b2")
-	h.check("client closes its box first", await Host.close_mine(h))
+	h.check("client closes its box first", await _Host.close_mine(h))
 	await h.wait(1.0)
-	h.check("the beat is still open for the team", StoryBeats.team_open() and GameWorld.paused)
-	h.check("client sees the waiting line", Host.waiting_label(h))
+	h.check("the beat is still open for the team", _StoryBeats.team_open() and GameWorld.paused)
+	h.check("client sees the waiting line", _Host.waiting_label(h))
 	await h.shot("client_waiting")
-	closed = await h.until(func(): return not StoryBeats.team_open(), 60.0)
-	h.check("depth beat closed once the host closed", closed and StoryBeats.has_played("biome_b2"))
+	closed = await h.until(func(): return not _StoryBeats.team_open(), 60.0)
+	h.check("depth beat closed once the host closed", closed and _StoryBeats.has_played("biome_b2"))
 	await h.wait(0.5)
-	h.check("running again", not GameWorld.paused and not Host.waiting_label(h))
+	h.check("running again", not GameWorld.paused and not _Host.waiting_label(h))
 
 	# --- the host's sale pops, plea and heat line.
 	var dome = Level.getDome("team1")
@@ -96,7 +98,7 @@ func run(h) -> void:
 	await h.wait(8.0)
 	h.check("thanks still open here", sb.open_id == "doom_thanks" and h.beat_box() != null)
 	var n0: int = pd.shown.size()
-	h.check("client reads the thanks", await Host.close_mine(h))
+	h.check("client reads the thanks", await _Host.close_mine(h))
 	var words: bool = await h.until(func(): return pd.shown.size() >= n0 + Endings.DOOM_LAST_WORDS.size(), 30.0)
 	var said: Array = pd.shown.slice(n0).map(func(e): return e["line"])
 	h.check("the monsters' last words show on the client", words and said == Endings.DOOM_LAST_WORDS, said)

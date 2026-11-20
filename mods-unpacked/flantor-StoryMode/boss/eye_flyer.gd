@@ -9,9 +9,12 @@ extends "res://content/monster/Monster.gd"
 # host's flyer and spits when it does (net_apply()); see surface_tentacle.gd.
 
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const BossMonster = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_monster.gd")
+static var _BossMonster = BossMonster  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TECH := "storyeyeflyer"
 const CHARGE := 0.7
@@ -38,7 +41,7 @@ var _net_seen: bool = false
 
 
 static func register(hp: float) -> void:
-	BossMonster.register(TECH, hp, 2, CONST.MONSTER_SMALL)
+	_BossMonster.register(TECH, hp, 2, CONST.MONSTER_SMALL)
 
 
 # A new flyer at `pos` (global), not yet in the tree; `p_perch` is where over
@@ -47,7 +50,7 @@ static func make(pos: Vector2, p_perch: float):
 	var shape := CircleShape2D.new()
 	shape.radius = 11.0
 	_uid += 1
-	var m = BossMonster.make("res://mods-unpacked/flantor-StoryMode/boss/eye_flyer.gd", "StoryEyeFlyer", TECH, _uid, shape)
+	var m = _BossMonster.make("res://mods-unpacked/flantor-StoryMode/boss/eye_flyer.gd", "StoryEyeFlyer", TECH, _uid, shape)
 	m.perch = p_perch
 	m.radius = randf_range(Boss.FINALE_FLYER_RADIUS[0], Boss.FINALE_FLYER_RADIUS[1])
 	m.global_position = pos
@@ -57,7 +60,7 @@ static func make(pos: Vector2, p_perch: float):
 func init():
 	fire_t = randf_range(2.2, 3.4)
 	vel = Vector2(randf_range(-30, 30), -120.0)
-	Sfx.play("pop", -6.0, 1.4)
+	_Sfx.play("pop", -6.0, 1.4)
 
 
 func _hover_point() -> Vector2:
@@ -108,7 +111,7 @@ func _spit() -> void:
 	var target: Vector2 = dome.getCupolaClosestPos(global_position, teamId)
 	bolts.append({"p": global_position, "to": target})
 	shots += 1
-	Sfx.play("spit", -10.0, randf_range(1.1, 1.4))
+	_Sfx.play("spit", -10.0, randf_range(1.1, 1.4))
 
 
 func _update_bolts(delta: float) -> void:
@@ -169,7 +172,7 @@ func net_apply(d: PackedFloat32Array) -> void:
 
 
 func animateDeath():
-	Sfx.play("pop", -3.0, randf_range(1.2, 1.5))
+	_Sfx.play("pop", -3.0, randf_range(1.2, 1.5))
 	bolts.clear()
 	charge = -1.0
 	var tw := create_tween()
@@ -194,22 +197,22 @@ func _draw() -> void:
 		return
 	# The nerve it tore out with, trailing below.
 	var tail: Vector2 = o + Vector2(-vel.x * 0.08, 20.0) + Vector2(sin(time * 3.0 + seed_f) * 4.0, 0)
-	var pts: PackedVector2Array = Pix.tentacle_points(o + Vector2(0, 6), tail, time * 2.0, 3.0, seed_f)
-	Pix.tentacle(self, pts, 3.0, 1.0, Pix.FLESH_MID, a)
+	var pts: PackedVector2Array = _Pix.tentacle_points(o + Vector2(0, 6), tail, time * 2.0, 3.0, seed_f)
+	_Pix.tentacle(self, pts, 3.0, 1.0, Pix.FLESH_MID, a)
 	if charge >= 0.0:
 		var c: float = charge / CHARGE
-		Pix.disc(self, o, 11.0 + c * 5.0, Color(Pix.VIOLET, 0.3 + 0.4 * c))
-	Pix.disc(self, o, 10.0, Color(Pix.EDGE, a))
+		_Pix.disc(self, o, 11.0 + c * 5.0, Color(Pix.VIOLET, 0.3 + 0.4 * c))
+	_Pix.disc(self, o, 10.0, Color(Pix.EDGE, a))
 	var dome = Level.getDome(teamId)
 	var look: Vector2 = to_local(dome.global_position) if dome != null else Vector2.DOWN * 50.0
 	var mod: Color = Color(3, 3, 3, a) if flash > 0.0 else Color(1, 1, 1, a)
 	if dead:
 		mod = Color(0.45, 0.4, 0.5, a)
-	Pix.eye(self, o, Pix.eye_frame_toward(o, look, time, seed_f), 1.0, mod)
+	_Pix.eye(self, o, _Pix.eye_frame_toward(o, look, time, seed_f), 1.0, mod)
 	for b: Dictionary in bolts:
 		var p: Vector2 = to_local(b["p"])
 		var back: Vector2 = (b["p"] - b["to"]).normalized()
 		for i in 3:
-			Pix.disc(self, p + back * (3.0 + i * 3.0), 2.0 - i * 0.5, Color(Pix.VIOLET, 0.5 - i * 0.14))
-		Pix.disc(self, p, 4.0, Pix.EDGE)
-		Pix.disc(self, p, 3.0, Pix.VIOLET if fposmod(time * 8.0, 1.0) < 0.5 else Pix.VIOLET_LIGHT)
+			_Pix.disc(self, p + back * (3.0 + i * 3.0), 2.0 - i * 0.5, Color(Pix.VIOLET, 0.5 - i * 0.14))
+		_Pix.disc(self, p, 4.0, Pix.EDGE)
+		_Pix.disc(self, p, 3.0, Pix.VIOLET if fposmod(time * 8.0, 1.0) < 0.5 else Pix.VIOLET_LIGHT)

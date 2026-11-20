@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # and the wave clock running the whole time a plea is up.
 
 const PleaData = preload("res://mods-unpacked/flantor-StoryMode/data/pleas.gd")
+static var _PleaData = PleaData  # calls go through this: lazy_preload makes const-preload calls slow
 
 const DEPTHS := {"A": 0, "B": 3, "C": 6, "D": 8}
 
@@ -46,7 +47,7 @@ func run(h) -> void:
 		h.check("stage %s: a wave arrives" % st, came)
 		await h.until(func(): return pd.shown.size() > n0, 3.0)
 		var arrive: Dictionary = pd.shown[n0] if pd.shown.size() > n0 else {}
-		h.check("stage %s: the arrival line comes from pool %s/arrive" % [st, st], arrive.get("kind", "") == "arrive" and PleaData.pool(st, "arrive").has(arrive.get("line", "")), arrive)
+		h.check("stage %s: the arrival line comes from pool %s/arrive" % [st, st], arrive.get("kind", "") == "arrive" and _PleaData.pool(st, "arrive").has(arrive.get("line", "")), arrive)
 		# While the line is up: monsters move, the wave clock runs, nothing paused.
 		var t0: float = mm.waveTime
 		var xs0: Array = _monster_xs(h)
@@ -60,7 +61,7 @@ func run(h) -> void:
 		await h.until(func(): return pd.shown.size() > n0 + 1, 10.0)
 		await h.wait(0.6)
 		var fight: Dictionary = pd.shown[n0 + 1] if pd.shown.size() > n0 + 1 else {}
-		h.check("stage %s: a fight line from pool %s/fight" % [st, st], fight.get("kind", "") == "fight" and PleaData.pool(st, "fight").has(fight.get("line", "")), fight)
+		h.check("stage %s: a fight line from pool %s/fight" % [st, st], fight.get("kind", "") == "fight" and _PleaData.pool(st, "fight").has(fight.get("line", "")), fight)
 		await h.shot("%s_fight" % st)
 		# Kill the wave: last words where a monster falls.
 		var nd: int = pd.shown.size()
@@ -68,7 +69,7 @@ func run(h) -> void:
 		await h.wait(0.5)
 		await h.shot("%s_death" % st)
 		var deaths: Array = pd.shown.slice(nd).filter(func(e): return e["kind"] == "death")
-		h.check("stage %s: last words when a monster dies" % st, deaths.size() >= 1 and PleaData.pool(st, "death").has(deaths[0]["line"]), deaths)
+		h.check("stage %s: last words when a monster dies" % st, deaths.size() >= 1 and _PleaData.pool(st, "death").has(deaths[0]["line"]), deaths)
 		await h.until(func(): return not Data.of("team1.monsters.wavepresent"), 60.0)
 		await h.wait(4.0)
 

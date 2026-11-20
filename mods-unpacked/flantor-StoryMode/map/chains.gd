@@ -26,6 +26,7 @@ extends Node2D
 # by the renderer). Only chains crossing the camera get new points, at 30 Hz.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
 
 const UNOB_ID := 47
@@ -327,7 +328,7 @@ func _process(delta: float) -> void:
 
 
 func _views() -> Array:
-	return Story.view_rects(48)
+	return _Story.view_rects(48)
 
 
 # The chain's points (this node's space) from `a` to `b`: a resting bow plus a

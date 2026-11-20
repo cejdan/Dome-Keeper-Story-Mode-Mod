@@ -11,6 +11,7 @@ extends Node
 # overview PNGs, and log.json (events, state snapshots, errors).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 var scenario_name: String = ""
 var out_dir: String = ""
@@ -23,8 +24,8 @@ var _t0: int = 0
 
 
 func _ready() -> void:
-	scenario_name = Story.user_arg("scenario")
-	out_dir = Story.user_arg("out", ProjectSettings.globalize_path("res://").path_join("../playtest_out/" + scenario_name)).simplify_path()
+	scenario_name = _Story.user_arg("scenario")
+	out_dir = _Story.user_arg("out", ProjectSettings.globalize_path("res://").path_join("../playtest_out/" + scenario_name)).simplify_path()
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	var script = load(Story.MOD_DIR + "dev/scenarios/" + scenario_name + ".gd")
 	if script == null:
@@ -78,14 +79,14 @@ func _run() -> void:
 func mute_beats() -> void:
 	if not multiplayer.is_server():
 		return
-	if not scenario.boot().get("beats", false) and Story.is_story():
+	if not scenario.boot().get("beats", false) and _Story.is_story():
 		var ids: PackedStringArray = []
 		for b: Dictionary in load(Story.MOD_DIR + "data/beats.gd").BEATS + load(Story.MOD_DIR + "data/logs.gd").LOGS:
 			if b["id"] != "keeper_welcome" or not scenario.boot().get("welcome", false):
 				ids.append(b["id"])
 		Data.apply("team1.story.beatsplayed", ",".join(ids))
 		note("story beats muted (boot has no beats: true)")
-	elif not scenario.boot().get("welcome", false) and Story.is_story():
+	elif not scenario.boot().get("welcome", false) and _Story.is_story():
 		var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
 		if not played.has("keeper_welcome"):
 			played.append("keeper_welcome")

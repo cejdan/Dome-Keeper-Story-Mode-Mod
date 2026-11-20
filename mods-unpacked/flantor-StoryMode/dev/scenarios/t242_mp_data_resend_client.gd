@@ -6,6 +6,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # them. Logs every value it read on the way. Pair: t242_mp_data_resend_host.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const KEY := "team1.story.t242"
 const TIMEOUT := 300
 
@@ -28,7 +29,7 @@ func run(h) -> void:
 	if not want is Dictionary:
 		return
 	var have := func() -> Dictionary:
-		return {"money": Data.ofOr("team1.inventory.money", null), "water": Data.ofOr("team1.inventory.water", null), "story": Data.ofOr(KEY, null), "boss": Director.current()}
+		return {"money": Data.ofOr("team1.inventory.money", null), "water": Data.ofOr("team1.inventory.water", null), "story": Data.ofOr(KEY, null), "boss": _Director.current()}
 	await h.until(func(): return _matches(have.call(), want), 5.0)
 	var got: Dictionary = have.call()
 	h.note("values read on the way", _seen)
@@ -57,7 +58,7 @@ func _same(a, b) -> bool:
 
 
 func _watch(h) -> void:
-	var now := {"money": Data.ofOr("team1.inventory.money", null), "story": Data.ofOr(KEY, null), "boss": Director.current()}
+	var now := {"money": Data.ofOr("team1.inventory.money", null), "story": Data.ofOr(KEY, null), "boss": _Director.current()}
 	if now != _last:
 		_last = now
 		var row := now.duplicate()

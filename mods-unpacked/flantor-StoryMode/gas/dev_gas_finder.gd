@@ -6,6 +6,7 @@ extends Node
 # From there, drill toward the green cracks to let the gas out.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const FIELD_NAME := "StoryGasField"
 const HINT_SECONDS := 5.0
 
@@ -16,7 +17,7 @@ var _hint_left := 0.0
 
 func _ready() -> void:
 	# A playtest scenario's boot() can ask for it too (`gas: true`, #272).
-	if not Story.has_user_arg("gas"):
+	if not _Story.has_user_arg("gas"):
 		queue_free()
 		return
 	var layer := CanvasLayer.new()
@@ -95,7 +96,7 @@ func jump() -> void:
 	if map == null or not is_instance_valid(map) or not map.has_node(FIELD_NAME):
 		_say("No gas field yet (start a Story Mode run)")
 		return
-	var keeper = Story.local_keeper()
+	var keeper = _Story.local_keeper()
 	if keeper == null or not is_instance_valid(keeper):
 		return
 	var field = map.get_node(FIELD_NAME)

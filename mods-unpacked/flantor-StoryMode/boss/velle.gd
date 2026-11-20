@@ -39,8 +39,11 @@ extends Node2D
 # `play_events()`).
 
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
+static var _Boss = Boss  # calls go through this: lazy_preload makes const-preload calls slow
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 
 signal defeated
 signal phase_changed(phase: int)
@@ -190,7 +193,7 @@ func _add(a: Dictionary) -> void:
 # the clients, who decide the same way.
 func _sfx(sound: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	if _here:
-		Sfx.play(sound, volume_db, pitch)
+		_Sfx.play(sound, volume_db, pitch)
 	if collect_events:
 		_ev.append([0, sound, volume_db, pitch])
 
@@ -339,7 +342,7 @@ func _pull(delta: float) -> void:
 
 func _grow_stalks() -> void:
 	stalks.clear()
-	var n: int = Boss.stalks(phase)
+	var n: int = _Boss.stalks(phase)
 	var homes: Array = STALK_HOMES[n]
 	for i in n:
 		var h: Vector2 = arena.position + Vector2(homes[i].x * arena.size.x, homes[i].y * arena.size.y)
@@ -387,14 +390,14 @@ func _update_stalks(delta: float, kp: Vector2) -> void:
 				_spit(s["pos"], np)
 		else:
 			s["fire_t"] -= delta
-			if s["fire_t"] <= 0.0 and _rng.randf() < Boss.stalk_laser_share(phase):
+			if s["fire_t"] <= 0.0 and _rng.randf() < _Boss.stalk_laser_share(phase):
 				# A thin laser instead of an orb.
 				_who = near[0] if not near.is_empty() else null
 				_add(_ray(s["pos"], np, 0.8, 0.25, 0.35, 3.0, "stalk", s))
-				s["fire_t"] = Boss.stalk_fire_every(phase) * _rng.randf_range(0.85, 1.25)
+				s["fire_t"] = _Boss.stalk_fire_every(phase) * _rng.randf_range(0.85, 1.25)
 			elif s["fire_t"] <= 0.0:
 				s["charge"] = 0.7
-				s["fire_t"] = Boss.stalk_fire_every(phase) * _rng.randf_range(0.85, 1.25)
+				s["fire_t"] = _Boss.stalk_fire_every(phase) * _rng.randf_range(0.85, 1.25)
 
 
 func _spit(from: Vector2, kp: Vector2) -> void:
@@ -448,10 +451,10 @@ func _open_volley(kp: Vector2) -> float:
 	_volley += 1
 	var odd: bool = _volley % 2 == 1
 	if odd or phase == 0:
-		var n: int = Boss.open_beams(phase)
+		var n: int = _Boss.open_beams(phase)
 		start_attack(["beam1", "beam2", "beam"][clampi(n, 1, 3) - 1], kp, who)
 		return [0.6, 1.4, 2.0][clampi(n, 1, 3) - 1]
-	if phase == 1 or not Boss.T_JAWS[Boss.tier()]:
+	if phase == 1 or not Boss.T_JAWS[_Boss.tier()]:
 		start_attack("wall", kp, who)
 	else:
 		start_attack("jaws", kp, who)
@@ -513,8 +516,8 @@ func _schedule_attacks(delta: float, kp: Vector2) -> void:
 	_atk_t -= delta
 	if _atk_t > 0.0:
 		return
-	_atk_t = Boss.attack_every(phase) * _rng.randf_range(0.85, 1.2)
-	var pool: Array = POOLS[mini(POOLS.size() - 1, phase + int(Boss.T_POOL_SHIFT[Boss.tier()]))]
+	_atk_t = _Boss.attack_every(phase) * _rng.randf_range(0.85, 1.2)
+	var pool: Array = POOLS[mini(POOLS.size() - 1, phase + int(Boss.T_POOL_SHIFT[_Boss.tier()]))]
 	var kind: String = pool[_rng.randi() % pool.size()]
 	if kind == _last_attack and pool.size() > 1:
 		kind = pool[(pool.find(kind) + 1) % pool.size()]
@@ -542,7 +545,7 @@ func start_attack(kind: String, kp: Vector2, who = null) -> void:
 		"lunge":
 			var horizontal: bool = _rng.randf() < 0.5
 			_add(_lunge(kp, horizontal, 0.0))
-			if phase >= 2 and Boss.T_DOUBLE_LUNGE[Boss.tier()]:
+			if phase >= 2 and Boss.T_DOUBLE_LUNGE[_Boss.tier()]:
 				_add(_lunge(kp, not horizontal, -0.45))
 		"erupt":
 			for i in 3:
@@ -564,7 +567,7 @@ func start_attack(kind: String, kp: Vector2, who = null) -> void:
 			_wall_ray(kp, true, 0.0)
 			_wall_ray(kp, false, -0.25)
 		"grid":
-			if int(Boss.T_GRID_RAYS[Boss.tier()]) >= 5:
+			if int(Boss.T_GRID_RAYS[_Boss.tier()]) >= 5:
 				for i in 3:
 					_wall_ray(kp + Vector2((i - 1) * 96.0, 0), false, -0.12 * i)
 				_wall_ray(kp, true, -0.4)
@@ -801,7 +804,7 @@ func _damage_core(amount: float) -> void:
 	_burst(eye_pos(), 12, Pix.SCLERA, 180.0)
 	_shake(22.0, 0.45, 22.0)
 	_sfx("hurt", -2.0, _rng.randf_range(0.8, 1.0))
-	Sfx.hitstop(0.05, 0.07)
+	_Sfx.hitstop(0.05, 0.07)
 	ModLoaderLog.info("Velle hit for %.0f: %.0f / %.0f" % [amount, hp, Boss.CORE_HP], "flantor-StoryMode")
 	if hp <= 0.0:
 		attacks.clear()
@@ -812,7 +815,7 @@ func _damage_core(amount: float) -> void:
 		_set_state("dying")
 		pickups.clear()
 		_white = 1.0
-		Sfx.hitstop(0.2, 0.9)
+		_Sfx.hitstop(0.2, 0.9)
 		_sfx("roar", 0.0, 0.6)
 		return
 	var new_phase: int = phase
@@ -825,7 +828,7 @@ func _damage_core(amount: float) -> void:
 		orbs.clear()
 		_shock = 0.0
 		_white = 0.8
-		Sfx.hitstop(0.25, 0.45)
+		_Sfx.hitstop(0.25, 0.45)
 		_drop_heart()
 		_set_state("roar")
 		_shake(30.0, 1.0, 16.0)
@@ -1191,7 +1194,7 @@ func _draw() -> void:
 			var bp: Vector2 = to_local(b.global_position)
 			var pulse: float = 0.5 + 0.5 * sin(time * 5.0 + bp.x * 0.1)
 			draw_arc(bp, 10.0 + pulse * 2.0, 0.0, TAU, 20, Color(Pix.IRIS, 0.35 + 0.35 * pulse), 1.0)
-			Pix.disc(self, bp, 9.0, Color(Pix.IRIS, 0.10))
+			_Pix.disc(self, bp, 9.0, Color(Pix.IRIS, 0.10))
 	for f: Dictionary in fx:
 		draw_rect(Rect2(f["p"].round(), Vector2(f["s"], f["s"])), Color(f["col"], clampf(f["life"] * 3.0, 0.0, 1.0)))
 	if _shock >= 0.0:
@@ -1222,11 +1225,11 @@ func _draw_wall_eyes(kp: Vector2) -> void:
 			open = clampf(1.0 - state_t * 0.6 + i * 0.05, 0.0, 1.0)
 		if open <= 0.05:
 			continue
-		Pix.disc(self, p, 6.0, Pix.EDGE)
+		_Pix.disc(self, p, 6.0, Pix.EDGE)
 		if open < 0.6:
 			draw_rect(Rect2((p + Vector2(-4, 0)).round(), Vector2(8, 1)), Pix.FLESH_LIGHT)
 		else:
-			Pix.eye(self, p, Pix.eye_frame_toward(p, kp, time, i * 0.53), 0.5)
+			_Pix.eye(self, p, _Pix.eye_frame_toward(p, kp, time, i * 0.53), 0.5)
 
 
 func _draw_pickups() -> void:
@@ -1235,9 +1238,9 @@ func _draw_pickups() -> void:
 		var fade: float = clampf((Boss.HEART_SECONDS - h["t"]) / 3.0, 0.0, 1.0)
 		if fade < 1.0 and fposmod(h["t"] * 6.0, 1.0) < 0.4:
 			continue
-		Pix.disc(self, p, 9.0 + sin(h["t"] * 5.0), Color(1.0, 0.25, 0.35, 0.22))
-		Pix.disc(self, p, 6.0, Color(1.0, 0.25, 0.35, 0.3))
-		Pix.heart(self, p + Vector2(-3.5, -3.0), true)
+		_Pix.disc(self, p, 9.0 + sin(h["t"] * 5.0), Color(1.0, 0.25, 0.35, 0.22))
+		_Pix.disc(self, p, 6.0, Color(1.0, 0.25, 0.35, 0.3))
+		_Pix.heart(self, p + Vector2(-3.5, -3.0), true)
 
 
 func _shake_off() -> Vector2:
@@ -1261,13 +1264,13 @@ func _draw_body(kp: Vector2) -> void:
 	for pass_i in 2:
 		var grow: float = 1.0 if pass_i == 0 else 0.0
 		var col: Color = Pix.EDGE if pass_i == 0 else body
-		Pix.ellipse(self, o + Vector2(-40, -14 * r), 28 + grow + breathe * 0.5, 20 * r + grow, col, -1.0, 0.7)
-		Pix.ellipse(self, o + Vector2(40, -14 * r), 28 + grow - breathe * 0.5, 20 * r + grow, col, -1.0, 0.7)
-		Pix.ellipse(self, o + Vector2(0, -30 * r), 50 + grow + breathe, 36 * r + grow, col, -1.0, 0.83)
+		_Pix.ellipse(self, o + Vector2(-40, -14 * r), 28 + grow + breathe * 0.5, 20 * r + grow, col, -1.0, 0.7)
+		_Pix.ellipse(self, o + Vector2(40, -14 * r), 28 + grow - breathe * 0.5, 20 * r + grow, col, -1.0, 0.7)
+		_Pix.ellipse(self, o + Vector2(0, -30 * r), 50 + grow + breathe, 36 * r + grow, col, -1.0, 0.83)
 	# Lighter folds.
-	Pix.ellipse(self, o + Vector2(-8, -40 * r), 34 + breathe, 20 * r, mid, -1.0, 0.2)
-	Pix.ellipse(self, o + Vector2(-44, -19 * r), 16, 9 * r, mid, -1.0, 0.1)
-	Pix.ellipse(self, o + Vector2(40, -20 * r), 16, 9 * r, mid, -1.0, 0.1)
+	_Pix.ellipse(self, o + Vector2(-8, -40 * r), 34 + breathe, 20 * r, mid, -1.0, 0.2)
+	_Pix.ellipse(self, o + Vector2(-44, -19 * r), 16, 9 * r, mid, -1.0, 0.1)
+	_Pix.ellipse(self, o + Vector2(40, -20 * r), 16, 9 * r, mid, -1.0, 0.1)
 	if r < 0.6:
 		return
 	# The crowd of small eyes.
@@ -1279,27 +1282,27 @@ func _draw_body(kp: Vector2) -> void:
 		if state == "dying" and state_t > 0.3 * (i + 1):
 			draw_rect(Rect2((p + Vector2(-3, -1)).round(), Vector2(6, 3)), Pix.IRIS_DEEP)
 			continue
-		var f: int = Pix.eye_frame_toward(p, kp, time, i * 0.37)
-		Pix.eye(self, p, f, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
+		var f: int = _Pix.eye_frame_toward(p, kp, time, i * 0.37)
+		_Pix.eye(self, p, f, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
 	_draw_great_eye(o + Vector2(0, -36.0 * r), kp, dead)
 
 
 func _draw_great_eye(c: Vector2, kp: Vector2, dead: bool) -> void:
-	Pix.ellipse(self, c, 21, 17, Pix.EDGE)
-	Pix.ellipse(self, c, 19, 15, Pix.FLESH_LIGHT if not dead else Color("2c2238"))
+	_Pix.ellipse(self, c, 21, 17, Pix.EDGE)
+	_Pix.ellipse(self, c, 19, 15, Pix.FLESH_LIGHT if not dead else Color("2c2238"))
 	if dead:
 		draw_rect(Rect2((c + Vector2(-15, 0)).round(), Vector2(30, 2)), Pix.EDGE)
 		return
 	if lid > 0.06:
 		var ry: float = 13.0 * lid
-		Pix.ellipse(self, c, 17, ry, Pix.SCLERA if _hit_flash <= 0.0 else Color.WHITE)
+		_Pix.ellipse(self, c, 17, ry, Pix.SCLERA if _hit_flash <= 0.0 else Color.WHITE)
 		var look: Vector2 = (kp - c).limit_length(60.0) / 60.0 * Vector2(6, 3)
 		if state == "dying":
 			look = Vector2(sin(time * 9.0) * 6.0, cos(time * 7.0) * 3.0)
 		var ic: Vector2 = c + look
 		var ir: float = minf(9.0, ry)
-		Pix.ellipse(self, ic, 9, ir, Pix.IRIS_DEEP)
-		Pix.ellipse(self, ic, 7, maxf(1.0, ir - 2.0), Pix.IRIS)
+		_Pix.ellipse(self, ic, 9, ir, Pix.IRIS_DEEP)
+		_Pix.ellipse(self, ic, 7, maxf(1.0, ir - 2.0), Pix.IRIS)
 		var ph: float = maxf(1.0, round(ir * 1.5))
 		draw_rect(Rect2((ic + Vector2(-1, -ph * 0.5)).round(), Vector2(3, ph)), Pix.PUPIL)
 		draw_rect(Rect2((ic + Vector2(-4, -ir * 0.5)).round(), Vector2(2, 2)), Color.WHITE)
@@ -1328,8 +1331,8 @@ func _draw_root_tentacles() -> void:
 		var reach: float = (58.0 if i % 2 == 0 else 86.0) * rise
 		var a: Vector2 = base + Vector2(side * 42.0, -6.0)
 		var b: Vector2 = base + Vector2(side * (42.0 + reach), -8.0 - 10.0 * sin(time * 1.1 + i * 1.9))
-		var pts: PackedVector2Array = Pix.tentacle_points(a, b, time, 5.0, i * 2.3, 1.0, -side * 8.0)
-		Pix.tentacle(self, pts, 5.0, 1.0, Pix.FLESH)
+		var pts: PackedVector2Array = _Pix.tentacle_points(a, b, time, 5.0, i * 2.3, 1.0, -side * 8.0)
+		_Pix.tentacle(self, pts, 5.0, 1.0, Pix.FLESH)
 
 
 func _draw_stalks(kp: Vector2) -> void:
@@ -1341,8 +1344,8 @@ func _draw_stalks(kp: Vector2) -> void:
 			if ext <= 0.02:
 				continue
 		var bend: float = 18.0 * sin(s["seed"])
-		var pts: PackedVector2Array = Pix.tentacle_points(s["anchor"], s["pos"], time, 6.0, s["seed"], ext, bend)
-		var tip: Vector2 = Pix.tentacle(self, pts, 5.0, 3.0, Pix.FLESH_MID, alpha)
+		var pts: PackedVector2Array = _Pix.tentacle_points(s["anchor"], s["pos"], time, 6.0, s["seed"], ext, bend)
+		var tip: Vector2 = _Pix.tentacle(self, pts, 5.0, 3.0, Pix.FLESH_MID, alpha)
 		if not s["alive"]:
 			continue
 		var mod: Color = Color.WHITE
@@ -1351,10 +1354,10 @@ func _draw_stalks(kp: Vector2) -> void:
 		elif s["charge"] >= 0.0:
 			# Charging a spit: the eye swells and glows.
 			var c: float = 1.0 - s["charge"] / 0.7
-			Pix.disc(self, tip, 9.0 + c * 4.0, Color(Pix.VIOLET, 0.35 + 0.3 * c))
+			_Pix.disc(self, tip, 9.0 + c * 4.0, Color(Pix.VIOLET, 0.35 + 0.3 * c))
 			mod = Color(1.0 + c, 1.0 + c * 0.6, 1.0 + c)
-		Pix.disc(self, tip, 9.0, Pix.EDGE)
-		Pix.eye(self, tip, Pix.eye_frame_toward(tip, kp, time, s["seed"]), 1.0, mod)
+		_Pix.disc(self, tip, 9.0, Pix.EDGE)
+		_Pix.eye(self, tip, _Pix.eye_frame_toward(tip, kp, time, s["seed"]), 1.0, mod)
 
 
 func _draw_orbs() -> void:
@@ -1362,9 +1365,9 @@ func _draw_orbs() -> void:
 		var p: Vector2 = o["p"]
 		var tail: Vector2 = -o["v"].normalized()
 		for i in 3:
-			Pix.disc(self, p + tail * (3.0 + i * 3.0), 2.0 - i * 0.5, Color(Pix.VIOLET, 0.5 - i * 0.14))
-		Pix.disc(self, p, o["r"] + 1.0, Pix.EDGE)
-		Pix.disc(self, p, o["r"], Pix.VIOLET if fposmod(time * 8.0, 1.0) < 0.5 else Pix.VIOLET_LIGHT)
+			_Pix.disc(self, p + tail * (3.0 + i * 3.0), 2.0 - i * 0.5, Color(Pix.VIOLET, 0.5 - i * 0.14))
+		_Pix.disc(self, p, o["r"] + 1.0, Pix.EDGE)
+		_Pix.disc(self, p, o["r"], Pix.VIOLET if fposmod(time * 8.0, 1.0) < 0.5 else Pix.VIOLET_LIGHT)
 		draw_rect(Rect2((p + Vector2(-1, -1)).round(), Vector2(2, 2)), Pix.IRIS)
 
 
@@ -1416,13 +1419,13 @@ func _draw_strikes() -> void:
 			# Winding up: a stub quivers at the root.
 			if a["t"] > a["tele"] * 0.4:
 				var dir: Vector2 = (a["b"] - a["a"]).normalized()
-				var pts0: PackedVector2Array = Pix.tentacle_points(a["a"], a["a"] + dir * 16.0, time * 4.0, 2.0, a["seed"])
-				Pix.tentacle(self, pts0, a["w"], 3.0, Pix.FLESH_MID)
+				var pts0: PackedVector2Array = _Pix.tentacle_points(a["a"], a["a"] + dir * 16.0, time * 4.0, 2.0, a["seed"])
+				_Pix.tentacle(self, pts0, a["w"], 3.0, Pix.FLESH_MID)
 			continue
-		var pts: PackedVector2Array = Pix.tentacle_points(a["a"], a["b"], time * 1.5, 3.0, a["seed"], e)
-		var tip: Vector2 = Pix.tentacle(self, pts, a["w"], 2.5, Pix.FLESH_MID)
+		var pts: PackedVector2Array = _Pix.tentacle_points(a["a"], a["b"], time * 1.5, 3.0, a["seed"], e)
+		var tip: Vector2 = _Pix.tentacle(self, pts, a["w"], 2.5, Pix.FLESH_MID)
 		if a.get("spike", false) and e > 0.9:
-			Pix.eye(self, tip + Vector2(0, 4), int(time * 8.0) % 4, 1.0)
+			_Pix.eye(self, tip + Vector2(0, 4), int(time * 8.0) % 4, 1.0)
 
 
 func _draw_beams() -> void:
@@ -1448,9 +1451,9 @@ func _draw_beams() -> void:
 		if a["wall_eye"]:
 			# The eye in the wall it comes from.
 			var grow: float = clampf(t / 0.3, 0.0, 1.0)
-			Pix.disc(self, from, 7.0 * grow, Pix.EDGE)
+			_Pix.disc(self, from, 7.0 * grow, Pix.EDGE)
 			if grow >= 1.0:
-				Pix.eye(self, from, int(time * 10.0) % 4, 0.5, Color(1.6, 1.2, 1.2))
+				_Pix.eye(self, from, int(time * 10.0) % 4, 0.5, Color(1.6, 1.2, 1.2))
 		if t < a["tele"]:
 			_dashes(from, to, Color(Pix.WARN, 0.5 + 0.5 * sin(t * 30.0)), 1.0)
 			draw_line(from, to, Color(Pix.WARN, 0.08), w * 2.0)
@@ -1479,5 +1482,5 @@ func _draw_health_bar() -> void:
 		var x: float = round(w * float(at) / Boss.CORE_HP)
 		draw_rect(Rect2(p + Vector2(x, -1), Vector2(1, 6)), Color(0.03, 0.02, 0.06, 1.0))
 	# An eye for a name tag.
-	Pix.disc(self, p + Vector2(-12, 2), 8.0, Color(0.03, 0.02, 0.06, 0.85))
-	Pix.eye(self, p + Vector2(-12, 2), int(time * 4.0) % 4 if is_open() else 4 + int(time * 1.5) % 4, 0.5)
+	_Pix.disc(self, p + Vector2(-12, 2), 8.0, Color(0.03, 0.02, 0.06, 0.85))
+	_Pix.eye(self, p + Vector2(-12, 2), int(time * 4.0) % 4 if is_open() else 4 + int(time * 1.5) % 4, 0.5)

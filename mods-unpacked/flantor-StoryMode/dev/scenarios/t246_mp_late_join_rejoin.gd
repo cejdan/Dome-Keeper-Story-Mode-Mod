@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t246_mp_late_join_host (as -Rejoin).
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const KEY := "team1.story.t246"
 const TIMEOUT := 240
 
@@ -23,5 +24,5 @@ func run(h) -> void:
 	var n: int = int(want["n"])
 	h.check("the money is the host's", int(Data.ofOr("team1.inventory.money", -1)) == 5000 + n, Data.ofOr("team1.inventory.money", -1))
 	h.check("the story key is the host's", str(Data.ofOr(KEY, "")) == "v%d" % n, Data.ofOr(KEY, ""))
-	h.check("the boss state is the host's", Director.current() == "t246_%d" % n, Director.current())
+	h.check("the boss state is the host's", _Director.current() == "t246_%d" % n, _Director.current())
 	await h.shot("rejoin_end")

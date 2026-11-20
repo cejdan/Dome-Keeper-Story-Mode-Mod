@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t230_mp_boss_fight_client.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
 const TIMEOUT := 480
@@ -46,7 +47,7 @@ func run(h) -> void:
 	Data.apply("story.dev.race_a", 1)
 	await h.wait(1.0)
 	Data.apply("story.dev.race_b", 1)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var ck = _client_keeper(h)
 	h.check("boss director and a client keeper on the host", boss != null and ck != null, keeper_rows(h))
 	if boss == null or ck == null:
@@ -66,12 +67,12 @@ func run(h) -> void:
 	Data.apply(Awakening.AWAKE, true)
 	await h.wait(1.0)
 	var home: Vector2i = h.keeper_tile()
-	h.check("no fight while nobody is in the chamber", Director.current() == "", Director.current())
+	h.check("no fight while nobody is in the chamber", _Director.current() == "", _Director.current())
 
 	# ---- the client's keeper alone starts the fight
 	share("chamber", [ch.position.x, ch.position.y, ch.size.x, ch.size.y])
-	var started: bool = await h.until(func(): return Director.current() == "fight", 40.0)
-	h.check("the fight starts with only the client's keeper in the chamber", started, {"state": Director.current(), "keepers": keeper_rows(h)})
+	var started: bool = await h.until(func(): return _Director.current() == "fight", 40.0)
+	h.check("the fight starts with only the client's keeper in the chamber", started, {"state": _Director.current(), "keepers": keeper_rows(h)})
 	if not started:
 		return
 	var velle = boss.velle
@@ -135,24 +136,24 @@ func run(h) -> void:
 
 	# ---- the eye opens; the fight is won
 	var guard: int = 0
-	while Director.current() == "fight" and guard < 40:
+	while _Director.current() == "fight" and guard < 40:
 		guard += 1
 		if velle.state == "fight":
 			for s: Dictionary in velle.stalks.duplicate():
 				if s["alive"]:
-					Director.explosion_at(velle.to_global(s["pos"]), "bomb")
+					_Director.explosion_at(velle.to_global(s["pos"]), "bomb")
 					await h.wait(0.2)
 		elif velle.state == "open" and velle.is_open():
 			if guard % 2 == 0 and velle.hp > 6.0:
 				share("look3", _facts(velle))
 				await h.wait(0.5)
 				await h.shot("host_eye_open_%d" % velle.phase)
-			Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+			_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 		await h.wait(0.6)
-	h.check("the fight is won: the team is in the chase", Director.current() == "chase", [Director.current(), velle.hp, guard])
+	h.check("the fight is won: the team is in the chase", _Director.current() == "chase", [_Director.current(), velle.hp, guard])
 	await h.wait(1.0)
 	await h.shot("host_husk")
-	share("done", {"state": Director.current(), "hearts": health.hearts(), "velle": velle.state})
+	share("done", {"state": _Director.current(), "hearts": health.hearts(), "velle": velle.state})
 	h.note("velle stats", velle.stats)
 	h.note("host music", boss.music.playing())
 	await host_wait_clients_left(h)

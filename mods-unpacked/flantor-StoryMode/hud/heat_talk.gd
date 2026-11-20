@@ -16,7 +16,9 @@ extends Node
 # Lives under the Story Mode node; does nothing without the run's lava field.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Lines = preload("res://mods-unpacked/flantor-StoryMode/data/heat_lines.gd")
 
 const GROUP := "story-heat-talk"
@@ -47,7 +49,7 @@ var _pending: String:
 
 
 func _t0() -> Dictionary:
-	var k = Story.local_keeper()
+	var k = _Story.local_keeper()
 	return talkers.get(k.playerId, {}) if k != null and is_instance_valid(k) else {}
 
 
@@ -80,7 +82,7 @@ func _process(delta: float) -> void:
 	var field = map.get_node_or_null(FIELD)
 	if field == null:
 		return
-	for keeper in Story.local_keepers():
+	for keeper in _Story.local_keepers():
 		_process_keeper(keeper, map, field, delta)
 
 
@@ -128,8 +130,8 @@ func _state(keeper, map, field) -> String:
 	var ocean: Dictionary = map.tileData.get_meta("story_ocean", {})
 	if not ocean.is_empty() and c.y > int(ocean["ceiling"]):
 		section = 8
-	if section >= LavaData.PASSIVE_HEAT_START_BIOME and LavaData.passive_rate(section, keeper) > 0.0:
-		return "hot:%d" % (section - LavaData.PASSIVE_HEAT_START_BIOME - LavaData.shield_tier(keeper))
+	if section >= LavaData.PASSIVE_HEAT_START_BIOME and _LavaData.passive_rate(section, keeper) > 0.0:
+		return "hot:%d" % (section - LavaData.PASSIVE_HEAT_START_BIOME - _LavaData.shield_tier(keeper))
 	return "out"
 
 
@@ -183,7 +185,7 @@ func _net_line(player_id: String, text: String, color: Color, kind: String) -> v
 		_relay(player_id, text, color, kind, from)
 	elif from != 1:
 		return
-	for mine in Story.local_keepers():
+	for mine in _Story.local_keepers():
 		if mine.playerId == player_id:
 			return
 	if _remote.has(player_id) and is_instance_valid(_remote[player_id]):
@@ -240,7 +242,7 @@ func _follow() -> void:
 		var k = Keepers.getKeeper(pid) if is_instance_valid(h) and Keepers.hasKeeper(pid) else null
 		if k != null and is_instance_valid(k):
 			h.global_position = (k.global_position + OFFSET).round()
-	for keeper in Story.local_keepers():
+	for keeper in _Story.local_keepers():
 		var h = talkers.get(keeper.playerId, {}).get("holder", null)
 		if h != null and is_instance_valid(h):
 			h.global_position = (keeper.global_position + OFFSET).round()

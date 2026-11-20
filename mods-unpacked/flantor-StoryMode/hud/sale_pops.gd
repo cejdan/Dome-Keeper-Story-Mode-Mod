@@ -14,6 +14,7 @@ extends Node
 # Does nothing outside a Story Mode run (the node only exists in one).
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 const GROUP := "story-sale-pops"
 const GOLD := Color("ffe14d")
@@ -96,7 +97,7 @@ func _show(amount: int, color: Color) -> void:
 		return
 	var label: Label = Label.new()
 	label.name = "SalePop"
-	label.text = "+" + Minerals.dollars(amount)
+	label.text = "+" + _Minerals.dollars(amount)
 	label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	label.add_theme_font_override("font", _pixel_font())
 	label.add_theme_font_size_override("font_size", 20 if amount < 100 else 30)

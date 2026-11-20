@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # from the open eye); a new phase shakes a heart loose.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 420
 
@@ -19,7 +20,7 @@ func boot() -> Dictionary:
 func _pop_all(h, velle) -> void:
 	for s: Dictionary in velle.stalks.duplicate():
 		if s["alive"]:
-			Director.explosion_at(velle.to_global(s["pos"]), "bomb")
+			_Director.explosion_at(velle.to_global(s["pos"]), "bomb")
 			await h.wait(0.3)
 
 
@@ -37,11 +38,11 @@ func run(h) -> void:
 			area.append(Vector2i(x, y))
 	await h.reveal(area)
 	await h.teleport_tile(ch.position + Vector2i(3, 2))
-	var started: bool = await h.until(func(): return Director.current() == "fight", 8.0)
-	h.check("the fight starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "fight", 8.0)
+	h.check("the fight starts", started, _Director.current())
 	if not started:
 		return
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var velle = boss.velle
 	var health = boss.health
 	var arena: Rect2 = velle.arena
@@ -53,7 +54,7 @@ func run(h) -> void:
 	# ---- a popped stalk shakes a charge loose
 	velle._bomb_t = 99.0
 	var b0: int = velle.stats["bombs_spawned"]
-	Director.explosion_at(velle.to_global(velle.stalks[0]["pos"]), "bomb")
+	_Director.explosion_at(velle.to_global(velle.stalks[0]["pos"]), "bomb")
 	await h.wait(0.4)
 	h.check("popping a stalk shakes a charge loose", velle.stats["bombs_spawned"] == b0 + 1, velle.stats)
 
@@ -118,10 +119,10 @@ func run(h) -> void:
 
 	# ---- phase 2: a heart, stalk lasers, the cross
 	var hp0: float = velle.hp
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.3)
 	h.check("a hit that does not end the phase leaves the eye open", velle.is_open() and velle.hp == hp0 - 5.0, [velle.state, velle.hp])
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.6)
 	await h.shot("phase2_roar_heart")
 	h.check("crossing %d health ends the phase: the eye shuts" % Boss.PHASE_AT[0], velle.phase == 1 and velle.state == "roar", [velle.phase, velle.state])
@@ -178,9 +179,9 @@ func run(h) -> void:
 	health.refill()
 
 	# ---- phase 3: the grid, and the closing jaws
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.wait(0.3)
-	Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
+	_Director.explosion_at(velle.to_global(velle.eye_pos()), "bomb")
 	await h.until(func(): return velle.state == "fight" and velle.phase == 2, 8.0)
 	h.check("phase 3 begins", velle.phase == 2, velle.hp)
 	await h.wait(1.5)

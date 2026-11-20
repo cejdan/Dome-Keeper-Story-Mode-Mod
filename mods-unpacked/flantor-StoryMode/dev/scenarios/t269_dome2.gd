@@ -9,6 +9,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 240
 const Host = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t234_mp_e2e_host.gd")
+static var _Host = Host  # calls go through this: lazy_preload makes const-preload calls slow
 const Prices = preload("res://mods-unpacked/flantor-StoryMode/data/prices.gd")
 
 # dome -> [first weapon upgrade, a Data key it changes, the scene]
@@ -51,18 +52,18 @@ func _tesla(dome):
 func _tesla_step(h, tesla, fire: String) -> void:
 	var r: Vector2 = tesla.reticle.global_position
 	var best = null
-	for m in Host.monsters(h):
-		if best == null or r.distance_to(Host.aim_point(m)) < r.distance_to(Host.aim_point(best)):
+	for m in _Host.monsters(h):
+		if best == null or r.distance_to(_Host.aim_point(m)) < r.distance_to(_Host.aim_point(best)):
 			best = m
 	if best == null:
 		return
-	var off: Vector2 = Host.aim_point(best) - r
-	Host.hold(h, _held, "ui_left", off.x < -4.0)
-	Host.hold(h, _held, "ui_right", off.x > 4.0)
-	Host.hold(h, _held, "ui_up", off.y < -4.0)
-	Host.hold(h, _held, "ui_down", off.y > 4.0)
+	var off: Vector2 = _Host.aim_point(best) - r
+	_Host.hold(h, _held, "ui_left", off.x < -4.0)
+	_Host.hold(h, _held, "ui_right", off.x > 4.0)
+	_Host.hold(h, _held, "ui_up", off.y < -4.0)
+	_Host.hold(h, _held, "ui_down", off.y > 4.0)
 	# Charge until full, then let go once the reticle is on it.
-	Host.hold(h, _held, fire, tesla.shotCharge < tesla.maxCharge or off.length() > 10.0)
+	_Host.hold(h, _held, fire, tesla.shotCharge < tesla.maxCharge or off.length() > 10.0)
 
 
 func run(h) -> void:
@@ -84,7 +85,7 @@ func run(h) -> void:
 
 	# The weapon's first upgrade, bought with that money.
 	var tid: String = "team1." + up if GameWorld.upgrades.has("team1." + up) else up
-	var price: int = Host.cost(tid)
+	var price: int = _Host.cost(tid)
 	h.check("%s costs its Story price ($%d)" % [up, Prices.PRICES.get(up, -1)], price == int(Prices.PRICES.get(up, -2)), [tid, price])
 	var before = Data.ofOr(_key(), null)
 	var m1: int = int(h.inv("money"))
@@ -106,15 +107,15 @@ func run(h) -> void:
 		await h.wait(2.5)
 
 	# One wave, fought from the main station.
-	var st = Host.station(dome, 0)
-	var inside: bool = await Host.enter_station(h, st, h.keeper())
+	var st = _Host.station(dome, 0)
+	var inside: bool = await _Host.enter_station(h, st, h.keeper())
 	h.check("the keeper takes the station", inside)
 	Data.apply("team1.dome.maxHealth", 1000000)
 	Data.apply("team1.dome.health", 1000000)
 	h.enable_waves()
 	GameWorld.runStarted = true
 	Data.apply("team1.monsters.wavecooldown", 2)
-	var came: bool = await h.until(func(): return Data.ofOr("team1.monsters.wavepresent", false) and Host.monsters(h).size() > 0, 90.0)
+	var came: bool = await h.until(func(): return Data.ofOr("team1.monsters.wavepresent", false) and _Host.monsters(h).size() > 0, 90.0)
 	h.check("a wave comes", came)
 	var fire: String = d + "_fire"
 	var has_fire: bool = InputMap.has_action(fire)
@@ -129,11 +130,11 @@ func run(h) -> void:
 			_tesla_step(h, tesla, fire)
 		else:
 			# Sweep left and right, firing in bursts (the sword stabs on release).
-			Host.hold(h, _held, "ui_left", fmod(t, 3.0) < 1.5)
-			Host.hold(h, _held, "ui_right", fmod(t, 3.0) >= 1.5)
+			_Host.hold(h, _held, "ui_left", fmod(t, 3.0) < 1.5)
+			_Host.hold(h, _held, "ui_right", fmod(t, 3.0) >= 1.5)
 			if has_fire:
-				Host.hold(h, _held, fire, fmod(t, 0.8) < 0.5)
-		for m in Host.monsters(h):
+				_Host.hold(h, _held, fire, fmod(t, 0.8) < 0.5)
+		for m in _Host.monsters(h):
 			var u: int = m.UID
 			if hp.has(u) and m.currentHealth < hp[u]:
 				dmg += hp[u] - m.currentHealth
@@ -143,10 +144,10 @@ func run(h) -> void:
 			shots += 1
 			await h.shot("wave_%d" % shots)
 	for a in ["ui_left", "ui_right", "ui_up", "ui_down", fire]:
-		Host.hold(h, _held, a, false)
+		_Host.hold(h, _held, a, false)
 	var by_weapon: bool = not Data.ofOr("team1.monsters.wavepresent", false)
 	# A monster killed in one hit leaves between two frames: count what went.
-	var alive: Array = Host.monsters(h).map(func(m): return m.UID)
+	var alive: Array = _Host.monsters(h).map(func(m): return m.UID)
 	var killed: int = hp.keys().filter(func(u): return not alive.has(u)).size()
 	h.note("wave", {"damage": dmg, "killed": killed, "cleared by the weapon": by_weapon, "left": alive.size()})
 	h.check("the %s's weapon hurts the wave" % d, dmg > 0.0 or killed > 0, [dmg, killed])

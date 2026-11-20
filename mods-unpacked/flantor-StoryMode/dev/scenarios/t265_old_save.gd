@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const SLOT := 26
 const OldSave = preload("res://mods-unpacked/flantor-StoryMode/dev/old_heat_save.gd")
+static var _OldSave = OldSave  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -17,7 +18,7 @@ func boot() -> Dictionary:
 func run(h) -> void:
 	h.disable_waves()
 	await h.wait(1.0)
-	var old: Dictionary = OldSave.make_old(3, true)
+	var old: Dictionary = _OldSave.make_old(3, true)
 	h.note("made old", old)
 	h.check("the run looks like a save from before #265", old["limits"].is_empty() and old["team entries"].size() == 5 and Data.ofOr("team1.suit.heatshield", 0) == 3
 		and not GameWorld.upgrades.has("player1.storyheatshield1"), old)

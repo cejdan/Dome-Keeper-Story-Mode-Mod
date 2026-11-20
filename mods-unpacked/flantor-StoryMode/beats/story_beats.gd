@@ -28,8 +28,11 @@ extends Node
 # player, splitscreen) takes none of these paths.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
+static var _BeatData = BeatData  # calls go through this: lazy_preload makes const-preload calls slow
 const LogData = preload("res://mods-unpacked/flantor-StoryMode/data/logs.gd")
+static var _LogData = LogData  # calls go through this: lazy_preload makes const-preload calls slow
 
 const GROUP := "story-beats"
 const PLAYED := "team1.story.beatsplayed"
@@ -88,7 +91,7 @@ static func trigger(trigger_name: String) -> int:
 	if n == null:
 		return 0
 	var count: int = 0
-	for id: String in BeatData.ids_for(trigger_name):
+	for id: String in _BeatData.ids_for(trigger_name):
 		if n.queue_beat(id):
 			count += 1
 	return count
@@ -144,7 +147,7 @@ func _ready() -> void:
 
 
 func queue_beat(id: String) -> bool:
-	if not multiplayer.is_server() or not Story.is_story():
+	if not multiplayer.is_server() or not _Story.is_story():
 		return false
 	if _entry(id).is_empty():
 		push_warning("Story beat: no beat or log with id " + id)
@@ -232,13 +235,13 @@ func _can_show() -> bool:
 		return false
 	# Nothing opens during the boss sequence either (#174): a text box there
 	# kills the flow. Whatever was waiting shows afterwards, if the run goes on.
-	if Story.boss_active():
+	if _Story.boss_active():
 		return false
 	var mode = Level.mode
 	if mode != null and mode.has_method("is_ending") and mode.is_ending():
 		return false
 	# A loading save restores Data (and so the queue) after the stage starts.
-	if GameWorld.paused or SaveGame.currentLoadingSavegame or Story.local_keeper() == null:
+	if GameWorld.paused or SaveGame.currentLoadingSavegame or _Story.local_keeper() == null:
 		return false
 	# Online: a client's own queue check never opens a beat (the host's OPEN key
 	# does), and the host gives clients still loading a moment to arrive.
@@ -255,8 +258,8 @@ func _can_show() -> bool:
 # A beat (data/beats.gd) or a miner's data log (data/logs.gd, #94): logs ride
 # the same queue, pause and once-per-run record, in their own box.
 static func _entry(id: String) -> Dictionary:
-	var b: Dictionary = BeatData.by_id(id)
-	return b if not b.is_empty() else LogData.by_id(id)
+	var b: Dictionary = _BeatData.by_id(id)
+	return b if not b.is_empty() else _LogData.by_id(id)
 
 
 func _show(id: String) -> void:
@@ -283,11 +286,11 @@ func _show(id: String) -> void:
 
 # This player's box for the beat `id`.
 func _open_box(id: String, beat: Dictionary) -> void:
-	var keeper: Keeper = Story.local_keeper()
+	var keeper: Keeper = _Story.local_keeper()
 	var i = load(Story.MOD_DIR + "beats/BeatInputProcessor.gd").new()
 	i.deviceId = keeper.deviceId
 	i.globalInput = true
-	var is_log: bool = not LogData.by_id(id).is_empty()
+	var is_log: bool = not _LogData.by_id(id).is_empty()
 	i.popup = load(Story.MOD_DIR + ("beats/LogBox.gd" if is_log else "beats/BeatBox.gd")).new()
 	i.popup.setup(id, int(beat.get("tier", 1)))
 	_box = i.popup
@@ -339,7 +342,7 @@ static func team_open() -> bool:
 # Every instance, every frame of an online run: follows the host's OPEN key.
 func _follow_team(delta: float) -> void:
 	var stage = Level.stage
-	if stage == null or not (stage is LevelStage) or not Story.is_story():
+	if stage == null or not (stage is LevelStage) or not _Story.is_story():
 		return
 	var cur: String = str(Data.ofOr(OPEN, ""))
 	if multiplayer.is_server():
@@ -394,7 +397,7 @@ func _follow_team(delta: float) -> void:
 
 func _client_can_show() -> bool:
 	var stage = Level.stage
-	if StageManager.isSwitchingStage() or not stage.keeperInputStarted or Story.local_keeper() == null:
+	if StageManager.isSwitchingStage() or not stage.keeperInputStarted or _Story.local_keeper() == null:
 		return false
 	if stage.pauseMenuOpen or stage.showingChoicePopup or stage.endingPanel != null:
 		return false

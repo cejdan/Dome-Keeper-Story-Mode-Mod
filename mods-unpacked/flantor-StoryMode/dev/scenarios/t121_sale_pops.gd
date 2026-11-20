@@ -5,8 +5,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # price; bones pop their value. Frame bursts catch the ripple.
 
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const SalePops = preload("res://mods-unpacked/flantor-StoryMode/hud/sale_pops.gd")
+static var _SalePops = SalePops  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -21,7 +24,7 @@ func run(h) -> void:
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.0)
 	h.disable_waves()
-	var pops = SalePops.instance()
+	var pops = _SalePops.instance()
 	h.check("the sale pops node is in the run", pops != null)
 	if pops == null:
 		return
@@ -29,7 +32,7 @@ func run(h) -> void:
 	await h.wait(0.5)
 
 	# ---- three iron: +$5 +$5 +$5, staggered
-	var iron: int = Minerals.value_of("iron")
+	var iron: int = _Minerals.value_of("iron")
 	var m0: int = int(h.inv("money"))
 	var n0: int = pops.shown.size()
 	h.deliver("iron", 3)
@@ -48,7 +51,7 @@ func run(h) -> void:
 	var batch: Array = ["bronze", "gold", "ruby", "diamond"]
 	var want: Array = []
 	for t: String in batch:
-		want.append(Minerals.value_of(t))
+		want.append(_Minerals.value_of(t))
 		h.deliver(t, 1)
 		await h.frames(4)
 	await h.until(func(): return pops.shown.size() > n0, 10.0)
@@ -74,11 +77,11 @@ func run(h) -> void:
 	n0 = pops.shown.size()
 	var dome = Level.getDome("team1")
 	var d = Level.drops.network_spawn({"type": Bones.TYPE, "position": dome.getDropTarget("iron").global_position + Vector2(0, -8), "impulse": Vector2.ZERO})
-	d.value = Bones.value_for(4)
+	d.value = _Bones.value_for(4)
 	d.biome = 4
 	await h.until(func(): return pops.shown.size() > n0, 10.0)
 	await h.burst("bones", 24, 3)
 	got = _amounts(pops, n0)
-	h.check("bones pop their value ($%d)" % Bones.value_for(4), got == [Bones.value_for(4)], got)
+	h.check("bones pop their value ($%d)" % _Bones.value_for(4), got == [_Bones.value_for(4)], got)
 	await h.wait(2.0)
 	h.check("finished pops are freed", h.get_tree().get_nodes_in_group("story-sale-pop").is_empty(), h.get_tree().get_nodes_in_group("story-sale-pop").size())

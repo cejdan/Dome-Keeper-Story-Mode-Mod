@@ -12,6 +12,7 @@ extends RefCounted
 # (boss/boss_director.gd, #160).
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 
 const MINED := "team1.story.unobmined"
 const CELLS := "team1.story.unobcells"
@@ -46,7 +47,7 @@ static func unobtainium_mined(cell: Vector2i) -> void:
 	var cells: String = str(Data.ofOr(CELLS, ""))
 	Data.apply(CELLS, cells + "%d,%d;" % [cell.x, cell.y])
 	ModLoaderLog.info("Awakening: unobtainium %d mined at %s, seal at %.2f" % [n, cell, level()], "flantor-StoryMode")
-	StoryBeats.trigger("unobtainium:%d" % n)
+	_StoryBeats.trigger("unobtainium:%d" % n)
 
 
 # The keeper broke into the boss chamber.
@@ -55,4 +56,4 @@ static func wake() -> void:
 		return
 	Data.apply(AWAKE, true)
 	ModLoaderLog.info("Awakening: the horror is awake", "flantor-StoryMode")
-	StoryBeats.trigger("boss_chamber")
+	_StoryBeats.trigger("boss_chamber")

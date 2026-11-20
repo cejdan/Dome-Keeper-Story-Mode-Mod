@@ -10,17 +10,19 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t251_mp_load_client (mp_playtest.ps1 -ClientDelay 12).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Save = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t251_mp_save_host.gd")
+static var _Save = Save  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
 func boot() -> Dictionary:
-	return {"loadout": true, "netload": Save.slot()}
+	return {"loadout": true, "netload": _Save.slot()}
 
 
 func run(h) -> void:
-	var f := FileAccess.open(Save.saved_path(), FileAccess.READ)
-	h.check("the first session's notes are there", f != null, Save.saved_path())
+	var f := FileAccess.open(_Save.saved_path(), FileAccess.READ)
+	h.check("the first session's notes are there", f != null, _Save.saved_path())
 	if f == null:
 		return
 	var saved: Dictionary = JSON.parse_string(f.get_as_text())
@@ -44,7 +46,7 @@ func run(h) -> void:
 	var took: String = ""
 	var t0: float = h.now()
 	while took == "" and h.now() - t0 < 30.0:
-		if Story.has_user_arg("instantpick"):
+		if _Story.has_user_arg("instantpick"):
 			var lk = h.free_saved_keeper(true)
 			if lk != null and h.choose_keeper(true):
 				took = lk.playerId

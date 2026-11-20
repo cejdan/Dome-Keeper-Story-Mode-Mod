@@ -13,8 +13,10 @@ extends Node2D
 # net_hit(). Each keeper has its own safe moment after a hit.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 
 const KEY := "team1.story.hearts"
 
@@ -26,9 +28,9 @@ var _safe: Dictionary = {}      # playerId -> seconds that keeper is still safe
 # This instance's first keeper's (playtests set it).
 var invulnerable: float:
 	get:
-		return float(_safe.get(Story.local_pid(), 0.0))
+		return float(_safe.get(_Story.local_pid(), 0.0))
 	set(v):
-		_safe[Story.local_pid()] = v
+		_safe[_Story.local_pid()] = v
 var _pushes: Dictionary = {}    # playerId -> [push, seconds left]
 var dead: bool = false
 var hits: int = 0
@@ -81,7 +83,7 @@ func _flash_for(keeper) -> ColorRect:
 func _place_flashes() -> void:
 	for pid in _flashes:
 		var f = _flashes[pid]
-		var r: Rect2 = Story.view_rect(pid, 8.0)
+		var r: Rect2 = _Story.view_rect(pid, 8.0)
 		if is_instance_valid(f) and r.has_area():
 			f.position = to_local(r.position)
 			f.size = r.size
@@ -129,7 +131,7 @@ func set_safe(keeper, sec: float) -> void:
 # safe from its last hit, or the team is already dead. The host's to call.
 func hurt(from: Vector2, cause: String = "", keeper = null) -> bool:
 	if keeper == null:
-		keeper = Story.local_keeper()
+		keeper = _Story.local_keeper()
 	if dead or keeper == null or not is_instance_valid(keeper) or not multiplayer.is_server() or safe_left(keeper) > 0.0:
 		return false
 	var left: int = maxi(0, hearts() - 1)
@@ -217,4 +219,4 @@ func _draw_hearts(keeper) -> void:
 		if have == 1 and full:
 			bob = round(sin(_time * 10.0))
 		var just_won: bool = i == have - 1 and _gain_flash > 0.0
-		Pix.heart(self, p + Vector2(i * 8.0, bob), full, Color("ff3b4f"), (just_lost or just_won) and fposmod(_time * 14.0, 1.0) < 0.5)
+		_Pix.heart(self, p + Vector2(i * 8.0, bob), full, Color("ff3b4f"), (just_lost or just_won) and fposmod(_time * 14.0, 1.0) < 0.5)

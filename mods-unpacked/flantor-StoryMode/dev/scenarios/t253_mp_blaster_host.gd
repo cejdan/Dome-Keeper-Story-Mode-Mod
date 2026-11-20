@@ -28,6 +28,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t253_mp_blaster_client.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const OrderedChunker = preload("res://mods-unpacked/flantor-StoryMode/net/ordered_chunker.gd")
 const TIMEOUT := 300
 
@@ -37,33 +38,33 @@ func boot() -> Dictionary:
 
 
 func run(h) -> void:
-	var vanilla: bool = Story.has_user_arg("vanilla")
+	var vanilla: bool = _Story.has_user_arg("vanilla")
 	if not await host_start(h, 2, "relichunt" if vanilla else "storymode"):
 		return
 	# `--early`: right after the client is in sync, as the boss dev commands
 	# do in t230_mp_boss_*: the host's full Data sync to it is still on its
 	# way (chunked), and the gadget's RPC overtakes the Data behind it.
-	if not Story.has_user_arg("early"):
+	if not _Story.has_user_arg("early"):
 		await h.wait(3.0)
 	# `--bigdelta`: a 20 KB Data key first, so the next delta is sent in chunks
 	# and the Suit Blaster's own delta waits behind it every time.
-	if Story.has_user_arg("bigdelta"):
+	if _Story.has_user_arg("bigdelta"):
 		Data.apply("story.dev.pad", "x".repeat(20000))
 		Data.synchronizer.manual_tick()
 	var keepers: Array = Keepers.getAll()
-	var give: String = Story.user_arg("give", "suitblaster")
-	var path: String = "vanilla gadget" if vanilla else ("dev gear" if Story.has_user_arg("devgear") else "shop")
+	var give: String = _Story.user_arg("give", "suitblaster")
+	var path: String = "vanilla gadget" if vanilla else ("dev gear" if _Story.has_user_arg("devgear") else "shop")
 	if give != "suitblaster":
 		path = "given " + give
 	h.note("giving", [give, path])
 	var ahead0: int = OrderedChunker.sent_ahead
 	# Random letters: zstd shrinks them little, so a full sync grows too.
-	if Story.has_user_arg("onedelta"):
+	if _Story.has_user_arg("onedelta"):
 		var pad := ""
 		for i in 2400:
 			pad += char(65 + randi() % 58)
 		Data.apply("story.dev.pad", pad)
-	if Story.has_user_arg("fullsync"):
+	if _Story.has_user_arg("fullsync"):
 		for c in Network.clients:
 			c.full_data_sync()
 	# A keeper gadget is each keeper's (playerId.<id>), any other the team's.
@@ -78,7 +79,7 @@ func run(h) -> void:
 	elif vanilla:
 		for k in keepers:
 			GameWorld.serverAddUpgrade(k.playerId + ".suitblaster", k.teamId)
-	elif Story.has_user_arg("devgear"):
+	elif _Story.has_user_arg("devgear"):
 		var given: Array = load(Story.MOD_DIR + "dev/boss_dev.gd").give_gear()
 		h.note("dev gear", given)
 		for k in keepers:

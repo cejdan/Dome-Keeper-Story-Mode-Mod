@@ -11,9 +11,12 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 300
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const Prices = preload("res://mods-unpacked/flantor-StoryMode/data/prices.gd")
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 const KEEPERS := ["keeper1", "keeper2", "keeper3", "keeper4"]
 # Each keeper's first mining upgrade (off its root, limit `mining`).
@@ -189,7 +192,7 @@ static func carve_shaft(h, bottom: Vector2i, depth: int) -> void:
 	for y in range(bottom.y - depth - 1, bottom.y + 3):
 		for x in range(bottom.x - 3, bottom.x + 4):
 			var t := Vector2i(x, y)
-			if Metal.is_metal_id(td.get_resourcev(t)):
+			if _Metal.is_metal_id(td.get_resourcev(t)):
 				td.set_resourcev(t, Data.TILE_DIRT_START)
 			if lava != null:
 				lava.mass.erase(t)
@@ -231,8 +234,8 @@ func run(h) -> void:
 	h.disable_waves()
 	var k = h.keeper()
 	var kid: String = keeper_id()
-	if Story.has_user_arg("keeper"):
-		kid = Story.user_arg("keeper")
+	if _Story.has_user_arg("keeper"):
+		kid = _Story.user_arg("keeper")
 	h.check("the run's keeper is the %s" % kid, k != null and k.techId == kid, k.techId if k else null)
 	h.check("this player has the storykeeper limit", GameWorld.isUpgradeLimitAvailable(k.playerId + ".storykeeper"))
 	h.snap_camera()
@@ -275,7 +278,7 @@ func run(h) -> void:
 		h.check("bought %s for $%d" % [raw, price], ok and GameWorld.boughtUpgrades.has(id), GameWorld.upgrades.get(id, {}).get("cost", {}))
 		spent += price
 	h.check("the team paid $%d" % spent, int(h.inv("money")) == m0 - spent, [m0, h.inv("money")])
-	h.check("this keeper is at Heat Shielding I", LavaData.shield_tier(k) == 1, Data.ofOr(k.playerId + ".suit.heatshield", null))
+	h.check("this keeper is at Heat Shielding I", _LavaData.shield_tier(k) == 1, Data.ofOr(k.playerId + ".suit.heatshield", null))
 	var granted: bool = await h.until(func(): return GameWorld.boughtUpgrades.has(k.playerId + ".suitblaster"), 5.0)
 	h.check("the Suit Blaster entry granted this keeper the Suit Blaster", granted)
 

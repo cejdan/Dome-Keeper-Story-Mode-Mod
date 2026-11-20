@@ -9,20 +9,21 @@ extends RefCounted
 # Host only. Returns what it did, for the scenario's notes.
 
 const KeeperUpgrades = preload("res://mods-unpacked/flantor-StoryMode/gamemode/keeper_upgrades.gd")
+static var _KeeperUpgrades = KeeperUpgrades  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 static func make_old(tier: int, blaster: bool) -> Dictionary:
 	var gw = GameWorld
-	var pids: Array = KeeperUpgrades.player_ids()
+	var pids: Array = _KeeperUpgrades.player_ids()
 	# The per-keeper side goes: limits, entries (bought or not), Data.
 	for pid: String in pids:
 		gw.upgradeLimits.erase(pid + "." + KeeperUpgrades.LIMIT)
-		for raw: String in KeeperUpgrades._team_entries():
+		for raw: String in _KeeperUpgrades._team_entries():
 			gw.upgrades.erase(pid + "." + raw)
 			gw.boughtUpgrades.erase(pid + "." + raw)
 		Data.values.erase(pid + ".suit.heatshield")
 	# The team's entries, as #44 / #18 made them.
-	for raw: String in KeeperUpgrades._team_entries():
+	for raw: String in _KeeperUpgrades._team_entries():
 		var u: Dictionary = Data.deepDuplicateUpgrade(Data.upgrades[raw])
 		u.erase("limit")
 		if u.get("predecessors", []).has("keeper1"):
@@ -37,7 +38,7 @@ static func make_old(tier: int, blaster: bool) -> Dictionary:
 		gw.boughtUpgrades.append("team1.storysuitblaster")
 		for pid: String in pids:
 			if not gw.boughtUpgrades.has(pid + ".suitblaster"):
-				gw.serverAddUpgrade(pid + ".suitblaster", KeeperUpgrades.team_of(pid))
+				gw.serverAddUpgrade(pid + ".suitblaster", _KeeperUpgrades.team_of(pid))
 	return {
 		"players": pids, "tier": tier, "blaster": blaster,
 		"team entries": gw.upgrades.keys().filter(func(k): return k.begins_with("team1.story") and ("heat" in k or "suit" in k)),

@@ -7,15 +7,16 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t251_mp_save_client.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
 static func mode() -> String:
-	return "relichunt" if Story.has_user_arg("vanilla") else "storymode"
+	return "relichunt" if _Story.has_user_arg("vanilla") else "storymode"
 
 
 static func slot() -> int:
-	return 34 if Story.has_user_arg("vanilla") else 33
+	return 34 if _Story.has_user_arg("vanilla") else 33
 
 
 static func saved_path() -> String:

@@ -6,6 +6,7 @@ extends Node
 # toward the pocket to let the lava out.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const FIELD_NAME := "StoryLavaField"
 const HINT_SECONDS := 4.0
 
@@ -43,7 +44,7 @@ func _probe(dir: String) -> void:
 	for mm in Level.monstersByTeamId.values():
 		mm.disabled = true
 	var map = Level.map
-	var keeper = Story.local_keeper()
+	var keeper = _Story.local_keeper()
 	while not map.has_node(FIELD_NAME):
 		await get_tree().process_frame
 	var field = map.get_node(FIELD_NAME)
@@ -119,7 +120,7 @@ func _jump() -> void:
 	if map == null or not is_instance_valid(map) or not map.has_node(FIELD_NAME):
 		_say("No lava field yet (start a run launched with --lava)")
 		return
-	var keeper = Story.local_keeper()
+	var keeper = _Story.local_keeper()
 	if keeper == null or not is_instance_valid(keeper):
 		return
 	var field = map.get_node(FIELD_NAME)

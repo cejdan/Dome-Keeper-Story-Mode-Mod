@@ -6,11 +6,17 @@ extends "res://content/map/Map.gd"
 # onTileRemoved's lift-entry check (#159), which gives vanilla's answer cheaper.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
+static var _Awakening = Awakening  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 # --- the flood reveal, spread over frames (#159) -----------------------------------
@@ -42,7 +48,7 @@ func floodRevealTiles(forceUpdate: = false):
 
 
 func _slice_floods() -> bool:
-	return Story.is_story() and Level.stage != null and is_instance_valid(Level.stage) and Level.stage.get("keeperInputStarted") == true
+	return _Story.is_story() and Level.stage != null and is_instance_valid(Level.stage) and Level.stage.get("keeperInputStarted") == true
 
 
 func flood_pending() -> bool:
@@ -148,10 +154,10 @@ func revealTile(coord: Vector2):
 	if had or not tiles.has(coord):
 		return
 	var tile = tiles[coord]
-	if Minerals.is_mod_mineral(tile.type):
+	if _Minerals.is_mod_mineral(tile.type):
 		tile.richness = float(Minerals.TABLE[tile.type]["richness"])
 		_reveal_visually(coord)
-	elif Metal.is_metal(tile.type):
+	elif _Metal.is_metal(tile.type):
 		_reveal_visually(coord)
 	elif tile.type == Bones.TYPE:
 		# Miner bones (#94). Their data log opens when they are sold at the dome
@@ -176,23 +182,23 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 		currentIronCountByLayer[tile.layer] = 1
 	super(teamId, keeperTechId, tile)
 	# Story beats (#26): the first gem mined, the gate broken.
-	if Story.is_story() and is_server():
+	if _Story.is_story() and is_server():
 		if Minerals.TABLE.has(type) and Minerals.TABLE[type]["shape"] == "star":
-			StoryBeats.trigger("first_gem")
+			_StoryBeats.trigger("first_gem")
 		elif type == Metal.GATE_TYPE:
-			StoryBeats.trigger("gate_broken")
+			_StoryBeats.trigger("gate_broken")
 		if type == "unobtainium":
 			# Each piece mined weakens the horror's seal (#95).
-			Awakening.unobtainium_mined(Vector2i(tile.coord))
+			_Awakening.unobtainium_mined(Vector2i(tile.coord))
 	if type == Bones.TYPE and is_inside_tree() and is_server():
 		# The bones come loose; they sell by the biome they were found in.
 		var biome: int = tileData.get_biomev(Vector2i(tile.coord))
 		var drop = Level.drops.network_spawn({"type": Bones.TYPE, "position": tile.global_position, "impulse": Vector2.ZERO})
 		if drop != null:
-			drop.value = Bones.value_for(biome)
+			drop.value = _Bones.value_for(biome)
 			drop.biome = biome
 		return
-	if not Minerals.is_mod_mineral(type):
+	if not _Minerals.is_mod_mineral(type):
 		return
 	if not is_inside_tree() or not is_server():
 		return
@@ -221,7 +227,7 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 # Story Mode has no gadget chambers; its gadget tile id holds a translator
 # chamber (#93, placed by map/story_gen.gd place_translators).
 func getSceneForTileType(tileType: int) -> PackedScene:
-	if tileType == Data.TILE_GADGET and Story.is_story():
+	if tileType == Data.TILE_GADGET and _Story.is_story():
 		return load("res://mods-unpacked/flantor-StoryMode/map/TranslatorChamber.tscn")
 	return super(tileType)
 
@@ -249,14 +255,14 @@ func _update_border_sprite(x: int, y: int):
 	if overlays.has(Data.TILE_IRON):
 		# Story Mode iron is grey: same overlay node, the mod's sheet, whose border
 		# block sits at the sheet origin (vanilla's iron block is 8 rows down).
-		var iron_sheet: Texture2D = Minerals.sheet_for_type("iron")
+		var iron_sheet: Texture2D = _Minerals.sheet_for_type("iron")
 		if iron_sheet != null:
 			var io = overlays[Data.TILE_IRON]
 			io.texture = iron_sheet
 			io.set_frame_coords(layouts[tileMeta[0]])
 			io.material.set_shader_parameter("frame_coords", layouts[tileMeta[0]])
 	for typeId: int in [r_tl, r_tr, r_br, r_bl]:
-		var sheet: Texture2D = Minerals.sheet_for_tile_id(typeId)
+		var sheet: Texture2D = _Minerals.sheet_for_tile_id(typeId)
 		if sheet == null:
 			continue
 		if not overlays.has(typeId):

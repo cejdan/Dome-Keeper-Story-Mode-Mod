@@ -13,14 +13,18 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # counts the hearts handed back.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
+static var _Boss = Boss  # calls go through this: lazy_preload makes const-preload calls slow
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
 func difficulty() -> int:
-	return int(Story.user_arg("tier", "-1"))
+	return int(_Story.user_arg("tier", "-1"))
 
 
 func boot() -> Dictionary:
@@ -37,7 +41,7 @@ func _sweeps(velle) -> int:
 
 func run(h) -> void:
 	h.disable_waves()
-	var tier: int = Boss.tier()
+	var tier: int = _Boss.tier()
 	h.note("difficulty", {"level": Level.difficulty("team1"), "tier": Boss.TIER_NAMES[tier]})
 	h.check("the run is on the asked difficulty", Level.difficulty("team1") == difficulty() and tier == Boss.TIER_BY_DIFFICULTY[difficulty()], [Level.difficulty("team1"), tier])
 	var ch: Rect2i = Level.map.tileData.get_meta("story_boss_chamber")
@@ -47,11 +51,11 @@ func run(h) -> void:
 			area.append(Vector2i(x, y))
 	await h.reveal(area)
 	await h.teleport_tile(ch.position + Vector2i(3, 2))
-	var started: bool = await h.until(func(): return Director.current() == "fight", 8.0)
-	h.check("the fight starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "fight", 8.0)
+	h.check("the fight starts", started, _Director.current())
 	if not started:
 		return
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var velle = boss.velle
 	var health = boss.health
 	velle.attack_enabled = false
@@ -62,8 +66,8 @@ func run(h) -> void:
 	var kp: Vector2 = velle.to_local(h.keeper().global_position)
 
 	# ---- nobody talks during the boss sequence
-	var beats = StoryBeats.instance()
-	h.check("a story beat cannot open during the fight", Story.boss_active() and not beats._can_show())
+	var beats = _StoryBeats.instance()
+	h.check("a story beat cannot open during the fight", _Story.boss_active() and not beats._can_show())
 	var pleas = load("res://mods-unpacked/flantor-StoryMode/pleas/plea_director.gd").instance()
 	var n0: int = pleas.shown.size()
 	Data.apply("team1.monsters.wavepresent", true)
@@ -92,7 +96,7 @@ func run(h) -> void:
 		var walls: int = _sweeps(velle)
 		velle.attacks.clear()
 		seen[p] = {"stalks": stalks, "beams": beams, "then": second}
-		h.check("phase %d: %d stalks, %d gaze beams in a volley" % [p + 1, Boss.stalks(p), Boss.open_beams(p)], stalks == Boss.stalks(p) and beams == Boss.open_beams(p), seen[p])
+		h.check("phase %d: %d stalks, %d gaze beams in a volley" % [p + 1, _Boss.stalks(p), _Boss.open_beams(p)], stalks == _Boss.stalks(p) and beams == _Boss.open_beams(p), seen[p])
 		if p == 2:
 			h.check("phase 3's walls of light: %s" % ("two, closing" if Boss.T_JAWS[tier] else "one"), walls == (2 if Boss.T_JAWS[tier] else 1), walls)
 			velle.start_attack("grid", kp)
@@ -117,9 +121,9 @@ func run(h) -> void:
 	# ---- Velle dies: hearts back, by difficulty
 	Data.apply("team1.story.hearts", 1)
 	velle._damage_core(9999.0)
-	var chased: bool = await h.until(func(): return Director.current() == "chase", 15.0)
+	var chased: bool = await h.until(func(): return _Director.current() == "chase", 15.0)
 	await h.frames(5)
-	var want: int = mini(Boss.HEARTS, 1 + Boss.hearts_after_velle())
+	var want: int = mini(Boss.HEARTS, 1 + _Boss.hearts_after_velle())
 	await h.shot("hearts_after_velle")
-	h.check("Velle's death hands back %d hearts on %s (1 -> %d)" % [Boss.hearts_after_velle(), Boss.TIER_NAMES[tier], want], chased and health.hearts() == want, health.hearts())
-	h.check("still no text in the chase", Story.boss_active() and not beats._can_show() and pleas.say("arrive") == "")
+	h.check("Velle's death hands back %d hearts on %s (1 -> %d)" % [_Boss.hearts_after_velle(), Boss.TIER_NAMES[tier], want], chased and health.hearts() == want, health.hearts())
+	h.check("still no text in the chase", _Story.boss_active() and not beats._can_show() and pleas.say("arrive") == "")

@@ -9,8 +9,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # price is at most REACH of the poorest seed's above-gate money.
 
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 
 const SEEDS := 12
@@ -37,7 +39,7 @@ func run(h) -> void:
 	var worst: int = 1 << 30
 	var bad_gold: Array = []
 	for s in SEEDS:
-		var td = h.generate_map(MapConfig.make_archetype(), 7000 + s)
+		var td = h.generate_map(_MapConfig.make_archetype(), 7000 + s)
 		if td == null:
 			continue
 		var gate_top: Dictionary = {}   # x -> shallowest gate metal row
@@ -63,7 +65,7 @@ func run(h) -> void:
 			gg_ok = gg_ok and int(p[2]) >= int(MapConfig.GATE_GOLD_SIZE[0]) and gate_top.has(int(p[0])) and int(gate_top[int(p[0])]) - int(p[1]) <= MapConfig.GATE_GOLD_ROWS
 		if not gg_ok:
 			bad_gold.append([7000 + s, gg])
-		var bones: int = Bones.value_for(0) + Bones.value_for(1) + Bones.value_for(2)
+		var bones: int = _Bones.value_for(0) + _Bones.value_for(1) + _Bones.value_for(2)
 		var total: int = by_biome[0] + by_biome[1] + by_biome[2] + bones
 		worst = mini(worst, total)
 		rows.append({"seed": 7000 + s, "total": total, "B1": by_biome[0], "B2": by_biome[1], "B3": by_biome[2], "bones": bones, "by_mineral": by_mineral, "gold_tiles_near_gate": gold_near})

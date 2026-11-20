@@ -5,6 +5,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # "The Planet Is Lost" as a lost run.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const BossText = preload("res://mods-unpacked/flantor-StoryMode/data/boss_text.gd")
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 300
@@ -23,8 +24,8 @@ func run(h) -> void:
 			area.append(Vector2i(x, y))
 	await h.reveal(area)
 	await h.teleport_tile(ch.position + Vector2i(3, 2))
-	await h.until(func(): return Director.current() == "fight", 8.0)
-	var boss = Director.instance()
+	await h.until(func(): return _Director.current() == "fight", 8.0)
+	var boss = _Director.instance()
 	var velle = boss.velle
 	var health = boss.health
 	await h.until(func(): return velle.state == "fight", 8.0)
@@ -38,7 +39,7 @@ func run(h) -> void:
 		if i == Boss.HEARTS - 2:
 			await h.shot("last_heart")
 	h.check("five hits and the keeper is dead", health.dead and health.hearts() == 0, health.hearts())
-	h.check("the boss sequence is lost", Director.current() == "lost", Director.current())
+	h.check("the boss sequence is lost", _Director.current() == "lost", _Director.current())
 	await h.wait(0.6)
 	await h.shot("keeper_down")
 	h.check("Velle stops attacking", velle.orbs.is_empty() and velle.attacks.is_empty())

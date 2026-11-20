@@ -9,8 +9,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # Second pass (2026-11-19): lava_death_1, the translators and the doom thanks.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatBox = preload("res://mods-unpacked/flantor-StoryMode/beats/BeatBox.gd")
+static var _BeatBox = BeatBox  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
+static var _BeatData = BeatData  # calls go through this: lazy_preload makes const-preload calls slow
 
 # Beat id: the deepest biome index when it fires (3 = B4, 8 = the lava ocean).
 const BEATS := {
@@ -48,7 +51,7 @@ func _sizes(bb: String) -> Array:
 # Every page of `id` at depth `deepest`: [{"bb": bbcode, "shown": parsed text}].
 func _play(h, id: String, deepest: int) -> Array:
 	Data.apply("team1.story.deepest", deepest)
-	h.check("%s queues" % id, StoryBeats.fire(id))
+	h.check("%s queues" % id, _StoryBeats.fire(id))
 	await h.until(func(): return h.beat_box() != null, 5.0)
 	var box = h.beat_box()
 	if id == "biome_b7":
@@ -69,7 +72,7 @@ func _play(h, id: String, deepest: int) -> Array:
 		n += 1
 	await h.burst("%s_last_motion" % id, 10, 4)
 	await h.press("ui_select")
-	h.check("%s closes after %d pages" % [id, pages.size()], await h.until(func(): return not StoryBeats.is_open(), 4.0))
+	h.check("%s closes after %d pages" % [id, pages.size()], await h.until(func(): return not _StoryBeats.is_open(), 4.0))
 	await h.wait(0.8)
 	return pages
 
@@ -82,14 +85,14 @@ func run(h) -> void:
 	await h.teleport_tile(Vector2i(0, 9))
 	await h.wait(1.0)
 	for id: String in CUT:
-		h.check("%s is cut from the data" % id, BeatData.by_id(id).is_empty())
-	h.check("cue() reads size, shake and glitch", BeatBox.cue("{smaller shake} Only one.") == {"text": "Only one.", "scale": BeatBox.CUE_SCALES["smaller"], "shake": true, "glitch": false}
-			and BeatBox.cue("{huge shake glitch} feast.") == {"text": "feast.", "scale": BeatBox.CUE_SCALES["huge"], "shake": true, "glitch": true}
-			and BeatBox.cue("{oops} hi") == {"text": "{oops} hi", "scale": 1.0, "shake": false, "glitch": false} and BeatBox.cue("plain")["scale"] == 1.0)
+		h.check("%s is cut from the data" % id, _BeatData.by_id(id).is_empty())
+	h.check("cue() reads size, shake and glitch", _BeatBox.cue("{smaller shake} Only one.") == {"text": "Only one.", "scale": BeatBox.CUE_SCALES["smaller"], "shake": true, "glitch": false}
+			and _BeatBox.cue("{huge shake glitch} feast.") == {"text": "feast.", "scale": BeatBox.CUE_SCALES["huge"], "shake": true, "glitch": true}
+			and _BeatBox.cue("{oops} hi") == {"text": "{oops} hi", "scale": 1.0, "shake": false, "glitch": false} and _BeatBox.cue("plain")["scale"] == 1.0)
 	for id: String in BEATS:
 		var pages: Array = await _play(h, id, BEATS[id])
 		var want: int = 1
-		for l in BeatData.by_id(id)["lines"]:
+		for l in _BeatData.by_id(id)["lines"]:
 			if str(l).strip_edges() == "---":
 				want += 1
 		h.check("%s: %d pages as written" % [id, want], pages.size() == want, pages.size())
@@ -98,7 +101,7 @@ func run(h) -> void:
 		# Violet is the horror's: a page that is all narration wears the calm panel.
 		var looks: Array = pages.map(func(p): return p["calm"])
 		var want_looks: Array = pages.map(func(p): return Array(str(p["raw"]).split("
-")).all(func(l): return BeatBox.is_narration(l)))
+")).all(func(l): return _BeatBox.is_narration(l)))
 		h.check("%s: narration-only pages are calm, the horror's are violet" % id, looks == want_looks, [looks, want_looks])
 		h.note(id, pages)
 		if id == "gate_broken" and pages.size() == 5:

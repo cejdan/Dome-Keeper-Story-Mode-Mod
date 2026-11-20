@@ -6,9 +6,12 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # and overheats. Nothing fires twice.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
+static var _BeatData = BeatData  # calls go through this: lazy_preload makes const-preload calls slow
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
+static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -31,10 +34,10 @@ var _gem_early: bool = false
 
 
 func _expect(h, id: String, label: String) -> void:
-	if BeatData.by_id(id).is_empty():
+	if _BeatData.by_id(id).is_empty():
 		# Cut from the script (#285): its trigger still fires, nothing plays.
 		await h.wait(1.5)
-		h.check("%s (cut) plays nothing" % id, not StoryBeats.is_open(), StoryBeats.instance().open_id)
+		h.check("%s (cut) plays nothing" % id, not _StoryBeats.is_open(), _StoryBeats.instance().open_id)
 		return
 	var got: String = await h.read_beat(label)
 	# Since the #186 mineral ladder, a room this scenario digs (B4's) can hold
@@ -44,7 +47,7 @@ func _expect(h, id: String, label: String) -> void:
 		_gem_early = true
 		h.note("first_gem played early: the %s room held a gem" % label)
 		got = await h.read_beat(label)
-	var tier: int = int(BeatData.by_id(id).get("tier", 0))
+	var tier: int = int(_BeatData.by_id(id).get("tier", 0))
 	h.check("%s plays (tier %d)" % [id, tier], got == id, got)
 
 
@@ -64,7 +67,7 @@ func run(h) -> void:
 		await _expect(h, "biome_b%d" % (b + 1), "b%d" % (b + 1))
 		if field != null:
 			field.heat = 0.0
-	h.check("deepest reached is B8", StoryBeats.deepest() == 7, StoryBeats.deepest())
+	h.check("deepest reached is B8", _StoryBeats.deepest() == 7, _StoryBeats.deepest())
 
 	# ---- the lava ocean
 	var ocean: Dictionary = td.get_meta("story_ocean", {})
@@ -73,7 +76,7 @@ func run(h) -> void:
 	await h.dig_room(oc + Vector2i(-2, -2), oc)
 	await h.teleport_tile(oc)
 	await _expect(h, "lava_ocean", "ocean")
-	h.check("deepest reached is the ocean", StoryBeats.deepest() == 8, StoryBeats.deepest())
+	h.check("deepest reached is the ocean", _StoryBeats.deepest() == 8, _StoryBeats.deepest())
 	if field != null:
 		field.heat = 0.0
 
@@ -81,7 +84,7 @@ func run(h) -> void:
 	var b2: Vector2i = _cell_in_biome(td, 1)
 	await h.teleport_tile(b2)
 	await h.wait(1.5)
-	h.check("re-entering B2 plays nothing", not StoryBeats.is_open())
+	h.check("re-entering B2 plays nothing", not _StoryBeats.is_open())
 
 	# ---- first gem: mine a real gem tile
 	var gem: Vector2i = Vector2i(9999, 0)
@@ -89,14 +92,14 @@ func run(h) -> void:
 		for c: Vector2i in td.get_resource_cells_by_id(id):
 			if absi(c.x) < 30 and c.y < 120 and (gem.x == 9999 or c.y < gem.y):
 				gem = c
-	h.note("gem", {"cell": gem, "type": Minerals.by_tile_id(td.get_resourcev(gem))})
+	h.note("gem", {"cell": gem, "type": _Minerals.by_tile_id(td.get_resourcev(gem))})
 	await h.dig_room(gem + Vector2i(-2, -3), gem + Vector2i(2, -1))
 	await h.reveal([gem])
 	await h.teleport_tile(gem + Vector2i(0, -1))
 	Level.map.destroyTile("team1", "", Level.map.getTile(Vector2(gem)))
 	if _gem_early:
 		await h.wait(1.5)
-		h.check("first_gem played once already, so this gem plays nothing", not StoryBeats.is_open())
+		h.check("first_gem played once already, so this gem plays nothing", not _StoryBeats.is_open())
 	else:
 		await _expect(h, "first_gem", "first_gem")
 	# A second gem plays nothing.
@@ -109,7 +112,7 @@ func run(h) -> void:
 		await h.reveal([gem2])
 		Level.map.destroyTile("team1", "", Level.map.getTile(Vector2(gem2)))
 		await h.wait(1.5)
-		h.check("a second gem plays nothing", not StoryBeats.is_open())
+		h.check("a second gem plays nothing", not _StoryBeats.is_open())
 
 	# ---- the gate, broken by a real Suit Blaster blast
 	var gate: Array = td.get_resource_cells_by_id(Metal.GATE_ID)
@@ -125,8 +128,8 @@ func run(h) -> void:
 	Data.apply("player1.suitblaster.charge", 1.0)
 	await h.wait(1.0)
 	await h.press("keeper_gadget1")
-	var opened: bool = await h.until(func(): return StoryBeats.is_open(), 6.0)
-	h.check("gate_broken opens while the blast is going", opened and StoryBeats.instance().open_id == "gate_broken")
+	var opened: bool = await h.until(func(): return _StoryBeats.is_open(), 6.0)
+	h.check("gate_broken opens while the blast is going", opened and _StoryBeats.instance().open_id == "gate_broken")
 	var charge_open: float = float(Data.ofOr("player1.suitblaster.charge", -1))
 	await h.wait(2.0)
 	h.check("the blaster's charge holds while the beat is up", is_equal_approx(float(Data.ofOr("player1.suitblaster.charge", -1)), charge_open), [charge_open, Data.ofOr("player1.suitblaster.charge", -1)])
@@ -164,5 +167,5 @@ func run(h) -> void:
 	played = played.filter(func(id): return id != "keeper_welcome")
 	# The beats this run wires, less any the script has cut (#285).
 	var wired: Array = ["biome_b2", "biome_b3", "biome_b4", "biome_b5", "biome_b6", "biome_b7", "biome_b8", "lava_ocean",
-		"first_gem", "gate_broken", "lava_death_1", "lava_death_2"].filter(func(id): return not BeatData.by_id(id).is_empty())
+		"first_gem", "gate_broken", "lava_death_1", "lava_death_2"].filter(func(id): return not _BeatData.by_id(id).is_empty())
 	h.check("all %d wired beats played" % wired.size(), played.size() == wired.size() and wired.all(func(id): return played.has(id)), played)

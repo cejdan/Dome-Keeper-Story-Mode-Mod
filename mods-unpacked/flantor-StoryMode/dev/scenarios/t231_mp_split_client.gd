@@ -18,7 +18,7 @@ func run(h) -> void:
 	h.check("the host's keeper 2 is out", k2id != null, k2id)
 	h.note("keepers", Keepers.getAll().map(func(k): return [k.playerId, k.peerId, k.deviceId, Keepers.local.has(k)]))
 	h.check("three keepers here, one local", Keepers.getAll().size() == 3 and h.local_keepers().size() == 1, Keepers.getAll().size())
-	var me = Story.local_keeper()
+	var me = _Story.local_keeper()
 	var lava = Level.map.get_node("StoryLavaField")
 	var gas = Level.map.get_node("StoryGasField")
 	await shared(h, "lava_done", 60.0)
@@ -40,3 +40,4 @@ func share_client(h) -> void:
 
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow

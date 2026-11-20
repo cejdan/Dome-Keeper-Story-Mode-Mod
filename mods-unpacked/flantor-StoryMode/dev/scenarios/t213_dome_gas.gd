@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # Vent the Dome clears the gas; the amount survives a save and reload.
 
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
+static var _GasData = GasData  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 const SLOT := 12
 
@@ -89,7 +90,7 @@ func run(h) -> void:
 		rates[p] = (field.toxin - 10.0) / (h.now() - t0)
 	var want := {}
 	for p in rates:
-		want[p] = GasData.dome_toxin_rate(p)
+		want[p] = _GasData.dome_toxin_rate(p)
 	h.note("toxin a second in the dome, by pockets (measured, wanted)", [rates, want])
 	for p in rates:
 		h.check("%d pocket(s): the bar fills at %.2f a second (full in %d s)" % [p, want[p], int(100.0 / want[p])], absf(rates[p] - want[p]) < 0.15 * want[p], rates[p])

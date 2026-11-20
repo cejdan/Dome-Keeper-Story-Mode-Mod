@@ -21,9 +21,12 @@ extends "res://content/monster/Monster.gd"
 # see surface_tentacle.gd.
 
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
+static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
+static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const BossMonster = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_monster.gd")
+static var _BossMonster = BossMonster  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TECH := "storygreateye"
 
@@ -73,7 +76,7 @@ const EARTH: Array = [Color("2a2130"), Color("3b2f44"), Color("1c1622"), Color("
 
 
 static func register(hp: float) -> void:
-	BossMonster.register(TECH, hp, 3, CONST.MONSTER_LARGE)
+	_BossMonster.register(TECH, hp, 3, CONST.MONSTER_LARGE)
 
 
 # A new great eye, not yet in the tree. It places itself over the dome.
@@ -81,7 +84,7 @@ static func make():
 	var shape := CircleShape2D.new()
 	shape.radius = 22.0
 	_uid += 1
-	var m = BossMonster.make("res://mods-unpacked/flantor-StoryMode/boss/great_eye.gd", "StoryGreatEye", TECH, _uid, shape)
+	var m = _BossMonster.make("res://mods-unpacked/flantor-StoryMode/boss/great_eye.gd", "StoryGreatEye", TECH, _uid, shape)
 	# The stalk: drawn behind the dome, whatever this node's own layer.
 	var st := Node2D.new()
 	st.name = "Stalk"
@@ -98,7 +101,7 @@ func init():
 	invulnerable = true
 	stalk.draw.connect(_draw_stalk)
 	global_position = _place()
-	Sfx.play("grow", -1.0, 0.6)
+	_Sfx.play("grow", -1.0, 0.6)
 	InputSystem.shake(30.0, RISE, 20.0)
 
 
@@ -199,7 +202,7 @@ func subProcess(delta: float) -> void:
 			if attacks_done % 2 == 0:
 				gaze_t = 0.0
 				gaze_hp = currentHealth
-				Sfx.play("charge", -2.0, 0.6)
+				_Sfx.play("charge", -2.0, 0.6)
 			else:
 				slam_t = 0.0
 	global_position = _place()
@@ -222,7 +225,7 @@ func _update_gaze(delta: float) -> void:
 			flinch = 1.0
 			flash = 0.3
 			next_slam = Boss.FINALE_SLAM_EVERY * 0.9 * fury
-			Sfx.play("hurt", 0.0, 0.7)
+			_Sfx.play("hurt", 0.0, 0.7)
 			InputSystem.shake(18.0, 0.4, 22.0, global_position)
 		return
 	if not _did_hit:
@@ -232,7 +235,7 @@ func _update_gaze(delta: float) -> void:
 		if dome != null and multiplayer.is_server():
 			dome.requestMeleeDamage(int(Boss.FINALE_GAZE_DAMAGE), _cupola_top(), self)
 		InputSystem.shake(34.0, 0.7, 26.0)
-		Sfx.play("beam", 2.0, 0.6)
+		_Sfx.play("beam", 2.0, 0.6)
 	if gaze_t >= Boss.FINALE_GAZE_CHARGE + GAZE_FIRE:
 		gaze_t = -1.0
 		next_slam = Boss.FINALE_SLAM_EVERY * randf_range(0.8, 1.1) * fury
@@ -246,7 +249,7 @@ func _hit_dome() -> void:
 	if not puppet:
 		dome.requestMeleeDamage(int(Boss.FINALE_SLAM_DAMAGE * 2.0), _cupola_top(), self)
 	InputSystem.shake(26.0, 0.4, 20.0, global_position)
-	Sfx.play("whip", -2.0, 0.7)
+	_Sfx.play("whip", -2.0, 0.7)
 
 
 func handleDamage():
@@ -293,7 +296,7 @@ func net_apply(d: PackedFloat32Array) -> void:
 			gaze_t = hg
 			gaze_hp = currentHealth
 			_did_hit = hg > Boss.FINALE_GAZE_CHARGE + 0.2
-			Sfx.play("charge", -2.0, 0.6)
+			_Sfx.play("charge", -2.0, 0.6)
 		elif hg >= 0.0 and gaze_t >= 0.0 and absf(gaze_t - hg) > 0.25:
 			gaze_t = hg
 		if int(d[5]) > gazes_broken:
@@ -302,7 +305,7 @@ func net_apply(d: PackedFloat32Array) -> void:
 			gaze_t = -1.0
 			flinch = 1.0
 			flash = 0.3
-			Sfx.play("hurt", 0.0, 0.7)
+			_Sfx.play("hurt", 0.0, 0.7)
 			InputSystem.shake(18.0, 0.4, 22.0, global_position)
 	if d[3] >= 0.0 and fall_t < 0.0:
 		fall(d[4])
@@ -315,7 +318,7 @@ func net_apply(d: PackedFloat32Array) -> void:
 
 # Beaten: the eye closes. It stays where it is until fall().
 func animateDeath():
-	Sfx.play("die", -2.0, 0.8)
+	_Sfx.play("die", -2.0, 0.8)
 	InputSystem.shake(24.0, 0.6, 18.0, global_position)
 	slam_t = -1.0
 	gaze_t = -1.0
@@ -330,14 +333,14 @@ func fall(side: float) -> void:
 	fall_t = 0.0
 	slam_t = -1.0
 	gaze_t = -1.0
-	Sfx.play("hurt", -2.0, 0.5)
+	_Sfx.play("hurt", -2.0, 0.5)
 
 
 func _land() -> void:
 	fallen = true
 	_land_flash = 1.0
-	Sfx.play("boom", 2.0, 0.6)
-	Sfx.play("drop", 0.0, 0.7)
+	_Sfx.play("boom", 2.0, 0.6)
+	_Sfx.play("drop", 0.0, 0.7)
 	InputSystem.shake(42.0, 0.9, 16.0)
 	for i in 54:
 		debris.append({"p": Vector2(randf_range(-26, 26), RY - 4.0), "v": Vector2(randf_range(-190, 190) + fall_side * 60.0, -randf_range(90.0, 330.0)), "s": float(2 + randi() % 5),
@@ -385,7 +388,7 @@ func _process(delta: float) -> void:
 		fall_t += delta
 		if before < FALL_SWAY and fall_t >= FALL_SWAY:
 			_sway_a0 = fall_side * sin(FALL_SWAY * 4.2) * 0.24
-			Sfx.play("whip", -4.0, 0.5)
+			_Sfx.play("whip", -4.0, 0.5)
 		if not fallen and fall_t >= FALL_SWAY + FALL_DROP:
 			_land()
 	_update_debris(delta)
@@ -416,19 +419,19 @@ func _draw_stalk() -> void:
 	var bow: float = 0.0
 	if fall_t >= 0.0:
 		bow = fall_side * 30.0 * clampf(absf(_fall_angle()) / FALL_ANGLE, 0.0, 1.0)
-	var pts: PackedVector2Array = Pix.tentacle_points(root, top, time, 6.0 if not fallen else 1.5, seed_f, 1.0, bow)
-	Pix.tentacle(stalk, pts, 18.0, 11.0, col)
+	var pts: PackedVector2Array = _Pix.tentacle_points(root, top, time, 6.0 if not fallen else 1.5, seed_f, 1.0, bow)
+	_Pix.tentacle(stalk, pts, 18.0, 11.0, col)
 	if not dead:
 		var look: Vector2 = Vector2(0, RY + 40.0)
 		for j in range(8, pts.size() - 5, 9):
-			Pix.eye(stalk, pts[j], Pix.eye_frame_toward(pts[j], look, time, j * 0.3 + seed_f), 0.5)
+			_Pix.eye(stalk, pts[j], _Pix.eye_frame_toward(pts[j], look, time, j * 0.3 + seed_f), 0.5)
 
 
 func _draw() -> void:
 	var c: Vector2 = Vector2.ZERO
 	var look: Vector2 = to_local(_cupola_top())
-	Pix.ellipse(self, c, RX, RY, Pix.EDGE)
-	Pix.ellipse(self, c, RX - 2.0, RY - 2.0, Pix.FLESH_LIGHT if not dead else Color("2c2238"))
+	_Pix.ellipse(self, c, RX, RY, Pix.EDGE)
+	_Pix.ellipse(self, c, RX - 2.0, RY - 2.0, Pix.FLESH_LIGHT if not dead else Color("2c2238"))
 	if dead:
 		# The lid is shut.
 		draw_rect(Rect2((c + Vector2(-RX + 6.0, 1)).round(), Vector2(RX * 2.0 - 12.0, 2)), Pix.EDGE)
@@ -436,11 +439,11 @@ func _draw() -> void:
 			draw_rect(Rect2((c + Vector2(-16.0 + i * 8.0, 3)).round(), Vector2(1, 3)), Pix.EDGE)
 	else:
 		var squint: float = 1.0 - 0.7 * flinch
-		Pix.ellipse(self, c, RX - 5.0, (RY - 5.0) * squint, Pix.SCLERA if flash <= 0.0 else Color.WHITE)
+		_Pix.ellipse(self, c, RX - 5.0, (RY - 5.0) * squint, Pix.SCLERA if flash <= 0.0 else Color.WHITE)
 		var ic: Vector2 = c + (look - c).limit_length(80.0) / 80.0 * Vector2(5, 6)
 		var charging: bool = gaze_t >= 0.0
-		Pix.ellipse(self, ic, 10, 10 * squint, Pix.IRIS_DEEP if not charging else Pix.WARN)
-		Pix.ellipse(self, ic, 8, 8 * squint, Pix.IRIS if not charging or fposmod(time * 10.0, 1.0) < 0.5 else Color.WHITE)
+		_Pix.ellipse(self, ic, 10, 10 * squint, Pix.IRIS_DEEP if not charging else Pix.WARN)
+		_Pix.ellipse(self, ic, 8, 8 * squint, Pix.IRIS if not charging or fposmod(time * 10.0, 1.0) < 0.5 else Color.WHITE)
 		draw_rect(Rect2((ic + Vector2(-1, -8 * squint)).round(), Vector2(3, 16 * squint)), Pix.PUPIL)
 		draw_rect(Rect2((ic + Vector2(-5, -6 * squint)).round(), Vector2(2, 2)), Color.WHITE)
 		# The pound's warning.
@@ -456,7 +459,7 @@ func _draw() -> void:
 		draw_rect(Rect2((d["p"] - Vector2(d["s"], d["s"]) * 0.5).round(), Vector2(d["s"], d["s"])), Color(d["col"], a))
 	if _land_flash > 0.0:
 		var run: float = (1.0 - _land_flash) * 90.0
-		Pix.ellipse(self, Vector2(0, RY - 2.0), 40.0 + run * 0.5, 8.0, Color(Pix.VIOLET_LIGHT, _land_flash * 0.6), -1.0, 0.2)
+		_Pix.ellipse(self, Vector2(0, RY - 2.0), 40.0 + run * 0.5, 8.0, Color(Pix.VIOLET_LIGHT, _land_flash * 0.6), -1.0, 0.2)
 		draw_rect(Rect2(Vector2(-run - 12.0, RY - 3.0).round(), Vector2(12, 2)), Color(Pix.SCLERA, _land_flash))
 		draw_rect(Rect2(Vector2(run, RY - 3.0).round(), Vector2(12, 2)), Color(Pix.SCLERA, _land_flash))
 
@@ -480,4 +483,4 @@ func _draw_gaze(c: Vector2, target: Vector2) -> void:
 		draw_line(c, target, Color(Pix.IRIS_DEEP, 0.8), 20.0 * f2 + 4.0)
 		draw_line(c, target, Color(Pix.IRIS, 1.0), 13.0 * f2 + 2.0)
 		draw_line(c, target, Color.WHITE, 5.0 * f2 + 1.0)
-		Pix.disc(self, target, 14.0 * f2 + 4.0, Color(1, 1, 1, 0.8 * f2))
+		_Pix.disc(self, target, 14.0 * f2 + 4.0, Color(1, 1, 1, 0.8 * f2))

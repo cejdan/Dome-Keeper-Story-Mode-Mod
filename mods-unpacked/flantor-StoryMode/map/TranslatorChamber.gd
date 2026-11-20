@@ -7,11 +7,12 @@ extends "res://content/map/chamber/gadget/GadgetChamber.gd"
 # already carried.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func _ready():
 	super._ready()
-	var tex: Texture2D = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/translator.png")
+	var tex: Texture2D = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/translator.png")
 	if tex != null:
 		$SocketedGizmo.texture = tex
 	# A faint red pulse inside the open chamber: the rune-eye, waiting.

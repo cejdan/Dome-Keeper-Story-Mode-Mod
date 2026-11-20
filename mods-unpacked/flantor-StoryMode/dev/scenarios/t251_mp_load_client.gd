@@ -5,7 +5,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t251_mp_load_host.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Save = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t251_mp_save_host.gd")
+static var _Save = Save  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 300
 
 
@@ -28,7 +30,7 @@ func h_lobby() -> Array:
 
 func run(h) -> void:
 	h.check("this is a client", not h.multiplayer.is_server())
-	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Save.saved_path()))
+	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(_Save.saved_path()))
 	var st = Level.stage
 	h.check("the keeper choice opened here", st is DeviceSelectionStage, str(st))
 	if not st is DeviceSelectionStage:
@@ -63,7 +65,7 @@ func run(h) -> void:
 		now["host" if k.peerId == 1 else "client"] = {"playerId": k.playerId, "techId": k.techId}
 	h.note("keepers in the run (client)", now)
 	h.check("each player is on their saved keeper (client)", now == saved, {"now": now, "saved": saved})
-	var lk = Story.local_keeper()
+	var lk = _Story.local_keeper()
 	h.check("this client plays its saved keeper", lk != null and lk.playerId == saved["client"]["playerId"], lk.playerId if lk else null)
 	await h.wait(1.0)
 	await h.shot("client_loaded")

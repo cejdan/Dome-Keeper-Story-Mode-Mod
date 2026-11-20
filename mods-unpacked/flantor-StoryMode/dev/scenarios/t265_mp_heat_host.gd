@@ -10,6 +10,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 300
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const MONEY := 5000
 
 
@@ -59,7 +60,7 @@ func run(h) -> void:
 	}
 	h.note("host view after the client's purchases", view)
 	h.check("the client bought Heat Shielding II and the Suit Blaster", done, view)
-	h.check("the client's keeper is at tier II, the host's at 0", LavaData.shield_tier(ck) == 2 and LavaData.shield_tier(me) == 0, view)
+	h.check("the client's keeper is at tier II, the host's at 0", _LavaData.shield_tier(ck) == 2 and _LavaData.shield_tier(me) == 0, view)
 	h.check("the host's keeper has no entry bought", not gw.boughtUpgrades.any(func(k): return k.begins_with(me.playerId + ".story")), view["bought"])
 	h.check("the Suit Blaster went to the client's keeper only", gw.boughtUpgrades.has(cpid + ".suitblaster") and not gw.boughtUpgrades.has(me.playerId + ".suitblaster"), view["bought"])
 	h.check("the team paid $200 + $1,000 + $200 once", view["money"] == MONEY - 1400, view["money"])
@@ -102,7 +103,7 @@ static func lava_rate(h, k, r: Array, lava) -> float:
 	var t0: float = h.now()
 	await h.wait(0.8)
 	var rate: float = lava.heat_of(k) / (h.now() - t0)
-	h.note("lava rate of " + k.playerId, {"rate": snappedf(rate, 0.1), "in lava": lava.keeper_in_lava(k), "tier": LavaData.shield_tier(k)})
+	h.note("lava rate of " + k.playerId, {"rate": snappedf(rate, 0.1), "in lava": lava.keeper_in_lava(k), "tier": _LavaData.shield_tier(k)})
 	lava.set_heat_of(k, 0.0)
 	k.set("gravity_scale", 1.0)
 	return rate

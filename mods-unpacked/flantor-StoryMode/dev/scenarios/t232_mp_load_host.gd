@@ -11,17 +11,18 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 const TIMEOUT := 300
 const SAVED := "user://t232_saved.json"
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 # `--slot=<n> --notes=<user:// path>` load another save checked against its own
 # notes (#265: t265_mp_oldsave_host's save from before per-keeper Heat Shielding).
 
 
 func boot() -> Dictionary:
 	# beats: true, so the saved beats are the ones checked (not the harness's mute).
-	return {"loadout": true, "netload": int(Story.user_arg("slot", "31")), "beats": true}
+	return {"loadout": true, "netload": int(_Story.user_arg("slot", "31")), "beats": true}
 
 
 func run(h) -> void:
-	var f := FileAccess.open(Story.user_arg("notes", SAVED), FileAccess.READ)
+	var f := FileAccess.open(_Story.user_arg("notes", SAVED), FileAccess.READ)
 	h.check("the first session's notes are there", f != null)
 	if f == null:
 		return

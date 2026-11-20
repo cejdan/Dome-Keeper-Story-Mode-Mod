@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 420
 const Host = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t234_mp_e2e_host.gd")
+static var _Host = Host  # calls go through this: lazy_preload makes const-preload calls slow
 const DOME := "dome3"
 const UP := "team1.artillerydirecthit1"
 const KEY := "team1.artillery.grenadedamage"
@@ -29,11 +30,11 @@ func run(h) -> void:
 	var dome = Level.getDome("team1")
 	h.check("the run has the Artillery Dome", str(dome.scene_file_path).ends_with("Dome3.tscn"), dome.scene_file_path)
 	share("dome", str(dome.scene_file_path))
-	var m0: int = Host.money()
+	var m0: int = _Host.money()
 	await h.deliver("bronze", 10)
-	var paid: bool = await h.until(func(): return Host.money() >= m0 + 10, 30.0)
-	h.check("Story minerals at its shredder pay", paid, [m0, Host.money()])
-	share("sold", Host.money())
+	var paid: bool = await h.until(func(): return _Host.money() >= m0 + 10, 30.0)
+	h.check("Story minerals at its shredder pay", paid, [m0, _Host.money()])
+	share("sold", _Host.money())
 	var k0 = Data.ofOr(KEY, null)
 	var bought: bool = await h.until(func(): return GameWorld.boughtUpgrades.has(UP), 90.0)
 	h.check("the client's purchase lands on the host", bought and str(Data.ofOr(KEY, null)) != str(k0), [k0, Data.ofOr(KEY, null)])
@@ -45,7 +46,7 @@ func run(h) -> void:
 	h.enable_waves()
 	GameWorld.runStarted = true
 	Data.apply("team1.monsters.wavecooldown", 2)
-	var came: bool = await h.until(func(): return Data.ofOr("team1.monsters.wavepresent", false) and Host.monsters(h).size() > 0, 90.0)
+	var came: bool = await h.until(func(): return Data.ofOr("team1.monsters.wavepresent", false) and _Host.monsters(h).size() > 0, 90.0)
 	h.check("a wave comes", came)
 	share("wave_on", true)
 	var hp: Dictionary = {}
@@ -57,7 +58,7 @@ func run(h) -> void:
 		for c in Level.map.get_children():
 			if c.get_script() != null and str(c.get_script().resource_path).ends_with("artillery/Grenade.gd"):
 				grenades[c.get_instance_id()] = true
-		for m in Host.monsters(h):
+		for m in _Host.monsters(h):
 			if hp.has(m.UID) and m.currentHealth < hp[m.UID]:
 				dmg += hp[m.UID] - m.currentHealth
 			hp[m.UID] = m.currentHealth
@@ -65,7 +66,7 @@ func run(h) -> void:
 		if not shot and h.now() - t0 > 4.0:
 			shot = true
 			await h.shot("host_wave")
-	var alive: Array = Host.monsters(h).map(func(m): return m.UID)
+	var alive: Array = _Host.monsters(h).map(func(m): return m.UID)
 	var killed: int = hp.keys().filter(func(u): return not alive.has(u)).size()
 	h.note("wave", {"damage": dmg, "killed": killed, "left": alive.size(), "grenades": grenades.size()})
 	h.check("the client's artillery fires on the host", grenades.size() > 0, grenades.size())

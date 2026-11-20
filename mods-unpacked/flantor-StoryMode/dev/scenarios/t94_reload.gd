@@ -4,6 +4,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # process: no log plays again, and the bones left in the mine keep their value.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -16,10 +17,10 @@ func run(h) -> void:
 	h.disable_waves()
 	var ok: bool = true
 	for b in range(1, 9):
-		ok = ok and not StoryBeats.fire("log_b%d" % b)
+		ok = ok and not _StoryBeats.fire("log_b%d" % b)
 	h.check("no log plays again after the reload", ok)
 	await h.wait(1.0)
-	h.check("nothing opened", not StoryBeats.is_open())
+	h.check("nothing opened", not _StoryBeats.is_open())
 	var vals: Array = []
 	for d in Level.drops.find_children("*", "", true, false):
 		if d.get("type") == "minerbones":

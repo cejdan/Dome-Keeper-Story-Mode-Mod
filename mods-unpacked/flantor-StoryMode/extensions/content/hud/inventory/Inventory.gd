@@ -4,11 +4,12 @@ extends "res://content/hud/inventory/Inventory.gd"
 # resource counters show only water and cobalt. Vanilla modes are unchanged.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func init():
 	super.init()
-	if Story.is_story():
+	if _Story.is_story():
 		var grid: Node = get_node_or_null("GridContainer")
 		if grid != null:
 			grid.get_node("TextureRect1").visible = false
@@ -17,6 +18,6 @@ func init():
 
 
 func updateSize():
-	if Story.is_story():
+	if _Story.is_story():
 		cache[0] = 0
 	super.updateSize()

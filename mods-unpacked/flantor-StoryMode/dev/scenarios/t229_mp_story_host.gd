@@ -9,6 +9,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 const TIMEOUT := 600
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Endings = preload("res://mods-unpacked/flantor-StoryMode/data/endings.gd")
 
 
@@ -18,7 +19,7 @@ func boot() -> Dictionary:
 
 # Select until this player's own box is gone.
 static func close_mine(h) -> bool:
-	var sb = StoryBeats.instance()
+	var sb = _StoryBeats.instance()
 	await h.wait(1.0)
 	for i in 14:
 		if sb._box == null or not is_instance_valid(sb._box):
@@ -29,14 +30,14 @@ static func close_mine(h) -> bool:
 
 
 static func waiting_label(h) -> bool:
-	var sb = StoryBeats.instance()
+	var sb = _StoryBeats.instance()
 	return sb._waiting != null and is_instance_valid(sb._waiting)
 
 
 func run(h) -> void:
 	if not await host_start(h):
 		return
-	var sb = StoryBeats.instance()
+	var sb = _StoryBeats.instance()
 
 	# --- the welcome log: the host closes first.
 	var opened: bool = await h.until(func(): return sb.open_id == "keeper_welcome", 40.0)
@@ -48,12 +49,12 @@ func run(h) -> void:
 	await h.shot("host_welcome")
 	h.check("host closes its own box", await close_mine(h))
 	await h.wait(1.5)
-	h.check("the beat stays open for the team", sb.open_id == "keeper_welcome" and StoryBeats.team_open() and not StoryBeats.has_played("keeper_welcome"))
+	h.check("the beat stays open for the team", sb.open_id == "keeper_welcome" and _StoryBeats.team_open() and not _StoryBeats.has_played("keeper_welcome"))
 	h.check("still paused while the client reads", GameWorld.paused)
 	h.check("host sees the waiting line", waiting_label(h))
 	await h.shot("host_waiting")
 	var closed: bool = await h.until(func(): return sb.open_id == "", 60.0)
-	h.check("welcome closes once the client closed", closed and StoryBeats.has_played("keeper_welcome") and not StoryBeats.team_open())
+	h.check("welcome closes once the client closed", closed and _StoryBeats.has_played("keeper_welcome") and not _StoryBeats.team_open())
 	await h.wait(0.5)
 	h.check("the host's game runs again", not GameWorld.paused)
 	h.check("the waiting line is gone", not waiting_label(h))
@@ -94,7 +95,7 @@ func run(h) -> void:
 	h.check("the beat waits for the host", sb.open_id == "biome_b2" and GameWorld.paused and sb._box != null)
 	h.check("host closes its box", await close_mine(h))
 	closed = await h.until(func(): return sb.open_id == "", 5.0)
-	h.check("depth beat closed for the team", closed and StoryBeats.has_played("biome_b2"))
+	h.check("depth beat closed for the team", closed and _StoryBeats.has_played("biome_b2"))
 	await h.wait(0.5)
 	h.check("running again", not GameWorld.paused)
 

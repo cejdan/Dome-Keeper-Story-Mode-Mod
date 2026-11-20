@@ -5,10 +5,11 @@ extends "res://content/drop/Drop.gd"
 # into team1.inventory.translator; Storymode.gd installs it from there.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func _ready():
-	var tex: Texture2D = Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/translator.png")
+	var tex: Texture2D = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/translator.png")
 	if tex != null:
 		$Sprite2D.texture = tex
 	var trigger: Node = get_node_or_null("DropEnterTrigger")

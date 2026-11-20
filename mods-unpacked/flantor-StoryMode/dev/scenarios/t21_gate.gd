@@ -5,7 +5,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # metal; then, in the running game, one base Suit Blaster blast opens a way.
 
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
+static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
 const Palette = preload("res://mods-unpacked/flantor-StoryMode/util/palette.gd")
 
@@ -68,7 +70,7 @@ func run(h) -> void:
 	var moved: int = 0
 	var lost: int = 0
 	for s in SEEDS:
-		var td = h.generate_map(MapConfig.make_archetype(), 1000 + s)
+		var td = h.generate_map(_MapConfig.make_archetype(), 1000 + s)
 		if td == null:
 			failed += 1
 			continue
@@ -146,7 +148,7 @@ func run(h) -> void:
 	h.check("one base blast clears the gate in the keeper's column", left.is_empty(), {"column": col, "still metal": left})
 	# Through: drill on down past the gate (B4 rock is slow with the base drill).
 	var below: Vector2i = Vector2i(x, int(col.back()) + 1)
-	h.check("under the gate is plain rock, not metal", not Metal.is_metal_id(td2.get_resourcev(below)), td2.get_resourcev(below))
+	h.check("under the gate is plain rock, not metal", not _Metal.is_metal_id(td2.get_resourcev(below)), td2.get_resourcev(below))
 	await h.hold("ui_down", 28.0)
 	var kt: Vector2i = h.keeper_tile()
 	h.check("the keeper gets below the gate", kt.y > int(col.back()), {"keeper": kt, "gate bottom": col.back()})

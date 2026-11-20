@@ -9,6 +9,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 const TIMEOUT := 200
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -22,8 +23,8 @@ func run(h) -> void:
 	var ed = Level.mode.get_node_or_null("StoryEndings")
 	h.check("the ending director is in the run", ed != null)
 	# The bones' log is queued with a hold, as a sale does (drops/BonesDrop.gd).
-	h.check("the miner's log is queued", StoryBeats.fire("log_b1"))
-	StoryBeats.hold(2.0)
+	h.check("the miner's log is queued", _StoryBeats.fire("log_b1"))
+	_StoryBeats.hold(2.0)
 	h.set_inv("money", 1000000)
 	Level.stage.startUpgradesInput(h.keeper())
 	await h.wait(1.0)
@@ -35,12 +36,12 @@ func run(h) -> void:
 	var opened: Array = []
 	var t_end: float = h.now() + 60.0
 	while h.now() < t_end and Level.stage.endingPanel == null:
-		if StoryBeats.is_open() and not opened.has(StoryBeats.instance().open_id):
-			opened.append(StoryBeats.instance().open_id)
+		if _StoryBeats.is_open() and not opened.has(_StoryBeats.instance().open_id):
+			opened.append(_StoryBeats.instance().open_id)
 			await h.shot("beat_over_ending")
 		await h.wait(0.2)
 	await h.wait(2.0)
 	await h.shot("end_screen")
 	h.check("no beat opened during the ending", opened.is_empty(), opened)
 	h.check("the end screen showed", Level.stage.endingPanel != null)
-	h.check("the miner's log never played", not StoryBeats.has_played("log_b1"))
+	h.check("the miner's log never played", not _StoryBeats.has_played("log_b1"))

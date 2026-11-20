@@ -9,9 +9,11 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 420
 const Split = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t231_split_restart.gd")
+static var _Split = Split  # calls go through this: lazy_preload makes const-preload calls slow
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
 const BeatData = preload("res://mods-unpacked/flantor-StoryMode/data/beats.gd")
+static var _BeatData = BeatData  # calls go through this: lazy_preload makes const-preload calls slow
 
 var k1
 var k2
@@ -24,7 +26,7 @@ func boot() -> Dictionary:
 
 
 func run(h) -> void:
-	if not await Split.start_split(h):
+	if not await _Split.start_split(h):
 		return
 	k1 = Keepers.getLocalKeeperByDeviceId(0)
 	k2 = Keepers.getLocalKeeperByDeviceId(1)
@@ -126,7 +128,7 @@ func run(h) -> void:
 	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
 	var deep_beats: Array = []
 	for b in range(2, 5):
-		for id in BeatData.ids_for("biome:B%d" % b):
+		for id in _BeatData.ids_for("biome:B%d" % b):
 			deep_beats.append(id)
 			played.erase(id)
 	Data.apply("team1.story.beatsplayed", ",".join(PackedStringArray(played)))

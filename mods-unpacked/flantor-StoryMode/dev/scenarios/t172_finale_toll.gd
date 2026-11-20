@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # starts (its first beat), with a frame burst of the breakout.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 120
 
@@ -18,15 +19,15 @@ func boot() -> Dictionary:
 func run(h) -> void:
 	h.disable_waves()
 	await h.wait(1.0)
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	boss._ensure_layer()
 	load("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd").give_gear()
 	await h.frames(5)
 	boss._stop_waves()
 	boss._set_state("finale")
 	boss._start_finale()
-	var started: bool = await h.until(func(): return Director.current() == "finale", 5.0)
-	h.check("the finale starts", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "finale", 5.0)
+	h.check("the finale starts", started, _Director.current())
 	if not started:
 		return
 	var fin = boss.finale

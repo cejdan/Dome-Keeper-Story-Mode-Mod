@@ -6,6 +6,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # the entry shows as bought, and Fill Quota is still on offer at $1M.
 
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
+static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const LogData = preload("res://mods-unpacked/flantor-StoryMode/data/logs.gd")
 
 const EVAC := "team1.storyevacuate"
@@ -28,16 +29,16 @@ func run(h) -> void:
 	h.set_inv("money", 500)
 	var money0: int = int(Data.ofOr("team1.inventory.money", 0))
 	var opened: Array = []
-	StoryBeats.instance().beat_opened.connect(func(id): opened.append(id))
+	_StoryBeats.instance().beat_opened.connect(func(id): opened.append(id))
 	Level.stage.startUpgradesInput(h.keeper())
 	await h.wait(1.5)
 	await h.shot("shop_before")
 
 	h.check("buying it goes through with $500", await h.buy("storyevacuate"))
-	await h.until(func(): return StoryBeats.is_open(), 4.0)
+	await h.until(func(): return _StoryBeats.is_open(), 4.0)
 	# The shop pauses the game and a beat waits for it, so an open reply means
 	# the shop closed itself.
-	h.check("the shop closes and the reply opens at once", StoryBeats.is_open())
+	h.check("the shop closes and the reply opens at once", _StoryBeats.is_open())
 	var box = h.beat_box()
 	var header: String = ""
 	if box != null:
@@ -55,6 +56,6 @@ func run(h) -> void:
 	h.check("no money moved", int(Data.ofOr("team1.inventory.money", 0)) == money0, [money0, Data.ofOr("team1.inventory.money", 0)])
 	h.check("the run goes on", not GameWorld.won and not GameWorld.lost and str(Data.ofOr("game.over", "")) == "", Data.ofOr("game.over", ""))
 	h.check("Fill Quota is still on offer at $1M", GameWorld.upgrades.has(QUOTA) and not GameWorld.boughtUpgrades.has(QUOTA) and int(GameWorld.upgrades[QUOTA].get("cost", {}).get("money", 0)) == 1000000, GameWorld.upgrades.get(QUOTA, {}).get("cost", {}))
-	h.check("the refusal plays once", not StoryBeats.fire(LogData.EVACUATION))
+	h.check("the refusal plays once", not _StoryBeats.fire(LogData.EVACUATION))
 	await h.wait(2.0)
 	h.check("nothing else opened", opened == [LogData.EVACUATION], opened)

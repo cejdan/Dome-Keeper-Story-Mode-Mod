@@ -7,6 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # and Velle's fight with its hearts. Pair: t232_mp_dropin_host (as -Rejoin).
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 240
 
 
@@ -29,12 +30,12 @@ func run(h) -> void:
 	await h.until(func(): return Level.map.has_node("StoryGasField"), 20.0)
 	gas = Level.map.get_node("StoryGasField")
 	await h.until(func(): return gas.net_packets > 0, 20.0)
-	await h.until(func(): return Director.current() == "fight", 10.0)
+	await h.until(func(): return _Director.current() == "fight", 10.0)
 	await h.wait(2.5)    # the boss repeat (2 s) and the #242 resend
 	live = await shared(h, "live")
 	var rooms: Dictionary = live["rooms"]
 	var mine := facts(rooms)
-	mine["velle"] = Director.instance() != null and Director.instance().velle != null and is_instance_valid(Director.instance().velle)
+	mine["velle"] = _Director.instance() != null and _Director.instance().velle != null and is_instance_valid(_Director.instance().velle)
 	h.note("client facts", mine)
 	h.note("time from run start to checks", h.now() - t0)
 	check_facts(h, mine, live, "drop-in")

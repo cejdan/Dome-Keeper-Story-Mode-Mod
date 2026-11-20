@@ -9,6 +9,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # Pair: t230_mp_boss_finale_client.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
+static var _Director = Director  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
 const TIMEOUT := 480
 
@@ -45,14 +46,14 @@ func _kill(fin, only: String = "") -> int:
 func run(h) -> void:
 	if not await host_start(h):
 		return
-	var boss = Director.instance()
+	var boss = _Director.instance()
 	var ck = _client_keeper(h)
 	h.check("boss director and a client keeper on the host", boss != null and ck != null, keeper_rows(h))
 	if boss == null or ck == null:
 		return
 	boss._dev_boss("finale")
-	var started: bool = await h.until(func(): return Director.current() == "finale" and boss.finale != null, 10.0)
-	h.check("`--boss=finale` starts the finale on the host", started, Director.current())
+	var started: bool = await h.until(func(): return _Director.current() == "finale" and boss.finale != null, 10.0)
+	h.check("`--boss=finale` starts the finale on the host", started, _Director.current())
 	if not started:
 		return
 	var fin = boss.finale
@@ -112,8 +113,8 @@ func run(h) -> void:
 	h.check("the battle is won (the great eye rose and fell)", great_seen and fin.step in ["allies", "thanks", "done"], {"step": fin.step, "lost": GameWorld.lost})
 	await h.wait(2.0)
 	await h.shot("host_allies")
-	var won: bool = await h.until(func(): return Director.current() == "won", 60.0)
-	h.check("the finale is done: the boss state is `won`", won, [Director.current(), fin.step])
+	var won: bool = await h.until(func(): return _Director.current() == "won", 60.0)
+	h.check("the finale is done: the boss state is `won`", won, [_Director.current(), fin.step])
 	var ending: bool = await h.until(func(): return Level.mode.get("_ending") == true, 10.0)
 	h.check("the saved ending plays on the host", ending)
 	await h.wait(3.0)

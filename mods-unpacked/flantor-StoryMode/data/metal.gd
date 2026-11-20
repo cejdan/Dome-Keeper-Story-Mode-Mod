@@ -11,6 +11,7 @@ extends RefCounted
 # accepts an exploded hit only when such a blast covers it.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TYPE := "metal"
 const TILE_ID := 48
@@ -58,11 +59,11 @@ static func is_metal_id(id: int) -> bool:
 
 
 static func sheet() -> Texture2D:
-	return Assets.tex(SHEET)
+	return _Assets.tex(SHEET)
 
 
 static func particle() -> Texture2D:
-	return Assets.tex(PARTICLE)
+	return _Assets.tex(PARTICLE)
 
 
 # A circular blast around `centre` (tile coords), as Map.damageTileCircleArea.

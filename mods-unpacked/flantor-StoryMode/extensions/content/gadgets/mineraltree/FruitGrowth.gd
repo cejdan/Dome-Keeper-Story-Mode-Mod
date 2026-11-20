@@ -5,6 +5,7 @@ extends "res://content/gadgets/mineraltree/FruitGrowth.gd"
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
+static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func setType(type: String):
@@ -13,4 +14,4 @@ func setType(type: String):
 		return
 	super(CONST.IRON)
 	self.type = "gold"
-	$Sprite2D.texture = Assets.tex(Story.MOD_DIR + "art/minerals/drop_gold.png")
+	$Sprite2D.texture = _Assets.tex(Story.MOD_DIR + "art/minerals/drop_gold.png")

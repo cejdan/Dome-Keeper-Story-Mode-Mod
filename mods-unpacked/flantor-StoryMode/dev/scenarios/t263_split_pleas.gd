@@ -13,7 +13,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
 const TIMEOUT := 300
 const Split = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t231_split_restart.gd")
+static var _Split = Split  # calls go through this: lazy_preload makes const-preload calls slow
 const Pleas = preload("res://mods-unpacked/flantor-StoryMode/pleas/plea_director.gd")
+static var _Pleas = Pleas  # calls go through this: lazy_preload makes const-preload calls slow
 
 var k1
 var k2
@@ -24,11 +26,11 @@ func boot() -> Dictionary:
 
 
 func run(h) -> void:
-	if not await Split.start_split(h):
+	if not await _Split.start_split(h):
 		return
 	k1 = Keepers.getLocalKeeperByDeviceId(0)
 	k2 = Keepers.getLocalKeeperByDeviceId(1)
-	var pd = Pleas.instance()
+	var pd = _Pleas.instance()
 	h.check("the plea director is here", pd != null)
 	if pd == null:
 		return

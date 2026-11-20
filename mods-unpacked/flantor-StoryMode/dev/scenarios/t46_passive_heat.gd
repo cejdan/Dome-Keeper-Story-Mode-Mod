@@ -8,6 +8,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # Run with -Extra "--mode=relichunt" to check vanilla has none.
 
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 const TIMEOUT := 700
 
 
@@ -51,7 +52,7 @@ func _room_in_biome(h, b: int) -> Vector2i:
 
 
 func _tier(t: int) -> void:
-	Data.apply(LavaData.shield_key(), t)   # the keeper's own tier (#265)
+	Data.apply(_LavaData.shield_key(), t)   # the keeper's own tier (#265)
 
 
 # Puts the keeper in room `c` with heat `h0` and runs `secs` game seconds (the
@@ -92,10 +93,10 @@ func run(h) -> void:
 		var row: Dictionary = {}
 		var ok: bool = true
 		for b in range(2, 8):
-			var want: float = LavaData.passive_rate(b)
+			var want: float = _LavaData.passive_rate(b)
 			var r: Array = await _stay(h, rooms[b], 0.0, 3.0)
 			var got: float = float(r[0]) / 3.0
-			var lvl: int = clampi(LavaData.passive_level(b), -1, 3) if b >= LavaData.PASSIVE_HEAT_START_BIOME else -1
+			var lvl: int = clampi(_LavaData.passive_level(b), -1, 3) if b >= LavaData.PASSIVE_HEAT_START_BIOME else -1
 			row["B%d" % (b + 1)] = "%s %.2f/s (rule %.2f)" % [names[lvl], got, want]
 			if want == 0.0:
 				ok = ok and float(r[0]) == 0.0
@@ -149,4 +150,4 @@ func run(h) -> void:
 	await h.wait(2.0)
 	# Lava takes a moment to settle into the keeper's cell; B8's depth heat
 	# alone would give about 0.7 in these 2 s.
-	h.check("at tier IV lava still heats, faster than B8's depth heat", field.heat > 1.5 and field.heat < 2.0 * LavaData.HEAT_PER_SECOND * LavaData.lava_heat_mult() + 3.0, field.heat)
+	h.check("at tier IV lava still heats, faster than B8's depth heat", field.heat > 1.5 and field.heat < 2.0 * LavaData.HEAT_PER_SECOND * _LavaData.lava_heat_mult() + 3.0, field.heat)
