@@ -3,9 +3,9 @@
     python release/package_mod.py [--out <dir>]
 
 Packs mods-unpacked/cejdan-StoryMode/ into
-<out>/cejdan-StoryMode-<version>.zip (default out: ../release_builds, outside
+<out>/cejdan-StoryMode.zip (default out: ../release_builds, outside
 the repo), with the layout the mod loader expects
-(mods-unpacked/cejdan-StoryMode/...). Version comes from manifest.json.
+(mods-unpacked/cejdan-StoryMode/...). The version (manifest.json) is printed, not put in the name.
 
 Only files with an allowed extension go in; dev/ (the playtest harness and dev
 cheats) and editor/OS junk never do. Anything else found is listed and fails
@@ -64,11 +64,11 @@ def main():
         if rel.split(os.sep)[0] == "dev":
             sys.exit("dev/ file slipped in: " + rel)
     os.makedirs(a.out, exist_ok=True)
-    out = os.path.join(a.out, "%s-%s.zip" % (MOD_ID, version))
+    out = os.path.join(a.out, MOD_ID + ".zip")
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for rel in keep:
             z.write(os.path.join(MOD_DIR, rel), "mods-unpacked/%s/%s" % (MOD_ID, rel.replace(os.sep, "/")))
-    print("Built %s (%d files, %.1f KB)" % (out, len(keep), os.path.getsize(out) / 1024))
+    print("Built %s, version %s (%d files, %.1f KB)" % (out, version, len(keep), os.path.getsize(out) / 1024))
     print("Left out: " + ", ".join(skipped))
 
 
