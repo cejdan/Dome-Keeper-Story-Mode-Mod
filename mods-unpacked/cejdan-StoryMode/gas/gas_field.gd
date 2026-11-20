@@ -1087,8 +1087,7 @@ func _update_puffs(delta: float) -> void:
 			continue
 		if not FieldUtil.seen(map, c):
 			continue
-		if age < 0.1:
-			GasSfx.play("vent", -8.0, 1.5)
+		# (The surface/dome vent hiss is off: too grating on repeat.)
 		for i in 2:
 			if _puff_rng.randf() < delta * 30.0:
 				_puff(_cell_origin(c) + Vector2(_puff_rng.randf_range(3.0, TILE - 3.0), _puff_rng.randf_range(-4.0, 6.0)),
