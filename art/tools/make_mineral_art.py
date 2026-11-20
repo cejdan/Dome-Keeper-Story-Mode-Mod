@@ -1,8 +1,8 @@
 # Generates every Story Mode mineral sprite, palette-encoded, straight into the mod:
-#   mods-unpacked/cejdan-StoryMode/art/minerals/drop_<m>.png    drop sprite (8x8 metals, 9x9 gems)
-#   mods-unpacked/cejdan-StoryMode/art/minerals/sheet_<m>.png   ore sheet, 12x12 grid of 24 px cells
-#   mods-unpacked/cejdan-StoryMode/art/minerals/icon_<m>.png    24 px HUD/shop icon (drop sprite x3)
-#   mods-unpacked/cejdan-StoryMode/art/minerals/particle_<m>.png  tile-break debris strip (4 frames of 4x4)
+#   mods-unpacked/flantor-StoryMode/art/minerals/drop_<m>.png    drop sprite (8x8 metals, 9x9 gems)
+#   mods-unpacked/flantor-StoryMode/art/minerals/sheet_<m>.png   ore sheet, 12x12 grid of 24 px cells
+#   mods-unpacked/flantor-StoryMode/art/minerals/icon_<m>.png    24 px HUD/shop icon (drop sprite x3)
+#   mods-unpacked/flantor-StoryMode/art/minerals/particle_<m>.png  tile-break debris strip (4 frames of 4x4)
 # plus art/preview/mineral_sheets.png (real colors, for looking at).
 #
 # Ore sheet layout (same grid as vanilla content/map/border/resources_sheet.png):
@@ -18,7 +18,7 @@ import json, os, random
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "mods-unpacked", "cejdan-StoryMode", "art", "minerals")
+OUT = os.path.join(ROOT, "mods-unpacked", "flantor-StoryMode", "art", "minerals")
 CELLS = json.load(open(os.path.join(ROOT, "art", "palette", "mineral_cells.json")))
 VANILLA_SHEET = os.path.join(ROOT, "content", "map", "border", "resources_sheet.png")
 K = (5, 3)  # near-black outline cell (#12121a), constant in every vanilla palette

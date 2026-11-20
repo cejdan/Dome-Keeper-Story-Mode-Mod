@@ -1,6 +1,6 @@
 # Boss score (#172)
 
-The boss sequence's music is written in code: `score.py` (the notes, the cues and their layers) and `variants.py` (the finale and the other finale candidates) play instruments from `synth.py` (saw-wavetable strings and brass, a formant choir, taiko and toms, braams, church bells, a tam-tam, a drum and bass kit with a reese bass, a convolution reverb) and write seamless loops to `mods-unpacked/cejdan-StoryMode/music/boss_<cue>_<layer>.ogg`. `boss/boss_music.gd` reads those OGGs from their bytes (no import step) and blends the layers with the fight.
+The boss sequence's music is written in code: `score.py` (the notes, the cues and their layers) and `variants.py` (the finale and the other finale candidates) play instruments from `synth.py` (saw-wavetable strings and brass, a formant choir, taiko and toms, braams, church bells, a tam-tam, a drum and bass kit with a reese bass, a convolution reverb) and write seamless loops to `mods-unpacked/flantor-StoryMode/music/boss_<cue>_<layer>.ogg`. `boss/boss_music.gd` reads those OGGs from their bytes (no import step) and blends the layers with the fight.
 
 | Cue | Tempo, length | Layers |
 |---|---|---|

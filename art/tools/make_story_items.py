@@ -1,6 +1,6 @@
 """Story item sprites (#93 translators, #94 miner bones), palette-encoded.
 
-Writes into mods-unpacked/cejdan-StoryMode/art/items/:
+Writes into mods-unpacked/flantor-StoryMode/art/items/:
   translator.png      18 x 18  the monsters' translator: a carved bone-stone horn
                                with a red rune-eye (drop and chamber socket)
   minerbones.png      10 x 10  a miner's skull with a cracked visor lamp (drop)
@@ -22,7 +22,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_mineral_art as mm  # noqa: E402
 
-OUT = os.path.join(mm.ROOT, "mods-unpacked", "cejdan-StoryMode", "art", "items")
+OUT = os.path.join(mm.ROOT, "mods-unpacked", "flantor-StoryMode", "art", "items")
 
 # key -> (cell name in mineral_cells.json, index 0 dark / 1 mid / 2 light)
 KEYS = {

@@ -2,10 +2,10 @@
 
     python release/package_mod.py [--out <dir>]
 
-Packs mods-unpacked/cejdan-StoryMode/ into
-<out>/<version>/cejdan-StoryMode.zip (default out: ../release_builds, outside
+Packs mods-unpacked/flantor-StoryMode/ into
+<out>/<version>/flantor-StoryMode.zip (default out: ../release_builds, outside
 the repo), with the layout the mod loader expects
-(mods-unpacked/cejdan-StoryMode/...). Each version (manifest.json
+(mods-unpacked/flantor-StoryMode/...). Each version (manifest.json
 `version_number`) gets its own folder; an existing version is never overwritten
 (bump the version, or pass --force to rebuild it).
 
@@ -27,7 +27,7 @@ import tarfile
 import zipfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MOD_ID = "cejdan-StoryMode"
+MOD_ID = "flantor-StoryMode"
 
 ALLOWED = {".gd", ".tscn", ".tres", ".gdshader", ".gdshaderinc", ".png", ".ogg", ".wav", ".json", ".yaml", ".gdignore", ".ttf"}
 SKIP_DIRS = {"dev", ".godot", ".git", "__pycache__", ".import"}

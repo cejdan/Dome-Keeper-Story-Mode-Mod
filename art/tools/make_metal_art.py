@@ -1,6 +1,6 @@
 # Generates the Story Mode metal tile's sprites, palette-encoded, into the mod:
-#   mods-unpacked/cejdan-StoryMode/art/tiles/sheet_metal.png     tile sheet, 12x12 grid of 24 px cells
-#   mods-unpacked/cejdan-StoryMode/art/tiles/particle_metal.png  tile-break debris strip
+#   mods-unpacked/flantor-StoryMode/art/tiles/sheet_metal.png     tile sheet, 12x12 grid of 24 px cells
+#   mods-unpacked/flantor-StoryMode/art/tiles/particle_metal.png  tile-break debris strip
 # plus art/preview/metal_sheet.png (real colors, for looking at).
 #
 # A metal tile is a riveted steel plate that fills the whole tile, so it reads
@@ -18,7 +18,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_mineral_art as mm  # noqa: E402
 
-OUT = os.path.join(mm.ROOT, "mods-unpacked", "cejdan-StoryMode", "art", "tiles")
+OUT = os.path.join(mm.ROOT, "mods-unpacked", "flantor-StoryMode", "art", "tiles")
 RIVETS = [(3, 3), (19, 3), (3, 19), (19, 19)]
 
 

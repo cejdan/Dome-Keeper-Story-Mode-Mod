@@ -22,8 +22,8 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if len(sys.argv) > 1:
     ROOT = sys.argv[1]
-OUT = os.path.join(ROOT, "mods-unpacked", "cejdan-StoryMode", "art", "loadout_storymode.png")
-OUT_TECH = os.path.join(ROOT, "mods-unpacked", "cejdan-StoryMode", "art", "icons", "storymode.png")
+OUT = os.path.join(ROOT, "mods-unpacked", "flantor-StoryMode", "art", "loadout_storymode.png")
+OUT_TECH = os.path.join(ROOT, "mods-unpacked", "flantor-StoryMode", "art", "icons", "storymode.png")
 PREVIEW = os.path.join(ROOT, "art", "preview", "story_icon.png")
 PALETTE = os.path.join(ROOT, "systems", "style", "palettes", "palette_1_1.png")
 

@@ -19,7 +19,7 @@ fifth. It is in all three cues.
 
 Run from the `Dome Keeper` folder (needs numpy, scipy, soundfile):
     python art/music/score.py [cue ...]
-Writes mods-unpacked/cejdan-StoryMode/music/boss_<cue>_<layer>.ogg and, with
+Writes mods-unpacked/flantor-StoryMode/music/boss_<cue>_<layer>.ogg and, with
 --preview, a full mix and a spectrogram per cue to art/music/preview/.
 """
 import os
@@ -31,7 +31,7 @@ import soundfile as sf
 sys.path.insert(0, os.path.dirname(__file__))
 import synth as S  # noqa: E402
 
-OUT = "mods-unpacked/cejdan-StoryMode/music"
+OUT = "mods-unpacked/flantor-StoryMode/music"
 PREVIEW = "art/music/preview"
 
 # Chord roots (octave 2) and qualities.

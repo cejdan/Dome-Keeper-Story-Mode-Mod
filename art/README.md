@@ -31,8 +31,8 @@ A real color appears in several rows. The row matters when the game uses another
 
 ## Mineral art (generated)
 
-`python art/tools/make_mineral_art.py` writes every mineral's sprites, palette-encoded, straight into `mods-unpacked/cejdan-StoryMode/art/minerals/`: `drop_<m>.png`, `icon_<m>.png` (the drop at 3x) and `sheet_<m>.png` (the ore sheet a tile is drawn from). It also writes `art/preview/mineral_sheets.png` in real colors. Shapes and colors come from `SHAPES` in that script and `art/palette/mineral_cells.json`; change those and run it again.
+`python art/tools/make_mineral_art.py` writes every mineral's sprites, palette-encoded, straight into `mods-unpacked/flantor-StoryMode/art/minerals/`: `drop_<m>.png`, `icon_<m>.png` (the drop at 3x) and `sheet_<m>.png` (the ore sheet a tile is drawn from). It also writes `art/preview/mineral_sheets.png` in real colors. Shapes and colors come from `SHAPES` in that script and `art/palette/mineral_cells.json`; change those and run it again.
 
 An ore sheet uses vanilla's grid (12 x 12 cells of 24 px, as in `content/map/border/resources_sheet.png`): the border-overlay block sits at cols 0-3, rows 0-3 (vanilla's iron block recolored), and five tile frames sit at cols 0-4, row 5. The tile and border shaders only read the sprite's red and blue channels as palette indices, so a new tile look needs nothing more than a sheet in this layout.
 
-The mod loads these PNGs from their bytes at runtime (`util/assets.gd`), so they need no Godot import; `mods-unpacked/cejdan-StoryMode/art/` is `.gdignore`'d. The palette cells are filled at runtime by `util/palette.gd`, which mirrors `mineral_cells.json`.
+The mod loads these PNGs from their bytes at runtime (`util/assets.gd`), so they need no Godot import; `mods-unpacked/flantor-StoryMode/art/` is `.gdignore`'d. The palette cells are filled at runtime by `util/palette.gd`, which mirrors `mineral_cells.json`.

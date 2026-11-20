@@ -6,8 +6,8 @@ script. Each letter gets a different stroke set, chosen so any two runes differ
 by at least three pixels.
 
 Writes:
-  mods-unpacked/cejdan-StoryMode/art/runes/runes.png   glyph atlas, white on clear
-  mods-unpacked/cejdan-StoryMode/art/runes/runes.json  letter -> atlas cell + codepoint
+  mods-unpacked/flantor-StoryMode/art/runes/runes.png   glyph atlas, white on clear
+  mods-unpacked/flantor-StoryMode/art/runes/runes.json  letter -> atlas cell + codepoint
   art/preview/runes.png                                key sheet: rune above letter, 8x
 
 Runes live at Private Use Area codepoints (U+E000 + cipher index), so a runed
@@ -99,7 +99,7 @@ def main():
             meta["letters"][key] = {"cell": i, "code": 0xE000 + runes[key][1]}
         else:
             meta["punct"][key] = {"cell": i}
-    out = "mods-unpacked/cejdan-StoryMode/art/runes"
+    out = "mods-unpacked/flantor-StoryMode/art/runes"
     os.makedirs(out, exist_ok=True)
     atlas.save(os.path.join(out, "runes.png"))
     with open(os.path.join(out, "runes.json"), "w", encoding="utf-8", newline="\n") as f:
