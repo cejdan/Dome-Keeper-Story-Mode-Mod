@@ -2,7 +2,7 @@
 vanilla tech-icon style (36 x 36 art doubled to 72 x 72, warm orange on the
 icon row), with one to four pips along the bottom for the tier.
 
-Writes mods-unpacked/cejdan-StoryMode/art/icons/newgadget<n>.png (palette-
+Writes mods-unpacked/flantor-StoryMode/art/icons/newgadget<n>.png (palette-
 encoded, row 12) and art/preview/newgadget_icons.png (real colors, 4x).
 
 Run from the Dome Keeper folder: python art/tools/make_gear_icon.py
@@ -16,7 +16,7 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if len(sys.argv) > 1:
     ROOT = sys.argv[1]
-OUT = os.path.join(ROOT, "mods-unpacked", "cejdan-StoryMode", "art", "icons")
+OUT = os.path.join(ROOT, "mods-unpacked", "flantor-StoryMode", "art", "icons")
 PREVIEW = os.path.join(ROOT, "art", "preview", "newgadget_icons.png")
 PALETTE = os.path.join(ROOT, "systems", "style", "palettes", "palette_1_1.png")
 
