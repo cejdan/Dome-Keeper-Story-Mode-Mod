@@ -102,6 +102,8 @@ func _welcome() -> void:
 const RETIRE_ENTRY := "storyretirerich"
 # Retire Rich's own root, the shop's top section (#144).
 const WIN_ROOT := "storywin"
+# Call for Evacuation (#303): free, refused. Halcyon's reply opens; nothing else.
+const EVACUATE_ENTRY := "storyevacuate"
 
 
 # The shop's Suit Blaster entry is a stand-in: buying it grants the real gadget
@@ -113,6 +115,9 @@ func _on_upgrade_added(id: String, teamId: String) -> void:
 		return
 	if id == teamId + "." + RETIRE_ENTRY:
 		_win()
+		return
+	if id == teamId + "." + EVACUATE_ENTRY:
+		StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").EVACUATION)
 		return
 	if not id.begins_with("player") or not id.ends_with("." + KeeperUpgrades.BLASTER_ENTRY):
 		return

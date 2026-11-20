@@ -3,8 +3,9 @@ storymode:
   unlockslimits: [storyonly]
 
 # The win condition's own shop section (#144), at the top like Prestige's: a
-# second root that Storymode.gd adds to every Story Mode run, holding only
-# Retire Rich. mod_main.gd puts it first in the shop's track order.
+# second root that Storymode.gd adds to every Story Mode run, shown as "Leave
+# the Planet", holding Call for Evacuation and Retire Rich (Fill Quota).
+# mod_main.gd puts it first in the shop's track order.
 storyWin:
   type: gamemode
 
@@ -48,6 +49,13 @@ storyNewGadget3:
 storyNewGadget4:
   cost: money=10000
   predecessors: [storyNewGadget3]
+
+# Call for Evacuation (#303): free, and the company refuses it. Buying it opens
+# Halcyon's reply (data/logs.gd EVACUATION, gamemode/Storymode.gd); the run goes
+# on and the entry stays bought. Not tied to Fill Quota.
+storyEvacuate:
+  cost: money=0
+  predecessors: [storyWin]
 
 storyRetireRich:
   cost: money=1000000

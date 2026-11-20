@@ -11,6 +11,9 @@ const GadgetShop = preload("res://mods-unpacked/cejdan-StoryMode/gamemode/gadget
 const DomeGas = preload("res://mods-unpacked/cejdan-StoryMode/gas/dome_gas.gd")
 
 var _story_money_listening := false
+# Call for Evacuation (#303): bought here, the shop closes so the company's
+# reply opens at once (the shop pauses the game, and a story beat waits for it).
+const EVACUATE_ID := "storyevacuate"
 
 
 func _ready():
@@ -31,6 +34,20 @@ func _ready():
 	Data.listen(self, teamId + ".inventory.money")
 	_story_money_listening = true
 	_story_show_money()
+	GameWorld.upgradeBought.connect(_story_on_bought)
+
+
+# The buyer's own shop only: upgradeBought fires on the instance that asked
+# (the host's own buys, or a client's once the host says yes), whether the
+# panel was bought by key or by mouse.
+func _story_on_bought(id: String, team: String, player: String) -> void:
+	if id != teamId + "." + EVACUATE_ID or team != teamId or player != playerId or not isIn:
+		return
+	for c: Dictionary in get_incoming_connections():
+		var from = c["signal"].get_object()
+		if c["signal"].get_name() == "buyUpgrade" and from is InputProcessor and not from.desintegrating:
+			from.desintegrate()
+			return
 
 
 func _story_show_money() -> void:
@@ -52,6 +69,8 @@ func moveOut():
 	if isIn and _story_money_listening:
 		_story_money_listening = false
 		Data.unlisten(self, teamId + ".inventory.money")
+	if GameWorld.upgradeBought.is_connected(_story_on_bought):
+		GameWorld.upgradeBought.disconnect(_story_on_bought)
 	super()
 
 

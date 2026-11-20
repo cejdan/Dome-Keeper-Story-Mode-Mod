@@ -48,6 +48,13 @@ func _ready():
 		var win: ImageTexture = ImageTexture.create_from_image(rocket.get_image())
 		win.take_over_path("res://content/icons/storywin.png")
 		_held.append(win)
+	# Call for Evacuation (#303): vanilla's probe, a signal going out, as its own
+	# copy so the probe keeps its icon.
+	var probe: Texture2D = load("res://content/icons/probe.png")
+	if probe != null:
+		var evac: ImageTexture = ImageTexture.create_from_image(probe.get_image())
+		evac.take_over_path("res://content/icons/storyevacuate.png")
+		_held.append(evac)
 	# Heat Shielding I-IV: the carry (suit) icon pushed hotter along palette
 	# row 12, as a placeholder until art exists.
 	var suit: Texture2D = load("res://content/icons/jetpackstrength1.png")
