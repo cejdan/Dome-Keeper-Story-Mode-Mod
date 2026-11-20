@@ -13,6 +13,7 @@
 !/docs/
 !/art/
 !/mods-unpacked/
+!/release/
 
 # Engine caches and build output, wherever they appear (e.g. art/tools/engine_render)
 .godot/
