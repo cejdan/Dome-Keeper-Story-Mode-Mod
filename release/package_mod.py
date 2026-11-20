@@ -3,9 +3,11 @@
     python release/package_mod.py [--out <dir>]
 
 Packs mods-unpacked/cejdan-StoryMode/ into
-<out>/cejdan-StoryMode.zip (default out: ../release_builds, outside
+<out>/<version>/cejdan-StoryMode.zip (default out: ../release_builds, outside
 the repo), with the layout the mod loader expects
-(mods-unpacked/cejdan-StoryMode/...). The version (manifest.json) is printed, not put in the name.
+(mods-unpacked/cejdan-StoryMode/...). Each version (manifest.json
+`version_number`) gets its own folder; an existing version is never overwritten
+(bump the version, or pass --force to rebuild it).
 
 It packs ONLY what is committed on main, read with `git archive`: the working
 tree, uncommitted edits and the checked-out branch are ignored. It fetches
@@ -74,6 +76,7 @@ def collect(files):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--force", action="store_true", help="rebuild a version that is already built")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(REPO), "release_builds"))
     a = ap.parse_args()
     files, commit = main_files()
@@ -88,8 +91,11 @@ def main():
     for rel in keep:
         if rel.split("/")[0] == "dev":
             sys.exit("dev/ file slipped in: " + rel)
-    os.makedirs(a.out, exist_ok=True)
-    out = os.path.join(a.out, MOD_ID + ".zip")
+    folder = os.path.join(a.out, version)
+    out = os.path.join(folder, MOD_ID + ".zip")
+    if os.path.exists(out) and not a.force:
+        sys.exit("%s is already built: bump version_number in manifest.json on main (or --force)." % out)
+    os.makedirs(folder, exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for rel in keep:
             z.writestr("mods-unpacked/%s/%s" % (MOD_ID, rel), files[rel])
