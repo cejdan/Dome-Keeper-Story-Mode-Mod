@@ -345,6 +345,10 @@ func run(h) -> void:
 	Level.stage.startUpgradesInput(h.keeper())
 	await h.wait(1.5)
 	await h.shot("shop_open")
+	# Call for Evacuation first (#303): the company refuses, the run goes on.
+	h.check("Call for Evacuation bought", await h.buy("storyevacuate"))
+	await _expect(h, "evac_refused", "evacuation")
+	h.check("the run goes on after the refusal", not GameWorld.won, GameWorld.won)
 	h.check("Retire Rich bought", await h.buy("storyretirerich"))
 	await _expect(h, "doom_thanks", "thanks")
 	await h.until(func(): return ed.last_step == "last_words", 5.0)

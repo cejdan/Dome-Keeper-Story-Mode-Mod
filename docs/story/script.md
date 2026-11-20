@@ -255,6 +255,13 @@ Please also be aware that all mined Minerals are company property. Do not attemp
 We are looking forward to a long and productive dig.
 — Halcyon Minerals Inc.
 
+### evac_refused
+Title: RE: Evacuation Request
+Thank you for contacting Halcyon Minerals Keeper Support.
+Evacuations are not authorized at this time. Please continue working until your assigned mineral quota is fulfilled.
+A pickup will be scheduled once your quota is met. We appreciate your hard work and dedication!
+— Halcyon Minerals Inc.
+
 ### log_b1
 Title: Personal Keeper Log // Dale Okafor // Dig Day 3
 The bugs hit the dome again. More bugs today than yesterday. The company-issued laser held them off, but one hit the dome and caused a small crack.
