@@ -61,6 +61,7 @@ func run(h) -> void:
 	for m: String in Minerals.ORDER:
 		floating[m] = int(Data.ofOr("inventory.floating" + m, 0))
 		h.check(m + " dropped pieces", floating[m] >= 1, floating[m])
+	h.check("a diamond tile drops exactly 1 diamond (#186)", floating["diamond"] == 1, floating["diamond"])
 
 	# Deliver one of each.
 	var money0: int = h.inv("money")

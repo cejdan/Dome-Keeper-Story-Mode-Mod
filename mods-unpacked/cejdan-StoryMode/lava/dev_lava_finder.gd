@@ -5,6 +5,7 @@ extends Node
 # pocket (shallowest first, cycling) and puts the keeper in it. From there, drill
 # toward the pocket to let the lava out.
 
+const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const FIELD_NAME := "StoryLavaField"
 const HINT_SECONDS := 4.0
 
@@ -42,7 +43,7 @@ func _probe(dir: String) -> void:
 	for mm in Level.monstersByTeamId.values():
 		mm.disabled = true
 	var map = Level.map
-	var keeper = Keepers.first()
+	var keeper = Story.local_keeper()
 	while not map.has_node(FIELD_NAME):
 		await get_tree().process_frame
 	var field = map.get_node(FIELD_NAME)
@@ -118,7 +119,7 @@ func _jump() -> void:
 	if map == null or not is_instance_valid(map) or not map.has_node(FIELD_NAME):
 		_say("No lava field yet (start a run launched with --lava)")
 		return
-	var keeper = Keepers.first()
+	var keeper = Story.local_keeper()
 	if keeper == null or not is_instance_valid(keeper):
 		return
 	var field = map.get_node(FIELD_NAME)

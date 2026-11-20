@@ -8,11 +8,14 @@ const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
 const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd")
 const GadgetShop = preload("res://mods-unpacked/cejdan-StoryMode/gamemode/gadget_shop.gd")
+const DomeGas = preload("res://mods-unpacked/cejdan-StoryMode/gas/dome_gas.gd")
+
+var _story_money_listening := false
 
 
 func _ready():
 	if Story.is_story():
-		# Gadget slot entries: ladder price now, and empty slots off the shop.
+		# New Gadget entries leave the shop once nothing is left to offer.
 		GadgetShop.refresh_entries(teamId, playerId)
 	super()
 	if not Story.is_story():
@@ -23,8 +26,10 @@ func _ready():
 	var icon: Node = grid.get_child(iron_label.get_index() - 1)
 	if icon is TextureRect:
 		icon.texture = Assets.tex("res://mods-unpacked/cejdan-StoryMode/art/icon_money.png")
-	Data.unlisten(self, teamId + ".inventory.iron")
+	# The iron listener stays (propertyChanged ignores it): vanilla's moveOut
+	# unlistens it, and logged an error when it was already gone (#249).
 	Data.listen(self, teamId + ".inventory.money")
+	_story_money_listening = true
 	_story_show_money()
 
 
@@ -36,11 +41,16 @@ func propertyChanged(property: String, oldValue, newValue):
 	if property == teamId + ".inventory.money":
 		_story_show_money()
 		return
+	if property == teamId + ".inventory.iron" and Story.is_story():
+		return
 	super(property, oldValue, newValue)
 
 
 func moveOut():
-	if isIn:
+	# Only a Story Mode shop listens for money (#297: closing a vanilla shop
+	# logged "removing listener who is not listening").
+	if isIn and _story_money_listening:
+		_story_money_listening = false
 		Data.unlisten(self, teamId + ".inventory.money")
 	super()
 
@@ -72,14 +82,24 @@ func updateCostLabels():
 		label.label_settings.font_color = color
 
 
-# A gadget slot entry is never bought itself: it opens that slot's offers
-# (paid on pick, see extensions/stages/level/LevelStage.gd).
+# A New Gadget entry is not bought here: it opens the gadget choice, and the
+# pick pays for it (extensions/stages/level/LevelStage.gd). Without the money
+# the choice stays shut and the panel shows vanilla's "can't afford" error.
 func buyUpgrade():
 	if Story.is_story() and animationDone:
 		var tree = find_child("TechTree")
 		var panel = tree.focussedTechPanel if tree else null
+		# Vent the Dome (#213) with clean air in the dome would be water for
+		# nothing: refused, as vanilla refuses a repair at full health.
+		if panel and panel.techId.ends_with(DomeGas.VENT_ID) and not DomeGas.has_gas():
+			GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
+			return
 		if panel and GadgetShop.is_entry(panel.techId):
 			if panel.state == 1:
-				Level.stage.openStoryGadgetSlot(GadgetShop.slot_of(panel.techId), teamId, playerId)
+				var cost = GameWorld.upgrades.get(panel.techId, {}).get("cost", {})
+				if cost is Dictionary and not GameWorld.canAfford(cost, teamId):
+					GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
+				else:
+					Level.stage.openStoryGadgetChoice(teamId, playerId)
 			return
 	super()

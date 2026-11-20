@@ -2,6 +2,8 @@ extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 
 # Ticket 48: the keeper burns only where its body overlaps lava as drawn.
 
+const FieldUtil = preload("res://mods-unpacked/cejdan-StoryMode/util/field_util.gd")
+
 
 func boot() -> Dictionary:
 	return {"seed": 12345}
@@ -69,14 +71,14 @@ func run(h) -> void:
 	var surface_y: float = o.y + 24.0 - round(0.4 * 24.0)
 	h.snap_camera()
 	# Feet (box bottom) 4 px above the drawn surface.
-	var above: Vector2 = Vector2(o.x + 12, surface_y - 4 - field.KEEPER_BOX.y * 0.5)
+	var above: Vector2 = Vector2(o.x + 12, surface_y - 4 - FieldUtil.KEEPER_BOX.y * 0.5)
 	await h.teleport_tile(c + Vector2i(0, -1))
 	await h.wait(1.0)
 	var g1: float = await _hold_at(h, above, 2.0)
 	h.keeper().teleport(above)
 	await h.frames(2)
 	await h.shot("hover_above_shallow")
-	h.note("hover", {"keeper": h.keeper().global_position, "set": above, "lava rect (field space)": field._lava_shape(c)["rect"], "keeper box": field.keeper_rect(h.keeper())})
+	h.note("hover", {"keeper": h.keeper().global_position, "set": above, "lava rect (field space)": field._lava_shape(c)["rect"], "keeper box": FieldUtil.keeper_rect(h.keeper())})
 	h.check("hovering above a 0.4 cell's drawn surface: no heat", g1 == 0.0, g1)
 	var into: Vector2 = Vector2(o.x + 12, surface_y + 4)
 	var g2: float = await _hold_at(h, into, 1.0)

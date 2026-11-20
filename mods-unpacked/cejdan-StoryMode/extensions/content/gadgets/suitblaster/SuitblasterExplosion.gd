@@ -16,4 +16,6 @@ func explode():
 			Metal.record_line(centre, d.round(), int(round(0.5 + pow(radius, 2) * 1.25)))
 		else:
 			Metal.record_circle(centre, radius)
+		# The blast hurts Velle too (#160).
+		load("res://mods-unpacked/cejdan-StoryMode/boss/boss_director.gd").explosion_at(global_position, "blast", radius * 24.0 + 10.0)
 	super()

@@ -9,29 +9,107 @@ const Minerals = preload("res://mods-unpacked/cejdan-StoryMode/data/minerals.gd"
 const MapConfig = preload("res://mods-unpacked/cejdan-StoryMode/data/map_config.gd")
 const Metal = preload("res://mods-unpacked/cejdan-StoryMode/data/metal.gd")
 const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
+const GasData = preload("res://mods-unpacked/cejdan-StoryMode/data/gas.gd")
 
 # Special tiles a gate never swallows: gadget, relic, relic switch, power core.
 const KEEP_IDS: Array = [3, 4, 6, 7]  # Data.TILE_GADGET, TILE_RELIC, TILE_RELIC_SWITCH, TILE_SUPPLEMENT
 
 const DIRS: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+const DIRS8: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
 
 
 static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void:
+	fill_bottom(map_data, _sub_rand(rand, "bottom"))
 	place_minerals(map_data, rand)
+	place_start_bronze(map_data, _sub_rand(rand, "startbronze"))
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
 	place_metal(map_data, rand)
 	place_pools(map_data, rand)
+	# The story's own tiles (#93, #94) go in after metal and pools, each with
+	# its own random generator seeded from the map's, so every feature placed
+	# with `rand` (minerals, metal, pools, ocean) is the same as without them.
+	place_translators(map_data, _sub_rand(rand, "translators"))
+	place_bones(map_data, _sub_rand(rand, "bones"))
+	place_gate_gold(map_data, _sub_rand(rand, "gategold"))
 	place_ocean(map_data, rand)
+	# Gas caverns (#201) go in last, with their own generator: nothing above moves.
+	place_gas_caverns(map_data, _sub_rand(rand, "gascaverns"))
+
+
+# A generator of its own for one placement step, seeded from the map's.
+static func _sub_rand(rand: RandomNumberGenerator, what: String) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([rand.seed, what])
+	return r
+
+
+# Any lava pool cell (meta "story_pools") within `gap` tiles of `cell`?
+static func _near_pool(pools: Dictionary, cell: Vector2i, gap: int) -> bool:
+	for ox in range(-gap, gap + 1):
+		for oy in range(-gap, gap + 1):
+			if pools.has(cell + Vector2i(ox, oy)):
+				return true
+	return false
+
+
+static func _pool_cells(map_data) -> Dictionary:
+	var out: Dictionary = {}
+	for pool: Array in map_data.get_meta("story_pools", []):
+		for c: Vector2i in pool:
+			out[c] = true
+	return out
+
+
+# A flat bottom (#149). Vanilla's map is a blob with a ragged, curved bottom,
+# and the lava ocean's ceiling sits under its single deepest cell, so almost
+# every column ended in border wall above the ocean. Each column whose lowest
+# map cell is within MapConfig.BOTTOM_FILL_ROWS of the deepest row is extended
+# with B8 rock down to that row, so digging straight down reaches the ocean.
+# Side arms that end higher up stay as they are. Runs before the minerals,
+# metal and pools, so the new rock gets B8's share of them.
+static func fill_bottom(map_data, rand: RandomNumberGenerator) -> int:
+	var low: Dictionary = {}   # x -> lowest map row
+	var yb: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		if map_data.get_biomev(c) < 0:
+			continue
+		low[c.x] = maxi(int(low.get(c.x, c.y)), c.y)
+		yb = maxi(yb, c.y)
+	var biome: int = MapConfig.BIOMES - 1
+	var added: int = 0
+	var xs: Array = low.keys()
+	xs.sort()
+	for x: int in xs:
+		var y0: int = int(low[x])
+		if yb - y0 > MapConfig.BOTTOM_FILL_ROWS:
+			continue
+		for y in range(y0 + 1, yb + 1):
+			var c := Vector2i(x, y)
+			map_data.set_biomev(c, biome)
+			map_data.set_resourcev(c, Data.TILE_DIRT_START)
+			# B8 is mostly hard rock; a little medium and very hard for texture.
+			var r: float = rand.randf()
+			map_data.set_hardnessv(c, Data.HARDNESS_MEDIUM if r < 0.3 else Data.HARDNESS_HARD if r < 0.85 else Data.HARDNESS_VERY_HARD)
+			added += 1
+	map_data.set_meta("story_bottom_fill", added)
+	return added
 
 
 # The lava ocean (#43): added below the generated map, under B8 (biome index 7).
-# Rows, top to bottom: one rock ceiling row; OCEAN_ROWS open rows across the
-# map's full width (the lava field fills them), with unobtainium clumps inside
-# and on the floor; OCEAN_FLOOR_ROWS of rock (just one, and soft, over the
-# chamber); and a sealed BOSS_CHAMBER inside rock walls. Vanilla's border pass
-# runs after this, so it wraps the new rows too. Meta: "story_ocean" (rows and
-# columns, ceiling row) and "story_boss_chamber" (Rect2i).
+# Rows, top to bottom: one rock ceiling row and OCEAN_AIR_ROWS of open air
+# (#149), both as wide as the map's bottom row, so digging down from anywhere
+# down there breaks in, and no ocean lies under the border; then OCEAN_ROWS open rows in a rough funnel (#184): full width at
+# the top, its two sides sloping down, each with its own curve and bumps, to
+# just over the boss chamber at the bottom (the lava field fills them), with
+# unobtainium clumps inside and on its floor and slopes; OCEAN_FLOOR_ROWS of
+# rock under the funnel's narrow end (just one, and soft, over the chamber);
+# and a sealed BOSS_CHAMBER inside rock walls, the map's deepest part. Cells
+# beside the funnel are left off the map, so vanilla's border pass, which runs
+# after this, walls its sides. The shape has its own seeded generator, so it
+# leaves `rand` as it was. Meta: "story_ocean" (top/bottom rows, x0/x1 the
+# full width, "rows": y -> [x0, x1] per funnel row, ceiling row) and
+# "story_boss_chamber" (Rect2i).
 static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 	var cells: Array = map_data.get_used_biome_cells()
 	var x0: int = 1 << 20
@@ -41,19 +119,51 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 		x0 = mini(x0, c.x)
 		x1 = maxi(x1, c.x)
 		yb = maxi(yb, c.y)
-	var biome: int = MapConfig.BIOMES - 1
-	var ceiling: int = yb + 1
-	var top: int = ceiling + 1
-	var bottom: int = top + LavaData.OCEAN_ROWS - 1
-	var floor_top: int = bottom + 1
 	var ch_w: int = LavaData.BOSS_CHAMBER.x
 	var ch_h: int = LavaData.BOSS_CHAMBER.y
 	var wall: int = LavaData.BOSS_CHAMBER_WALL
+	var ch_half: int = ch_w / 2 + wall + LavaData.OCEAN_FUNNEL_BOTTOM_MARGIN
+	# No wider than the map's bottom row: the unbroken run of map cells in the
+	# deepest row around the middle (#184 review), so every cell over the
+	# ocean's top row is mineable rock, never a side arm's overhang or void.
+	var map_w: int = x1 - x0 + 1   # sets the unobtainium total, below
+	var bottom_row: Dictionary = {}
+	for c: Vector2i in cells:
+		if c.y == yb and map_data.get_biomev(c) >= 0:
+			bottom_row[c.x] = true
+	if not bottom_row.is_empty():
+		var mid: int = 0
+		if not bottom_row.has(0):
+			var keys: Array = bottom_row.keys()
+			keys.sort_custom(func(a, b): return absi(a) < absi(b))
+			mid = int(keys[0])
+		x0 = mid
+		while bottom_row.has(x0 - 1):
+			x0 -= 1
+		x1 = mid
+		while bottom_row.has(x1 + 1):
+			x1 += 1
+	x0 = mini(x0, -ch_half)
+	x1 = maxi(x1, ch_half)
+	var biome: int = MapConfig.BIOMES - 1
+	var ceiling: int = yb + 1
+	var top: int = ceiling + 1 + LavaData.OCEAN_AIR_ROWS
+	var bottom: int = top + LavaData.OCEAN_ROWS - 1
+	var floor_top: int = bottom + 1
 	var ch_x0: int = -ch_w / 2
 	var ch_y0: int = floor_top + 1   # one soft floor row over the chamber
 	var deepest: int = maxi(floor_top + LavaData.OCEAN_FLOOR_ROWS - 1, ch_y0 + ch_h - 1 + wall)
+	var rows: Dictionary = _funnel_rows(top, bottom, x0, x1, ch_half, _sub_rand(rand, "funnel"))
 	for y in range(ceiling, deepest + 1):
-		for x in range(x0, x1 + 1):
+		var rx0: int = x0
+		var rx1: int = x1
+		if rows.has(y):
+			rx0 = int(rows[y][0])
+			rx1 = int(rows[y][1])
+		elif y > bottom:
+			rx0 = maxi(x0, -ch_half)
+			rx1 = mini(x1, ch_half)
+		for x in range(rx0, rx1 + 1):
 			var c := Vector2i(x, y)
 			map_data.set_biomev(c, biome)
 			if y == ceiling or y > bottom:
@@ -70,27 +180,89 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 		for x in range(ch_x0, ch_x0 + ch_w):
 			map_data.set_resourcev(Vector2i(x, y), Data.TILE_EMPTY)
 			map_data.set_hardnessv(Vector2i(x, y), Data.HARDNESS_MEDIUM)
-	# Unobtainium: clumps in the ocean, some resting on its floor.
+	# Unobtainium: clumps in the ocean, some resting on its floor or slopes
+	# (the lowest funnel row of a column). The total is set by the map's full
+	# width: what the first, full-size ocean held (#43, #175).
 	var unob: int = int(Minerals.TABLE["unobtainium"]["tile_id"])
-	var ocean_cells: int = (x1 - x0 + 1) * LavaData.OCEAN_ROWS
-	var want: int = int(round(ocean_cells / LavaData.OCEAN_UNOB_CELLS_PER_TILE))
+	var want: int = int(round(map_w * LavaData.OCEAN_ROWS / LavaData.OCEAN_UNOB_CELLS_PER_TILE))
+	var low: Dictionary = {}   # x -> the funnel's lowest row in that column
+	var inside: Array = []     # where a clump may start (off the walls, below the top two rows)
+	for y in range(top, bottom + 1):
+		for x in range(int(rows[y][0]), int(rows[y][1]) + 1):
+			low[x] = y
+			if y >= top + 2 and x > int(rows[y][0]) and x < int(rows[y][1]):
+				inside.append(Vector2i(x, y))
+	var floor_cells: Array = []   # each column's lowest funnel cell, where it may hold unobtainium
+	for x: int in low:
+		var fc := Vector2i(x, int(low[x]))
+		if fc.y >= top + 2:
+			floor_cells.append(fc)
+	var ok := func(c: Vector2i) -> bool:
+		if not rows.has(c.y) or c.y < top + 2 or c.x < int(rows[c.y][0]) or c.x > int(rows[c.y][1]):
+			return false
+		return map_data.get_resourcev(c) == Data.TILE_EMPTY
 	var placed: int = 0
 	var guard: int = 0
-	while placed < want and guard < want * 20:
+	while placed < want and guard < want * 20 and not inside.is_empty() and not floor_cells.is_empty():
 		guard += 1
-		var c := Vector2i(rand.randi_range(x0 + 1, x1 - 1), rand.randi_range(top + 2, bottom))
+		var c: Vector2i = inside[rand.randi() % inside.size()]
 		if rand.randf() < 0.25:
-			c.y = bottom   # on the ocean floor
+			# On the floor or a slope, any column alike, so they don't all pile
+			# on the narrow floor over the chamber.
+			c = floor_cells[rand.randi() % floor_cells.size()]
 		var n: int = rand.randi_range(int(LavaData.OCEAN_UNOB_CLUMP[0]), int(LavaData.OCEAN_UNOB_CLUMP[1]))
 		for i in n:
-			if map_data.get_resourcev(c) == Data.TILE_EMPTY and c.y >= top + 2 and c.y <= bottom and c.x > x0 and c.x < x1:
+			if ok.call(c):
 				map_data.set_resourcev(c, unob)
 				placed += 1
 			c += [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)][rand.randi() % 3]
-	var info: Dictionary = {"top": top, "bottom": bottom, "x0": x0, "x1": x1, "ceiling": ceiling, "unobtainium": placed}
+	var info: Dictionary = {"top": top, "bottom": bottom, "x0": x0, "x1": x1, "rows": rows, "ceiling": ceiling, "unobtainium": placed}
 	map_data.set_meta("story_ocean", info)
 	map_data.set_meta("story_boss_chamber", Rect2i(ch_x0, ch_y0, ch_w, ch_h))
 	return info
+
+
+# The funnel's columns per row (#184): y -> [x0, x1]. The top two rows span
+# x0..x1 (a lava cell with air above and no lava below cools (#41), so a
+# narrower second row would crust the top row's ends and keep the sealed ocean
+# awake); the bottom row spans ch_half either side of the chamber's middle.
+# Between them each side follows its own curve, plus smooth seeded bumps that
+# fade out at both ends; a row never goes narrower than the bottom row.
+static func _funnel_rows(top: int, bottom: int, x0: int, x1: int, ch_half: int, r: RandomNumberGenerator) -> Dictionary:
+	var n: int = bottom - top + 1
+	var span: float = maxf(1.0, float(n - 2))
+	var sides: Array = []
+	for side in 2:
+		var curve: float = r.randf_range(float(LavaData.OCEAN_FUNNEL_CURVE[0]), float(LavaData.OCEAN_FUNNEL_CURVE[1]))
+		var layers: Array = []
+		for l in LavaData.OCEAN_FUNNEL_BUMP.size():
+			var pts: Array = []
+			for i in n / int(LavaData.OCEAN_FUNNEL_BUMP_ROWS[l]) + 2:
+				pts.append(r.randf_range(-1.0, 1.0))
+			layers.append(pts)
+		sides.append({"curve": curve, "layers": layers})
+	var rows: Dictionary = {}
+	for k in n:
+		var t: float = clampf(float(k - 1) / span, 0.0, 1.0)   # 0 for the top two rows, 1 at the bottom
+		var edge: Array = []
+		for side in 2:
+			var sd: Dictionary = sides[side]
+			var reach: float = float(x0 if side == 0 else x1)
+			var lo: float = float(-ch_half if side == 0 else ch_half)
+			var e: float = lerpf(lo, reach, pow(1.0 - t, float(sd["curve"])))
+			# Smooth bumps (cosine between control points), strongest mid-way.
+			var bump: float = 0.0
+			for l in LavaData.OCEAN_FUNNEL_BUMP.size():
+				var pts: Array = sd["layers"][l]
+				var f: float = float(k) / int(LavaData.OCEAN_FUNNEL_BUMP_ROWS[l])
+				var i: int = int(f)
+				var u: float = (1.0 - cos((f - i) * PI)) * 0.5
+				bump += lerpf(float(pts[i]), float(pts[i + 1]), u) * float(LavaData.OCEAN_FUNNEL_BUMP[l])
+			bump *= sqrt(sin(t * PI))
+			e += bump if side == 1 else -bump
+			edge.append(int(round(e)))
+		rows[top + k] = [clampi(int(edge[0]), x0, -ch_half), clampi(int(edge[1]), ch_half, x1)]
+	return rows
 
 
 # Open lava pools (#42): enclosed caverns in B5 and deeper, carved here as
@@ -173,6 +345,87 @@ static func _pool_cell_ok(map_data, c: Vector2i, taken: Dictionary, mine: Dictio
 	return true
 
 
+# Sealed gas caverns (#201): enclosed caverns from B2 down to above the lava
+# ocean, carved here as open cells and filled with gas by the gas field when
+# the run starts. Grown like the lava pools (a seeded random walk through
+# plain rock, wider than tall), keeping GasData.CAVERN_GAP tiles of rock from
+# anything open or special, lava pools included. Called last, with a generator
+# of its own, so everything placed before it is where it was. The cells go in
+# map_data's "story_gas_caverns" meta (a list of caverns).
+static func place_gas_caverns(map_data, rand: RandomNumberGenerator) -> Array:
+	var ocean: Dictionary = map_data.get_meta("story_ocean", {})
+	var y_limit: int = (int(ocean["ceiling"]) - 3) if not ocean.is_empty() else (1 << 20)
+	var cells: Array = map_data.get_used_biome_cells()
+	cells.sort()
+	var y_top: int = 1 << 20
+	var y_bottom: int = -(1 << 20)
+	var rock: Array = []
+	for c: Vector2i in cells:
+		if map_data.get_biomev(c) >= GasData.CAVERN_START_BIOME and c.y < y_limit:
+			y_top = mini(y_top, c.y)
+			y_bottom = maxi(y_bottom, c.y)
+			if map_data.get_resourcev(c) == Data.TILE_DIRT_START:
+				rock.append(c)
+	var caverns: Array = []
+	if rock.is_empty():
+		map_data.set_meta("story_gas_caverns", caverns)
+		return caverns
+	var taken: Dictionary = {}
+	var span: float = maxf(1.0, float(y_bottom - y_top))
+	var seeds: Array = rock.duplicate()
+	_shuffle(seeds, rand)
+	var budget: float = 0.0
+	for start: Vector2i in seeds:
+		var depth: float = clampf(float(start.y - y_top) / span, 0.0, 1.0)
+		budget += 1.0 / lerpf(GasData.CAVERN_ROCK_PER_CAVERN[0], GasData.CAVERN_ROCK_PER_CAVERN[1], depth)
+		if budget < 1.0:
+			continue
+		if not _cavern_cell_ok(map_data, start, taken, {}, y_limit):
+			continue
+		var size: int = int(round(lerpf(GasData.CAVERN_SIZE[0], GasData.CAVERN_SIZE[1], depth)))
+		var cavern: Array = [start]
+		var mine: Dictionary = {start: true}
+		var dirs: Array = [Vector2i(1, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+		for attempt in size * 8:
+			if cavern.size() >= size:
+				break
+			var from: Vector2i = cavern[rand.randi() % cavern.size()]
+			var n: Vector2i = from + dirs[rand.randi() % dirs.size()]
+			if mine.has(n) or not _cavern_cell_ok(map_data, n, taken, mine, y_limit):
+				continue
+			cavern.append(n)
+			mine[n] = true
+		if cavern.size() < 3:
+			continue
+		budget -= 1.0
+		for c: Vector2i in cavern:
+			map_data.set_resourcev(c, Data.TILE_EMPTY)
+			taken[c] = true
+		caverns.append(cavern)
+	map_data.set_meta("story_gas_caverns", caverns)
+	return caverns
+
+
+# May cell `c` become part of a gas cavern? Plain rock in a gas biome above the
+# ocean, with only plain rock or minerals (or the cavern itself) within
+# CAVERN_GAP tiles.
+static func _cavern_cell_ok(map_data, c: Vector2i, taken: Dictionary, mine: Dictionary, y_limit: int) -> bool:
+	if map_data.get_resourcev(c) != Data.TILE_DIRT_START or map_data.get_biomev(c) < GasData.CAVERN_START_BIOME or c.y >= y_limit:
+		return false
+	var g: int = GasData.CAVERN_GAP
+	for ox in range(-g, g + 1):
+		for oy in range(-g, g + 1):
+			var n: Vector2i = c + Vector2i(ox, oy)
+			if mine.has(n):
+				continue
+			if taken.has(n) or map_data.get_biomev(n) < 0:
+				return false
+			var r: int = map_data.get_resourcev(n)
+			if r != Data.TILE_DIRT_START and Minerals.by_tile_id(r) == "":
+				return false
+	return true
+
+
 # Scatters clumps of metal through the plain rock of the deep biomes
 # (MapConfig.METAL_SHARE). Metal replaces only plain rock, never a mineral,
 # water, cobalt, the gate or the border, and keeps off cells next to chamber,
@@ -247,7 +500,7 @@ static func _near_special(map_data, cell: Vector2i) -> bool:
 	for ox in range(-1, 2):
 		for oy in range(-1, 2):
 			var r: int = map_data.get_resourcev(cell + Vector2i(ox, oy))
-			if (r >= Data.TILE_GADGET and r <= Data.TILE_CAVE) or r == Data.TILE_DIRT_MARK_BLOCKED_FOR_CHAMBER:
+			if (r >= Data.TILE_GADGET and r <= Data.TILE_CAVE) or r == Data.TILE_DIRT_MARK_BLOCKED_FOR_CHAMBER or r == BONES_ID:
 				return true
 	return false
 
@@ -374,6 +627,37 @@ static func place_minerals(map_data, rand: RandomNumberGenerator) -> Array:
 	return deposits
 
 
+# Bronze by the dome (#186): MapConfig.START_BRONZE_DEPOSITS small deposits
+# in plain B1 rock of rows START_BRONZE_ROWS, near column 0, spaced apart.
+# Meta "story_start_bronze": [[x, y, tiles], ...].
+static func place_start_bronze(map_data, rand: RandomNumberGenerator) -> Array:
+	var bronze: int = int(Minerals.TABLE["bronze"]["tile_id"])
+	var cands: Array = []
+	for y in range(int(MapConfig.START_BRONZE_ROWS[0]), int(MapConfig.START_BRONZE_ROWS[1]) + 1):
+		for x in range(-MapConfig.START_BRONZE_REACH, MapConfig.START_BRONZE_REACH + 1):
+			var c := Vector2i(x, y)
+			if absi(x) >= 2 and map_data.get_biomev(c) == 0 and map_data.get_resourcev(c) == Data.TILE_DIRT_START and not _near_special(map_data, c):
+				cands.append(c)
+	_shuffle(cands, rand)
+	var placed: Array = []
+	for c: Vector2i in cands:
+		if placed.size() >= MapConfig.START_BRONZE_DEPOSITS:
+			break
+		if map_data.get_resourcev(c) != Data.TILE_DIRT_START:
+			continue
+		var far: bool = true
+		for p: Array in placed:
+			if absi(c.x - int(p[0])) < MapConfig.START_BRONZE_SPACING:
+				far = false
+		if not far:
+			continue
+		var size: int = rand.randi_range(int(MapConfig.START_BRONZE_SIZE[0]), int(MapConfig.START_BRONZE_SIZE[1]))
+		var tiles: Array = _grow(map_data, c, bronze, size, rand)
+		placed.append([c.x, c.y, tiles.size()])
+	map_data.set_meta("story_start_bronze", placed)
+	return placed
+
+
 # The minerals of a biome's deposits: the rare extras first, then the mix
 # shares turned into whole numbers of deposits (largest remainders, with ties
 # and leftovers settled by the seeded dice), in a shuffled order.
@@ -472,3 +756,167 @@ static func _nearest_plain(map_data, from: Vector2i, deep: Dictionary, gate: Dic
 				next.append(n)
 		open = next
 	return null
+
+
+# Translator chambers (#93): one 2x2 of the gadget tile id in each of B2, B4
+# and B6 (biome indices 1, 3, 5). Story Mode has no gadget chambers of its own
+# any more, so the Map extension turns this id into the translator chamber.
+# The block and a 1-tile ring around it must be plain rock or ore, all in the
+# biome, so nothing (gate, metal, border, holes, other chambers) touches it,
+# and no lava pool may be within POOL_GAP tiles (placed after metal and pools).
+# The block sits in the middle half of the biome's depth, within the middle
+# 60% of the map's width. Meta "story_translators": [[x, y, biome], ...]
+# (top-left cells).
+const TRANSLATOR_BIOMES: Array = [1, 3, 5]
+
+
+static func place_translators(map_data, rand: RandomNumberGenerator) -> Array:
+	var ore: Dictionary = {Data.TILE_DIRT_START: true, Data.TILE_IRON: true}
+	for m: String in Minerals.TABLE:
+		ore[int(Minerals.TABLE[m]["tile_id"])] = true
+	var ys: Dictionary = {}
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		var b: int = map_data.get_biomev(c)
+		if not ys.has(b):
+			ys[b] = [c.y, c.y]
+		ys[b][0] = mini(ys[b][0], c.y)
+		ys[b][1] = maxi(ys[b][1], c.y)
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+	var span: int = x1 - x0
+	var pools: Dictionary = _pool_cells(map_data)
+	var placed: Array = []
+	for b: int in TRANSLATOR_BIOMES:
+		if not ys.has(b):
+			continue
+		var top: int = ys[b][0] + (ys[b][1] - ys[b][0]) / 4
+		var bottom: int = ys[b][1] - (ys[b][1] - ys[b][0]) / 4
+		var cands: Array = []
+		for y in range(top, bottom):
+			for x in range(x0 + span / 5, x1 - span / 5):
+				if _translator_fits(map_data, Vector2i(x, y), b, ore, pools):
+					cands.append(Vector2i(x, y))
+		if cands.is_empty():
+			continue
+		var at: Vector2i = cands[rand.randi_range(0, cands.size() - 1)]
+		for c: Vector2i in [at, at + Vector2i(1, 0), at + Vector2i(0, 1), at + Vector2i(1, 1)]:
+			map_data.set_resourcev(c, Data.TILE_GADGET)
+		placed.append([at.x, at.y, b])
+	map_data.set_meta("story_translators", placed)
+	return placed
+
+
+static func _translator_fits(map_data, at: Vector2i, b: int, ore: Dictionary, pools: Dictionary) -> bool:
+	for oy in range(-1, 3):
+		for ox in range(-1, 3):
+			var c: Vector2i = at + Vector2i(ox, oy)
+			if _near_pool(pools, c, LavaData.POOL_GAP - 1):
+				return false
+			if map_data.get_biomev(c) != b:
+				return false
+			var r: int = map_data.get_resourcev(c)
+			var inner: bool = ox >= 0 and ox <= 1 and oy >= 0 and oy <= 1
+			if inner and r != Data.TILE_DIRT_START:
+				return false
+			if not ore.has(r):
+				return false
+	return true
+
+
+# Miner bones (#94): one tile in each biome, B1 to B8, in plain rock with rock or
+# ore on all eight sides (so it sits in the rock, not in a cave, the gate or
+# metal), no lava pool within POOL_GAP tiles, in the middle half of the biome's
+# depth and the middle 70% of the map's width, above the lava ocean.
+# Placed after metal and pools. Meta "story_bones": [[x, y, biome], ...].
+const BONES_ID := 50
+
+
+# Gold at the gate (#133): MapConfig.GATE_GOLD_DEPOSITS gold deposits in plain
+# rock of the biome over the gate, a few rows above it and in the middle half
+# of the map. Meta "story_gate_gold": [[x, y, size], ...] (centre, tiles).
+static func place_gate_gold(map_data, rand: RandomNumberGenerator) -> Array:
+	var gold: int = int(Minerals.TABLE["gold"]["tile_id"])
+	var above: int = MapConfig.GATE_BELOW_BIOME
+	var gate_top: Dictionary = {}
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+		if map_data.get_resourcev(c) == Metal.GATE_ID:
+			gate_top[c.x] = mini(int(gate_top.get(c.x, 1 << 20)), c.y)
+	var mid: float = (x0 + x1) / 2.0
+	var reach: float = (x1 - x0) / 4.0
+	var cands: Array = []
+	for x: int in gate_top:
+		if absf(x - mid) > reach:
+			continue
+		for dy in range(1, MapConfig.GATE_GOLD_ROWS + 1):
+			var c: Vector2i = Vector2i(x, int(gate_top[x]) - dy)
+			if map_data.get_biomev(c) == above and map_data.get_resourcev(c) == Data.TILE_DIRT_START and not _near_special(map_data, c):
+				cands.append(c)
+	cands.sort()
+	_shuffle(cands, rand)
+	var placed: Array = []
+	for c: Vector2i in cands:
+		if placed.size() >= MapConfig.GATE_GOLD_DEPOSITS:
+			break
+		if map_data.get_resourcev(c) != Data.TILE_DIRT_START:
+			continue
+		var far: bool = true
+		for p: Array in placed:
+			if absi(c.x - int(p[0])) < MapConfig.GATE_GOLD_SPACING:
+				far = false
+		if not far:
+			continue
+		var size: int = rand.randi_range(int(MapConfig.GATE_GOLD_SIZE[0]), int(MapConfig.GATE_GOLD_SIZE[1]))
+		var tiles: Array = _grow(map_data, c, gold, size, rand)
+		placed.append([c.x, c.y, tiles.size()])
+	map_data.set_meta("story_gate_gold", placed)
+	return placed
+
+
+static func place_bones(map_data, rand: RandomNumberGenerator) -> Array:
+	var ore: Dictionary = {Data.TILE_DIRT_START: true, Data.TILE_IRON: true}
+	for m: String in Minerals.TABLE:
+		ore[int(Minerals.TABLE[m]["tile_id"])] = true
+	var ys: Dictionary = {}
+	var x0: int = 1 << 20
+	var x1: int = -(1 << 20)
+	for c: Vector2i in map_data.get_used_biome_cells():
+		var b: int = map_data.get_biomev(c)
+		if not ys.has(b):
+			ys[b] = [c.y, c.y]
+		ys[b][0] = mini(ys[b][0], c.y)
+		ys[b][1] = maxi(ys[b][1], c.y)
+		x0 = mini(x0, c.x)
+		x1 = maxi(x1, c.x)
+	var span: int = x1 - x0
+	var pools: Dictionary = _pool_cells(map_data)
+	var placed: Array = []
+	for b in range(0, MapConfig.BIOMES):
+		if not ys.has(b):
+			continue
+		var top: int = ys[b][0] + (ys[b][1] - ys[b][0]) / 4
+		var bottom: int = ys[b][1] - (ys[b][1] - ys[b][0]) / 4
+		var cands: Array = []
+		for y in range(top, bottom + 1):
+			for x in range(x0 + span * 3 / 20, x1 - span * 3 / 20):
+				var c: Vector2i = Vector2i(x, y)
+				if map_data.get_biomev(c) != b or map_data.get_resourcev(c) != Data.TILE_DIRT_START:
+					continue
+				var ok: bool = not _near_pool(pools, c, LavaData.POOL_GAP)
+				for d: Vector2i in DIRS8:
+					if not ore.has(map_data.get_resourcev(c + d)) or map_data.get_biomev(c + d) != b:
+						ok = false
+				if ok and not _near_special(map_data, c):
+					cands.append(c)
+		if cands.is_empty():
+			continue
+		var at: Vector2i = cands[rand.randi_range(0, cands.size() - 1)]
+		map_data.set_resourcev(at, BONES_ID)
+		placed.append([at.x, at.y, b])
+	map_data.set_meta("story_bones", placed)
+	return placed

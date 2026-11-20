@@ -9,6 +9,21 @@ extends RefCounted
 const GATE_BELOW_BIOME: int = 2
 const GATE_THICKNESS: int = 1
 
+# Gold at the gate (#133): GATE_GOLD_DEPOSITS gold deposits of GATE_GOLD_SIZE
+# tiles sit in B3 just above the gate (1 to GATE_GOLD_ROWS rows over it), in
+# the middle half of the map where players dig down, so the Blast Suit's money
+# waits right where it is needed.
+const GATE_GOLD_DEPOSITS: int = 2
+const GATE_GOLD_SIZE: Array = [6, 9]
+const GATE_GOLD_ROWS: int = 5
+const GATE_GOLD_SPACING: int = 10
+
+# Flat bottom (#149): columns whose lowest map cell is at most this many rows
+# above the map's deepest row are filled with B8 rock down to it, so digging
+# straight down reaches the lava ocean. Side arms ending higher stay open map
+# edge.
+const BOTTOM_FILL_ROWS: int = 45
+
 # Scattered metal: share of a biome's plain rock that becomes metal, by biome
 # index (5 = B6), placed in clumps of METAL_CLUMP tiles. None anywhere else.
 const METAL_SHARE: Dictionary = {5: 0.03, 6: 0.08, 7: 0.15}
@@ -26,6 +41,13 @@ const ARCHETYPE: Dictionary = {
 }
 const BIOMES: int = 8
 
+# Tile health grows by this factor per biome in Story Mode (#148; vanilla
+# uses 2.1). Lower than vanilla because Story Mode has eight biomes where a
+# vanilla map has about five: at 2.1 a B8 tile had 180 times B1's health and
+# each drill level bought about one biome. Applied in mod_main.gd
+# prepareGameMode, after vanilla sets its own.
+const TILE_HEALTH_PER_BIOME: float = 1.9
+
 # Deposits per 1,000 tiles of a biome. Level with depth for now ("how much more
 # common deeper" is still open on the map). 11 gives about vanilla's ore density.
 const DEPOSITS_PER_1000: float = 11.0
@@ -34,22 +56,34 @@ const DEPOSITS_PER_1000: float = 11.0
 const DEPOSIT_SPACING: float = 4.0
 
 # Mineral mix: each mineral's share of a biome's deposits, in percent. Index 0 is B1.
+# Past the gate (B4 on) there is no bronze or iron, gold fades out by B6, and
+# the gems come in one per biome (#186): B4 sapphire, B5 emerald, B6 ruby,
+# B7 mythril, B8 diamond.
 const MIX: Array = [
 	{"bronze": 100},
 	{"bronze": 80, "iron": 20},
 	{"bronze": 35, "iron": 50, "gold": 15},
-	{"bronze": 5, "iron": 35, "gold": 40, "sapphire": 20},
-	{"iron": 10, "gold": 42, "sapphire": 32, "emerald": 15, "ruby": 0.5, "diamond": 0.5},
-	{"gold": 30, "sapphire": 26, "emerald": 28, "ruby": 15, "diamond": 1},
-	{"gold": 12, "sapphire": 13, "emerald": 25, "ruby": 32, "mythril": 15, "diamond": 3},
-	{"sapphire": 3, "emerald": 12, "ruby": 25, "mythril": 52, "diamond": 8},
+	{"gold": 55, "sapphire": 45},
+	{"gold": 20, "sapphire": 40, "emerald": 40},
+	{"sapphire": 20, "emerald": 40, "ruby": 40},
+	{"emerald": 15, "ruby": 35, "mythril": 50},
+	{"ruby": 15, "mythril": 45, "diamond": 40},
 ]
 
 # Rare extras given as a number of deposits across the whole biome, [min, max],
-# placed on top of the biome's mix. B4 (index 3): a few early gems.
-const RARE_COUNTS: Dictionary = {
-	3: {"emerald": [1, 3], "ruby": [1, 2], "diamond": [0, 1]},
-}
+# placed on top of the biome's mix. None for now (#186 took out B4's early
+# emeralds, rubies and diamonds).
+const RARE_COUNTS: Dictionary = {}
+
+# Bronze by the dome (#186): START_BRONZE_DEPOSITS small bronze deposits in
+# rows START_BRONZE_ROWS, START_BRONZE_REACH columns or less from the dome
+# (column 0), at least START_BRONZE_SPACING columns apart, so the first defence
+# money is a short dig away, like vanilla's early iron.
+const START_BRONZE_DEPOSITS: int = 3
+const START_BRONZE_SIZE: Array = [2, 3]
+const START_BRONZE_ROWS: Array = [2, 4]
+const START_BRONZE_REACH: int = 14
+const START_BRONZE_SPACING: int = 5
 
 # Deposit size in tiles, [min, max].
 const SIZES: Dictionary = {
@@ -60,17 +94,11 @@ const SIZES: Dictionary = {
 	"emerald": [2, 4],
 	"ruby": [2, 3],
 	"mythril": [3, 5],
-	"diamond": [1, 1],
+	"diamond": [1, 1],   # always a lone tile (#186); see Minerals "drops"
 }
 
-# Diamond deposits are a single tile down to B6, and 1-2 tiles in B7 and B8.
-const DIAMOND_DEEP_FROM_BIOME: int = 6
-const DIAMOND_DEEP_SIZE: Array = [1, 2]
 
-
-static func size_range(mineral: String, biome: int) -> Array:
-	if mineral == "diamond" and biome >= DIAMOND_DEEP_FROM_BIOME:
-		return DIAMOND_DEEP_SIZE
+static func size_range(mineral: String, _biome: int) -> Array:
 	return SIZES[mineral]
 
 

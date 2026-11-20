@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://content/drop/gadget/GadgetDrop.tscn" id="1"]
+[ext_resource type="Script" path="res://mods-unpacked/cejdan-StoryMode/drops/TranslatorDrop.gd" id="2"]
+
+[node name="TranslatorDrop" instance=ExtResource("1")]
+script = ExtResource("2")
+type = "translator"

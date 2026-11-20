@@ -1,39 +1,63 @@
 storymode:
   type: gamemode
+  unlockslimits: [storyonly]
 
+# The win condition's own shop section (#144), at the top like Prestige's: a
+# second root that Storymode.gd adds to every Story Mode run, holding only
+# Retire Rich. mod_main.gd puts it first in the shop's track order.
+storyWin:
+  type: gamemode
+
+# Per-keeper entries (#265): vanilla's keeper tree. They hang off the keeper
+# roots, which vanilla adds per player, so each player gets its own copy in its
+# own keeper track (player2.storyheatshield1, property player2.suit.heatshield),
+# the way drill1 is player2.drill1. Every keeper can play Story Mode (#297), so
+# they hang off all four roots with `predecessorsany`: an entry needs one of
+# them, and vanilla drops the roots a player doesn't have from that player's
+# copy (GameWorld.updateAvailableUpgrades), so the entry sits in that player's
+# own keeper track whichever keeper it is. The
+# storykeeper limit is per player too (mod_main.gd prepareGameMode sets
+# <playerId>.storykeeper in Story Mode runs only, as vanilla sets
+# <playerId>.mining), so vanilla runs never show them.
+#
+# The Suit Blaster entry grants the real gadget to the keeper who bought it
+# (gamemode/Storymode.gd), as vanilla gives a keepersuit gadget picked in a
+# run to the picker only.
 storySuitblaster:
-  cost: money=500
+  limit: [storykeeper]
+  cost: money=200
   shadowing: suitblaster
   shadowing-desc: storysuitblaster
-  predecessors: [storymode]
+  predecessors: [keeper1, keeper2, keeper3, keeper4]
+  predecessorsany: true
 
-storyGadgetCellar:
+# New Gadget I-IV (#132): each opens vanilla's gadget choice; paid on pick
+# (gamemode/gadget_shop.gd). Prices are starting values for the user to tune.
+storyNewGadget1:
   cost: money=50
   predecessors: [storymode]
 
-storyGadgetMineshaft:
-  cost: money=50
-  predecessors: [storymode]
+storyNewGadget2:
+  cost: money=400
+  predecessors: [storyNewGadget1]
 
-storyGadgetDomesurface:
-  cost: money=50
-  predecessors: [storymode]
+storyNewGadget3:
+  cost: money=2500
+  predecessors: [storyNewGadget2]
 
-storyGadgetDomeback:
-  cost: money=50
-  predecessors: [storymode]
-
-storyGadgetActive:
-  cost: money=50
-  predecessors: [storymode]
+storyNewGadget4:
+  cost: money=10000
+  predecessors: [storyNewGadget3]
 
 storyRetireRich:
   cost: money=1000000
-  predecessors: [storymode]
+  predecessors: [storyWin]
 
 storyHeatShield1:
+  limit: [storykeeper]
   cost: money=0
-  predecessors: [storymode]
+  predecessors: [keeper1, keeper2, keeper3, keeper4]
+  predecessorsany: true
   propertyChanges:
     - suit.heatshield = 1
 
@@ -54,4 +78,27 @@ storyHeatShield4:
   predecessors: [storyHeatShield3]
   propertyChanges:
     - suit.heatshield = 4
+
+# Metal Bit (#147): the Mine Driller's and Drillbert's drills cut metal
+# (extensions/.../TileToucher.gd and Drillbot.gd, extensions/.../Tile.gd).
+# Story Mode only: the storymode root unlocks the storyonly limit. Prices are
+# starting values for the user to tune.
+storyDrillMetal:
+  limit: [storyonly]
+  cost: money=600
+  predecessors: [drill]
+
+storyDrillbotMetal:
+  limit: [storyonly]
+  cost: money=600
+  predecessors: [drillbot]
+
+# Vent the Dome (#213): clears the gas vented up into the dome (gas/dome_gas.gd),
+# as often as it is needed. The shop refuses it while the dome is clean
+# (extensions/.../TechTreePopup.gd). The price is a starting value for the user
+# to tune.
+storyVentDome:
+  cost: water=2
+  predecessors: [storymode]
+  repeatable: true
 

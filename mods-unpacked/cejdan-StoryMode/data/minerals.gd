@@ -11,6 +11,7 @@ const Assets = preload("res://mods-unpacked/cejdan-StoryMode/util/assets.gd")
 #   extra_health  added to the tile base health (vanilla iron adds 2)
 #   richness      drives how many pieces a tile drops (vanilla iron uses 2)
 #   shape         art family: "square" metals, "star" gems, "shard" unobtainium
+#   drops         optional: every tile drops exactly this many pieces (diamond, #186)
 
 const ORDER: Array = ["bronze", "iron", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond", "unobtainium"]
 
@@ -22,7 +23,7 @@ const TABLE: Dictionary = {
 	"emerald": {"value": 100, "tile_id": 43, "extra_health": 2, "richness": 2.0, "shape": "star"},
 	"ruby": {"value": 300, "tile_id": 44, "extra_health": 2, "richness": 2.0, "shape": "star"},
 	"mythril": {"value": 500, "tile_id": 45, "extra_health": 2, "richness": 2.0, "shape": "square"},
-	"diamond": {"value": 1000, "tile_id": 46, "extra_health": 2, "richness": 2.0, "shape": "star"},
+	"diamond": {"value": 1000, "tile_id": 46, "extra_health": 2, "richness": 2.0, "shape": "star", "drops": 1},
 	"unobtainium": {"value": 100000, "tile_id": 47, "extra_health": 2, "richness": 1.0, "shape": "shard"},
 }
 

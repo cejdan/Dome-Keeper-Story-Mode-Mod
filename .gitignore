@@ -10,7 +10,6 @@
 !/.gitattributes
 !/CLAUDE.md
 !/GLOSSARY.md
-!/.scratch/
 !/docs/
 !/art/
 !/mods-unpacked/
@@ -18,3 +17,13 @@
 # Engine caches and build output, wherever they appear (e.g. art/tools/engine_render)
 .godot/
 *.tmp
+
+# Godot import sidecars the editor writes next to images in docs/
+/docs/**/*.import
+
+# Score previews and Python caches (art/music/score.py --preview)
+/art/music/preview/
+__pycache__/
+
+# Builder notes (handoffs, review drafts): local only
+/.scratch/

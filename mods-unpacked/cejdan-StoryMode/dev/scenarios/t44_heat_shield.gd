@@ -4,14 +4,20 @@ extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 # vanilla doesn't offer it.
 
 const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
+const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 
 
 func boot() -> Dictionary:
 	return {"seed": 12345}
 
 
+# The keeper's own entries (#265: per keeper, in its keeper track).
+func _id(i: int) -> String:
+	return "%s.storyheatshield%d" % [Story.local_keeper().playerId, i]
+
+
 func _cost(i: int) -> int:
-	return int(GameWorld.upgrades.get("team1.storyheatshield%d" % i, {}).get("cost", {}).get("money", -1))
+	return int(GameWorld.upgrades.get(_id(i), {}).get("cost", {}).get("money", -1))
 
 
 func _shop_shot(h, label: String) -> void:
@@ -45,26 +51,27 @@ func _time_to_overheat(h, field, cell: Vector2i) -> float:
 func run(h) -> void:
 	h.disable_waves()
 	if Level.loadout.modeId != "storymode":
-		h.check("vanilla doesn't offer Heat Shielding", not GameWorld.upgrades.has("team1.storyheatshield1") and not GameWorld.upgrades.has("storyheatshield1"))
+		h.check("vanilla doesn't offer Heat Shielding", not GameWorld.upgrades.has("team1.storyheatshield1") and not GameWorld.upgrades.has(_id(1)) and not GameWorld.upgrades.has("storyheatshield1"))
 		return
 
 	h.check("the shop offers Heat Shielding I at $200", _cost(1) == 200, _cost(1))
+	h.check("no team entry (#265)", not GameWorld.upgrades.has("team1.storyheatshield1"))
 	# The shop's panels go by GameWorld.isUpgradeAddable (Tech2.updateState).
-	h.check("tier II isn't buyable in the shop before tier I", GameWorld.upgrades.has("team1.storyheatshield2") and not GameWorld.isUpgradeAddable("team1.storyheatshield2"))
+	h.check("tier II isn't buyable in the shop before tier I", GameWorld.upgrades.has(_id(2)) and not GameWorld.isUpgradeAddable(_id(2)))
 	h.set_inv("money", 40000)
 	await _shop_shot(h, "shop_before")
 	var tiers: Array = []
 	for i in range(1, 5):
 		var m0: int = int(h.inv("money"))
 		var ok: bool = await h.buy("storyheatshield%d" % i)
-		var nid: String = "team1.storyheatshield%d" % (i + 1)
+		var nid: String = _id(i + 1)
 		tiers.append({"tier": i, "bought": ok, "paid": m0 - int(h.inv("money")), "next offered": GameWorld.upgrades.has(nid) and GameWorld.isUpgradeAddable(nid)})
 		if i == 2:
 			await _shop_shot(h, "shop_after_II")
 	h.note("purchases", tiers)
 	h.check("I-IV cost $200, $1,000, $4,000, $25,000", tiers.map(func(t): return t["paid"]) == [200, 1000, 4000, 25000], tiers)
 	h.check("each tier unlocks the next", tiers[0]["next offered"] and tiers[1]["next offered"] and tiers[2]["next offered"], tiers)
-	h.check("the suit is at tier IV", LavaData.shield_tier("team1") == 4, LavaData.shield_tier("team1"))
+	h.check("the suit is at tier IV", LavaData.shield_tier(h.keeper()) == 4, LavaData.shield_tier(h.keeper()))
 
 	# A sealed 3 x 3 room of deep lava to stand in.
 	var field = Level.map.get_node("StoryLavaField")
@@ -80,7 +87,7 @@ func run(h) -> void:
 	await h.shot("in_lava")
 	var rows: Array = []
 	for tier in range(0, 5):
-		Data.apply("team1." + LavaData.HEAT_SHIELD_KEY, tier)
+		Data.apply(LavaData.shield_key(h.keeper()), tier)
 		var want: float = 100.0 / (55.0 * float(LavaData.HEAT_SHIELD_LAVA_MULT[tier]))
 		var got: float = await _time_to_overheat(h, field, c)
 		rows.append({"tier": tier, "seconds": snappedf(got, 0.01), "expected": snappedf(want, 0.01)})

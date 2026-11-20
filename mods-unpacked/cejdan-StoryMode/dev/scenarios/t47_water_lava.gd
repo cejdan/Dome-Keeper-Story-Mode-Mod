@@ -26,6 +26,14 @@ func _lava(h, cells: Array, air: Array) -> void:
 	for c in around:
 		if td.get_resourcev(c) != Data.TILE_EMPTY:
 			td.set_resourcev(c, Data.TILE_DIRT_START)
+		elif not cells.has(c) and not air.has(c):
+			# An open cell next to the test lava (since the #186/#175 map
+			# changes seed 12345 has a hole under the shaft, where the lava
+			# drained): rock, made the way water-hardened lava is (#272).
+			td.set_resourcev(c, Data.TILE_DIRT_START)
+			if td.get_hardnessv(c) < 0 or td.get_hardnessv(c) >= Data.HARDNESS_INDESTRUCTIBLE:
+				td.set_hardnessv(c, Data.HARDNESS_MEDIUM)
+			Level.map.visibleTileCoords.erase(Vector2(c))
 	await h.reveal(around)
 	await h.clear_tiles(cells + air)
 	for c in cells:
@@ -78,6 +86,8 @@ func run(h) -> void:
 	var tiles0: int = Level.map.tiles.size()
 	var h0: int = field.hardened
 	var cells0: int = field.mass.size()
+	var col := func(): return range(y - 4, y + 9).map(func(yy): return [yy - y, snappedf(field.mass.get(Vector2i(x, yy), 0.0), 0.01)])
+	var before_col: Array = col.call()
 	_water(Level.map.getTilePos(Vector2(x, y - 2)), false)
 	await h.until(func(): return field.hardened > h0, 8.0)
 	await h.wait(0.3)
@@ -85,7 +95,7 @@ func run(h) -> void:
 	await h.wait(1.5)
 	await h.shot("shaft_after")
 	var got: Array = field.last_hardened
-	h.note("shaft hardening", {"cells": got, "lava cells before": cells0, "after": field.mass.size(), "tiles added": Level.map.tiles.size() - tiles0})
+	h.note("shaft hardening", {"cells": got, "lava cells before": cells0, "after": field.mass.size(), "tiles added": Level.map.tiles.size() - tiles0, "column before (dy, mass)": before_col, "column after": col.call()})
 	h.check("one water drop hardens 6 shaft cells", got.size() == 6 and field.hardened - h0 == 6, got)
 	h.check("the 6 cells left the lava and became rock tiles", got.all(func(c): return not field.mass.has(c) and td.get_resourcev(c) == Data.TILE_DIRT_START and Level.map.tiles.has(Vector2(c))))
 	h.check("the 2 cells below stay lava", field.mass.get(Vector2i(x, y + 6), 0.0) > 0.5 and field.mass.get(Vector2i(x, y + 7), 0.0) > 0.5)

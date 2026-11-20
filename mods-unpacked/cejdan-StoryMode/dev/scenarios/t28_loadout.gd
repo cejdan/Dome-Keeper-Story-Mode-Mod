@@ -1,7 +1,7 @@
 extends "res://mods-unpacked/cejdan-StoryMode/dev/scenario.gd"
 
-# Ticket 28: Story Mode's loadout offers only the laser dome; vanilla modes keep
-# every dome.
+# Ticket 28: Story Mode's loadout and its domes. Since #269 it offers every
+# dome vanilla offers (it offered only the laser dome before).
 
 
 func boot() -> Dictionary:
@@ -26,6 +26,13 @@ func run(h) -> void:
 	await h.wait(1.5)
 	var vanilla: Array = _visible_domes(stage)
 	h.note("relic hunt domes", vanilla)
+	# A dome swap in vanilla's own mode, for the log: Dome.unlisten drops
+	# inventory listeners the loadout dome never added (vanilla, #269).
+	stage.domeSelected("dome2", "team1", false)
+	await h.wait(1.0)
+	stage.domeSelected("dome1", "team1", false)
+	await h.wait(1.0)
+	h.note("relic hunt dome swap done")
 	stage.gameModeSelected("storymode")
 	await h.wait(2.0)
 	var story: Array = _visible_domes(stage)
@@ -34,8 +41,12 @@ func run(h) -> void:
 	h.keeper().teleport(xf.origin + dblk.size * xf.get_scale() * 0.5)
 	await h.wait(1.5)
 	await h.shot("story_domes")
-	h.check("Story Mode offers only the laser dome", story == ["dome1"], story)
-	h.check("and the loadout's dome is the laser dome", Level.loadout.domes.front().domeId == "dome1", Level.loadout.domes.front().domeId)
+	# #269 changed this: Story Mode offered only the laser dome (#28); now it
+	# offers every dome vanilla does.
+	h.check("Story Mode offers every dome Relic Hunt does (#269)", story == vanilla and story.size() >= 4, story)
+	stage.domeSelected("dome3", "team1", false)
+	await h.wait(1.0)
+	h.check("a dome can be picked in Story Mode", Level.loadout.domes.front().domeId == "dome3", Level.loadout.domes.front().domeId)
 	stage.gameModeSelected("relichunt")
 	await h.wait(2.0)
 	var back: Array = _visible_domes(stage)

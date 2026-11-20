@@ -5,6 +5,7 @@ extends Node
 # pocket above it, breaches the pocket, and saves screenshots and a state log
 # while the lava runs. Then it stands the keeper in the lava to test suit heat.
 
+const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
 const FIELD_NAME := "StoryLavaField"
 
 var out_dir := ""
@@ -71,7 +72,7 @@ func _run() -> void:
 	for mm in Level.monstersByTeamId.values():
 		mm.disabled = true
 	var map = Level.map
-	var keeper = Keepers.first()
+	var keeper = Story.local_keeper()
 	while not map.has_node(FIELD_NAME):
 		await get_tree().process_frame
 	var field = map.get_node(FIELD_NAME)

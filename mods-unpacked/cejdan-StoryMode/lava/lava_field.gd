@@ -14,6 +14,8 @@ extends Node2D
 
 const LavaData = preload("res://mods-unpacked/cejdan-StoryMode/data/lava.gd")
 const Story = preload("res://mods-unpacked/cejdan-StoryMode/story.gd")
+const StoryNet = preload("res://mods-unpacked/cejdan-StoryMode/net/story_net.gd")
+const FieldUtil = preload("res://mods-unpacked/cejdan-StoryMode/util/field_util.gd")
 const SAVE_KEY := "story.lava"
 
 const POCKET_MIN_DEPTH := LavaData.POCKET_MIN_DEPTH
@@ -40,15 +42,26 @@ const HEAT_PER_SECOND := LavaData.HEAT_PER_SECOND
 const COOL_MINE_PER_SECOND := LavaData.COOL_MINE_PER_SECOND
 const COOL_DOME_PER_SECOND := LavaData.COOL_DOME_PER_SECOND
 const HEAT_MAX := LavaData.HEAT_MAX
+const OVERHEAT_AFTER: float = preload("res://mods-unpacked/cejdan-StoryMode/data/boss.gd").OVERHEAT_HEAT_AFTER
 
 const TILE := 24.0
-const KEEPER_BOX := Vector2(10, 16)
 const BURN_TOLERANCE := 1.5
 const COL_CORE := Color("ffd23e")
 const COL_HOT := Color("ff8a1c")
 const COL_BODY := Color("e8430e")
 const COL_DEEP := Color("9c1d0a")
 const COL_CRUST := Color("3a0d0a")
+# A stream is drawn in slices this tall (px).
+const STREAM_SLICE := 2.0
+# Goop (#135): blobs of lava ride down a stream, this far apart (px) and this
+# fast (px a second). A thick stream only swells a little at each blob; a thin
+# one necks down between them, and the thinnest breaks into separate drops.
+const GOOP_LENGTH := 34.0
+const GOOP_SPEED := 44.0
+# Steam (#135): puffs that rise off cooling lava. Drawn only; never saved.
+const PUFF_MAX := 260
+const COL_STEAM := Color(0.93, 0.95, 1.0)
+const COL_STEAM_LIT := Color(1.0, 0.84, 0.66)
 
 var map
 var mass: Dictionary = {}          # Vector2i -> float, cells holding lava
@@ -56,14 +69,40 @@ var shown: Dictionary = {}         # Vector2i -> float, smoothed mass for drawin
 var magma: Dictionary = {}         # Vector2i -> true, magma rock still solid
 var sources: Dictionary = {}       # Vector2i -> float, lava a breached cell still holds
 var melt_timers: Dictionary = {}   # Vector2i -> seconds of lava contact
-var heat := 0.0
+# Suit heat, per local keeper (#231): playerId -> heat. Each instance keeps its
+# own keepers' (one in single player and online, one per device in
+# splitscreen). `heat` is the first local keeper's, as before.
+var heats: Dictionary = {}
+var heat: float:
+	get:
+		return heats.get(Story.local_pid(), 0.0)
+	set(v):
+		heats[Story.local_pid()] = v
 var recalls := 0
 var last_penalty := 0
 var hardened := 0                 # lava cells water turned to rock this run
 var last_hardened: Array = []     # the cells of the latest hardening
 var _steam: Array = []            # [cell, seconds left] for the steam flash
+var _puffs: Array = []            # steam puffs: [x, y, time born, seconds to live, 0..1 seed], this node's space
+var _puff_rng := RandomNumberGenerator.new()
+var _anchors: Dictionary = {}     # stream cell -> the side its lava comes from: -1 left, 1 right, 0 neither
+var _stream_memo: Dictionary = {}  # stream cell -> _stream_params(), for one physics frame
+var _housekeep := 0
+var _view_c0 := Vector2i.ZERO      # the cells on screen at the last draw (steam only rises there)
+var _view_c1 := Vector2i.ZERO
+var _view_boxes: Array = []      # [c0, c1] per split view at the last draw (#231)
 var breaches := 0
-var recall_pos = null
+# Where each local keeper's recall sends it: where it stood when the run's
+# input started (playerId -> Vector2). `recall_pos` is the first keeper's.
+var recall_spots: Dictionary = {}
+var recall_pos:
+	get:
+		return recall_spots.get(Story.local_pid(), null)
+	set(v):
+		if v == null:
+			recall_spots.erase(Story.local_pid())
+		else:
+			recall_spots[Story.local_pid()] = v
 var _acc := 0.0
 var _time := 0.0
 var _glow: Node2D
@@ -75,6 +114,9 @@ var legacy_cooling := false
 var freeze_flow := false
 # Dev only: outline the keeper's lava-contact box.
 var debug_boxes := false
+# Dev only (#231): cull to the first split view only, as before #231 (lava
+# popped in late on player 2's view); t231_split_lava -Extra "--oldcull".
+var single_view_cull := false
 var pools: Array = []              # Array of Array[Vector2i]: open pools filled at run start
 var pools_skipped := 0             # pools left empty because something opened their wall
 # Sleeping: only cells in _awake run the flow math. A cell wakes when its mass or
@@ -86,6 +128,18 @@ var _shown_dirty: Dictionary = {}  # cells whose drawn lava hasn't caught up yet
 var _melt_check: Dictionary = {}   # magma cells that lava may be touching
 var _melt_full := true             # scan all magma once (after a fill, load or direct edit)
 const WAKE_EPS := 0.00005
+
+# Online multiplayer (#227): the host alone moves the lava (flow, melting, water
+# hardening) and sends clients the cells that changed, NET_EVERY seconds, as
+# absolute masses; a client draws what it is sent. Suit heat stays with each
+# player's own instance (their keeper); a death's penalty and beat are the host's.
+const NET_EVERY := 0.1
+const NET_EPS := 0.001
+var net_client := false            # this instance draws the host's lava
+var _net_dirty: Dictionary = {}    # host: cells whose mass may have changed since the last send
+var _net_sent: Dictionary = {}     # host: the mass clients last got per cell
+var _net_resync := false           # host: no clients lately; _net_sent is rebuilt when one comes
+var _net_t := 0.0
 
 
 func setup(p_map) -> void:
@@ -124,6 +178,7 @@ func setup(p_map) -> void:
 	_ocean = map.tileData.get_meta("story_ocean", {})
 	var ch = map.tileData.get_meta("story_boss_chamber", null)
 	_chamber = ch if ch is Rect2i else Rect2i()
+	net_client = Network.is_client()
 	# A loaded run brings its lava back from the save; a new run places pockets.
 	if not _restore(str(Data.ofOr(SAVE_KEY, ""))):
 		_place_pockets()
@@ -131,6 +186,10 @@ func setup(p_map) -> void:
 		_fill_ocean()
 	map.tile_destroyed.connect(_on_tile_destroyed)
 	add_to_group("saveable")
+	if net_client:
+		StoryNet.lava_full_request()
+	else:
+		_net_sent = mass.duplicate()
 
 
 # --- pocket placement ----------------------------------------------------------
@@ -219,6 +278,8 @@ func wake_all() -> void:
 
 func _wake(c: Vector2i) -> void:
 	_awake[c] = true
+	if not net_client:
+		_net_dirty[c] = true
 	for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 		_awake[c + d] = true
 
@@ -293,6 +354,7 @@ var phys_frames := 0
 
 func _physics_process(delta: float) -> void:
 	var t0 := Time.get_ticks_usec()
+	_stream_memo.clear()
 	_physics_body(delta)
 	phys_us += Time.get_ticks_usec() - t0
 	phys_frames += 1
@@ -302,18 +364,28 @@ func _physics_body(delta: float) -> void:
 	if map == null or GameWorld.paused:
 		return
 	_time += delta
-	_acc += delta
-	while _acc >= TICK:
-		_acc -= TICK
-		if not freeze_flow:
-			_step()
-	_melt(delta)
-	_check_water()
+	if not net_client:
+		_acc += delta
+		while _acc >= TICK:
+			_acc -= TICK
+			if not freeze_flow:
+				_step()
+		_melt(delta)
+		_check_water()
+		_net_send(delta)
 	_update_heat(delta)
 	if not _steam.is_empty():
 		for e in _steam:
 			e[1] -= delta
 		_steam = _steam.filter(func(e): return e[1] > 0.0)
+	_housekeep += 1
+	if _housekeep >= 8:
+		_housekeep = 0
+		if not _puffs.is_empty():
+			_puffs = _puffs.filter(func(q): return _time - q[2] < q[3])
+		for c in _anchors.keys():
+			if shown.get(c, 0.0) <= 0.02:
+				_anchors.erase(c)
 	# Smooth the drawn lava toward the simulated lava. Only cells that changed are
 	# walked (a settled ocean costs nothing), unless something touched every cell.
 	var k: float = min(1.0, delta * 9.0)
@@ -424,7 +496,15 @@ func _step() -> void:
 		if (all_awake or _awake.has(c)) and (legacy_cooling or _cools(c, nv[c], nv, mass)):
 			cool.append(c)
 	for c in cool:
-		nv[c] -= (FILM_COOL_PER_SECOND if nv[c] < FILM_MASS else COOL_PER_SECOND) * TICK
+		var film: bool = nv[c] < FILM_MASS
+		nv[c] -= (FILM_COOL_PER_SECOND if film else COOL_PER_SECOND) * TICK
+		# Steam off the cooling lava: thick off a thin film (it cools fast), a wisp
+		# now and then off a deeper puddle, and a last hiss as a film hardens.
+		if _on_screen(c):
+			if nv[c] <= MIN_MASS:
+				_puff(c, 3)
+			elif _puff_rng.randf() < (0.3 if film else 0.035):
+				_puff(c, 1)
 	var woke: Dictionary = {}
 	for c in nv:
 		var m: float = nv[c]
@@ -487,8 +567,8 @@ func serialize() -> Dictionary:
 	var rock: Array = []
 	for c in magma:
 		rock.append([c.x, c.y])
-	Data.apply(SAVE_KEY, JSON.stringify({"seed": Level.levelSeed, "mass": cells, "sources": src, "magma": rock,
-		"heat": heat, "breaches": breaches, "recalls": recalls, "ocean_cells": ocean_cells, "boss_chamber_reached": boss_chamber_reached}))
+	StoryNet.save_blob(SAVE_KEY, JSON.stringify({"seed": Level.levelSeed, "mass": cells, "sources": src, "magma": rock,
+		"heat": heat, "heats": heats, "breaches": breaches, "recalls": recalls, "ocean_cells": ocean_cells, "boss_chamber_reached": boss_chamber_reached}))
 	return {"meta.priority": 9000, "meta.kind": "storylava"}
 
 
@@ -509,7 +589,7 @@ func _restore(blob: String) -> bool:
 		magma[Vector2i(int(e[0]), int(e[1]))] = true
 	shown = mass.duplicate()
 	wake_all()
-	heat = float(d.get("heat", 0.0))
+	heats = FieldUtil.per_player(d, "heats", "heat")
 	breaches = int(d.get("breaches", 0))
 	recalls = int(d.get("recalls", 0))
 	ocean_cells = int(d.get("ocean_cells", 0))
@@ -551,6 +631,7 @@ func _melt(delta: float) -> void:
 		if melt_timers[c] >= MELT_SECONDS:
 			var tile = map.getTile(Vector2(c))
 			if tile != null and is_instance_valid(tile):
+				StoryNet.tile_break(map, c)
 				map.destroyTile("team1", "", tile)   # fires tile_destroyed -> breach
 			melt_timers.erase(c)
 
@@ -564,10 +645,13 @@ func _check_water() -> void:
 	for d in Level.drops.get_children():
 		if not "type" in d or d.type != CONST.WATER or d.absorbed or not is_instance_valid(d):
 			continue
-		var c: Vector2i = map.getTileCoord(d.global_position)
-		if not lava_overlaps(Rect2(d.global_position - Vector2(2, 2), Vector2(4, 4))):
+		var touched: Vector2i = lava_touched(Rect2(d.global_position - Vector2(2, 2), Vector2(4, 4)))
+		if touched == NO_CELL:
 			continue
-		var cells := _harden_from(c, LavaData.WATER_HARDENS_CELLS)
+		# The lava it touches can be drawn in the next cell (beside it, a pool's
+		# top just under it, a stream pouring past): harden from there (#296).
+		var c: Vector2i = map.getTileCoord(d.global_position)
+		var cells := _harden_from(c if mass.get(c, 0.0) >= BURN_MASS else touched, LavaData.WATER_HARDENS_CELLS)
 		for k in Keepers.getAll():
 			if k.carriedCarryables.has(d):
 				k.dropCarry(d)
@@ -594,6 +678,8 @@ func _harden_from(start: Vector2i, limit: int) -> Array:
 				open.append(n)
 	for c in out:
 		_harden(c)
+	if not out.is_empty():
+		StoryNet.lava_harden(PackedVector2Array(out.map(func(c): return Vector2(c))))
 	last_hardened = out
 	hardened += out.size()
 	return out
@@ -615,6 +701,7 @@ func _harden(c: Vector2i) -> void:
 		map.restoreTileVisually(Vector2(c))
 	map.updateBorderSpriteOfTileCoord(Vector2(c))
 	_steam.append([c, LavaData.STEAM_SECONDS])
+	_puff(c, 6, true)
 
 
 # --- suit heat -----------------------------------------------------------------
@@ -623,77 +710,128 @@ func lava_at(world_pos: Vector2) -> float:
 	return mass.get(map.getTileCoord(world_pos), 0.0)
 
 
-# Rows between which passive heat ramps from 0 to its full rate (cached).
-var _heat_top := -1
-var _heat_bottom := -1
-var passive_rate := 0.0            # passive heat per second right now (after Heat Shielding)
+# Passive heat per second right now (after Heat Shielding), per local keeper
+# (#231); `passive_rate` is the first keeper's.
+var passive_rates: Dictionary = {}
+var passive_rate: float:
+	get:
+		return passive_rates.get(Story.local_pid(), 0.0)
 
 
-func _heat_rows() -> void:
-	_heat_top = 1 << 20
-	_heat_bottom = -(1 << 20)
-	for c in map.tileData.get_used_biome_cells():
-		if map.tileData.get_resourcev(c) == Data.TILE_BORDER:
-			continue
-		_heat_bottom = maxi(_heat_bottom, c.y)
-		if map.tileData.get_biomev(c) >= LavaData.PASSIVE_HEAT_START_BIOME:
-			_heat_top = mini(_heat_top, c.y)
-	if not _ocean.is_empty():
-		_heat_bottom = int(_ocean["ceiling"])
+func heat_of(keeper) -> float:
+	return heats.get(keeper.playerId, 0.0)
 
 
-# Passive heat per second at a tile, before Heat Shielding: 0 above B4.
-func passive_rate_at(tile: Vector2i) -> float:
-	if _heat_top < 0:
-		_heat_rows()
-	if map.tileData.get_biomev(tile) < LavaData.PASSIVE_HEAT_START_BIOME:
-		return 0.0
-	var f: float = clampf(float(tile.y - _heat_top) / maxf(1.0, float(_heat_bottom - _heat_top)), 0.0, 1.0)
-	return LavaData.PASSIVE_HEAT_RATE_AT_BOTTOM * f
+func set_heat_of(keeper, v: float) -> void:
+	heats[keeper.playerId] = v
+
+
+func passive_rate_of(keeper) -> float:
+	return passive_rates.get(keeper.playerId, 0.0)
+
+
+# Passive heat per second at a tile for `who`'s suit (#187): by biome, the
+# lava ocean counting as B8. `who`: a keeper or playerId (#265), null for the
+# first local keeper.
+func passive_rate_at(tile: Vector2i, who = null) -> float:
+	var b: int = map.tileData.get_biomev(tile)
+	if not _ocean.is_empty() and tile.y > int(_ocean["ceiling"]):
+		b = LavaData.PASSIVE_HEAT_LAST_BIOME
+	return LavaData.passive_rate(b, who)
 
 
 func _update_heat(delta: float) -> void:
-	var keeper = Keepers.first()
-	if keeper == null or not is_instance_valid(keeper) or keeper.killed:
+	# Every keeper this instance plays heats on its own (#231).
+	for keeper in Story.local_keepers():
+		_update_keeper_heat(keeper, delta)
+
+
+func _update_keeper_heat(keeper, delta: float) -> void:
+	if keeper.killed:
 		return
-	if recall_pos == null and Level.stage is LevelStage and Level.stage.keeperInputStarted:
-		recall_pos = keeper.global_position
+	var pid: String = keeper.playerId
+	if not recall_spots.has(pid) and Level.stage is LevelStage and Level.stage.keeperInputStarted:
+		recall_spots[pid] = keeper.global_position
 	# Passive heat from depth (#46), out of the dome, scaled by Heat Shielding.
-	passive_rate = 0.0
-	var passive_zone := false
-	if not keeper.isInsideDome and not keeper.disabled:
-		var raw: float = passive_rate_at(map.getTileCoord(keeper.global_position))
-		passive_zone = raw > 0.0 or map.tileData.get_biomev(map.getTileCoord(keeper.global_position)) >= LavaData.PASSIVE_HEAT_START_BIOME
-		passive_rate = raw * LavaData.passive_heat_mult(keeper.teamId)
+	var rate := 0.0
+	# The boss sequence keeps the depth's heat out (#160; #187: the chase and
+	# finale play as they did when only Heat Shielding IV reached them).
+	var BossDirector = load("res://mods-unpacked/cejdan-StoryMode/boss/boss_director.gd")
+	var sealed: bool = BossDirector.current() == "fight" or BossDirector.jams_recall()
+	if not keeper.isInsideDome and not keeper.disabled and not sealed:
+		rate = passive_rate_at(map.getTileCoord(keeper.global_position), keeper)
+	passive_rates[pid] = rate
+	var h: float = heats.get(pid, 0.0)
 	if keeper_in_lava(keeper) and not keeper.disabled:
-		# Heat Shielding (#44) slows lava heat but never stops it.
-		heat = min(HEAT_MAX, heat + (HEAT_PER_SECOND * LavaData.lava_heat_mult(keeper.teamId) + passive_rate) * delta)
+		# Heat Shielding (#44) slows lava heat but never stops it; deep enough,
+		# the depth itself is hotter than the lava (#187).
+		h = min(HEAT_MAX, h + maxf(HEAT_PER_SECOND * LavaData.lava_heat_mult(keeper), rate) * delta)
 	elif keeper.isInsideDome:
-		heat = max(0.0, heat - COOL_DOME_PER_SECOND * delta)
-	elif passive_zone and LavaData.passive_heat_mult(keeper.teamId) > 0.0:
+		h = max(0.0, h - COOL_DOME_PER_SECOND * delta)
+	elif rate > 0.0:
 		# Deep and out of lava: heat only rises.
-		heat = min(HEAT_MAX, heat + passive_rate * delta)
+		h = min(HEAT_MAX, h + rate * delta)
 	else:
-		heat = max(0.0, heat - COOL_MINE_PER_SECOND * delta)
-	if heat >= HEAT_MAX:
-		_recall(keeper)
+		h = max(0.0, h - COOL_MINE_PER_SECOND * delta)
+	heats[pid] = h
+	if h >= HEAT_MAX and overheat(keeper):
+		heats[pid] = HEAT_MAX * OVERHEAT_AFTER
 	if not boss_chamber_reached and _chamber.size != Vector2i.ZERO:
 		if _chamber.has_point(map.getTileCoord(keeper.global_position)):
 			boss_chamber_reached = true
 			ModLoaderLog.info("boss chamber reached", "cejdan-StoryMode")
+			# Breaking into the chamber wakes the horror (#95); the host's to do.
+			if Story.is_story():
+				if net_client:
+					StoryNet.chamber_reached()
+				else:
+					load("res://mods-unpacked/cejdan-StoryMode/beats/awakening.gd").wake()
 
 
-func _recall(keeper) -> void:
+# A full heat or toxin bar: a recall, the suit's death. Velle jams the recall
+# through the boss sequence (#160): there it costs a heart instead, and this
+# returns true (the bar drops to OVERHEAT_AFTER of full). `teleport` false: a
+# death where the keeper stands (gassed in the dome, #213).
+func overheat(keeper, teleport: bool = true) -> bool:
+	var BossDirector = load("res://mods-unpacked/cejdan-StoryMode/boss/boss_director.gd")
+	if BossDirector.jams_recall():
+		BossDirector.overheated(keeper)
+		return true
+	_recall(keeper, teleport)
+	return false
+
+
+func _recall(keeper, teleport: bool = true) -> void:
 	# Placeholder for "the keeper dies in the mine": the suit dumps its cargo where
-	# it stands and yanks the keeper back to the dome.
-	recalls += 1
-	heat = 0.0
+	# it stands and yanks the keeper back to the dome. This runs on the keeper's
+	# own instance (#227); the team's side (team_death) on the host.
+	heats[keeper.playerId] = 0.0
 	for c in keeper.carriedCarryables.duplicate():
 		if is_instance_valid(c):
 			keeper.dropCarry(c)
 	InputSystem.shake(10.0, 0.4, 24.0)
-	if recall_pos != null:
-		keeper.teleport(recall_pos)
+	var spot = recall_spots.get(keeper.playerId, null)
+	if teleport and spot != null:
+		keeper.teleport(spot)
+	if net_client:
+		# The money is the host's to take; the loss shows here right away.
+		if Story.is_story():
+			var loss: int = int(floor(int(Data.ofOr(keeper.teamId + ".inventory.money", 0)) / 2.0))
+			if loss > 0:
+				_float_loss(keeper, loss)
+		StoryNet.lava_died(keeper.playerId)
+		return
+	team_death(keeper)
+
+
+# The team's side of a lava death, on the host: the count, the horror's beat
+# and the money penalty. `keeper` died on its own instance (maybe a client's).
+func team_death(keeper) -> void:
+	recalls += 1
+	# The horror is tender about it (#26): its own beat for each of the first
+	# five deaths in a run (#157); the 5th plays again on every death after.
+	if Story.is_story():
+		load("res://mods-unpacked/cejdan-StoryMode/beats/story_beats.gd").trigger("lava_death:%d" % mini(recalls, 5))
 	# Dying in the deep costs half the money (#45). With $0 or $1 it stays free.
 	last_penalty = 0
 	if Story.is_story():
@@ -702,8 +840,9 @@ func _recall(keeper) -> void:
 		if loss > 0:
 			Data.changeByInt(key, -loss)
 			last_penalty = loss
-			_float_loss(keeper, loss)
-		ModLoaderLog.info("Overheat recall: lost $%d" % loss, "cejdan-StoryMode")
+			if keeper.peerId == multiplayer.get_unique_id():
+				_float_loss(keeper, loss)
+		ModLoaderLog.info("Overheat recall (%s): lost $%d" % [keeper.playerId, loss], "cejdan-StoryMode")
 
 
 # A short "-$X" rising over the keeper where it lands (placeholder look; the
@@ -723,6 +862,88 @@ func _float_loss(keeper, loss: int) -> void:
 	tw.tween_property(label, "position:y", label.position.y - 30.0, 2.5)
 	tw.parallel().tween_property(label, "modulate:a", 0.0, 2.5).set_delay(1.0)
 	tw.tween_callback(label.queue_free)
+
+
+# --- online multiplayer (#227) -----------------------------------------------------
+
+# Host: the cells whose mass moved by more than NET_EPS since clients last got
+# them, every NET_EVERY seconds.
+func _net_send(delta: float) -> void:
+	_net_t += delta
+	if _net_t < NET_EVERY:
+		return
+	_net_t = 0.0
+	if Network.is_offline_mode() or Network.clients.is_empty():
+		_net_dirty.clear()
+		_net_resync = true
+		return
+	if _net_resync:
+		# A client has just come: it asks for all the lava (net_full) once its field is built.
+		_net_resync = false
+		_net_sent = mass.duplicate()
+		_net_dirty.clear()
+		return
+	var buf := StreamPeerBuffer.new()
+	var n := 0
+	for c: Vector2i in _net_dirty:
+		var m: float = mass.get(c, 0.0)
+		if m > 0.0 and absf(m - _net_sent.get(c, 0.0)) <= NET_EPS:
+			continue
+		if m <= 0.0 and not _net_sent.has(c):
+			continue
+		buf.put_16(c.x)
+		buf.put_16(c.y)
+		buf.put_float(m)
+		n += 1
+		if m > 0.0:
+			_net_sent[c] = m
+		else:
+			_net_sent.erase(c)
+	_net_dirty.clear()
+	if n > 0:
+		StoryNet.lava_cells(buf.data_array)
+
+
+# Host: every lava cell, for a client whose field was just built.
+func net_full() -> PackedByteArray:
+	var buf := StreamPeerBuffer.new()
+	for c: Vector2i in mass:
+		buf.put_16(c.x)
+		buf.put_16(c.y)
+		buf.put_float(mass[c])
+	return buf.data_array
+
+
+# Client: cells from the host. `full` replaces all the lava.
+func net_apply(data: PackedByteArray, full: bool) -> void:
+	var buf := StreamPeerBuffer.new()
+	buf.data_array = data
+	if full:
+		for c in mass:
+			_shown_dirty[c] = true
+		mass.clear()
+	while buf.get_position() + 8 <= data.size():
+		var c := Vector2i(buf.get_16(), buf.get_16())
+		var m: float = buf.get_float()
+		var o: float = mass.get(c, 0.0)
+		if m > MIN_MASS:
+			mass[c] = m
+		else:
+			mass.erase(c)
+		_shown_dirty[c] = true
+		# Steam off lava that cooled, as the host's _step puffs it (its odds are
+		# per TICK; a send covers NET_EVERY).
+		if not full and m < o and _on_screen(c) and _cools(c, m, mass):
+			if m <= MIN_MASS:
+				_puff(c, 3)
+			elif _puff_rng.randf() < (0.3 if m < FILM_MASS else 0.035) * NET_EVERY / TICK:
+				_puff(c, 1)
+
+
+# Client: lava the host hardened into rock with water.
+func net_harden(cells: PackedVector2Array) -> void:
+	for v in cells:
+		_harden(Vector2i(v))
 
 
 # --- drawing -------------------------------------------------------------------
@@ -752,80 +973,241 @@ func _visible_cells() -> Array:
 
 
 func _visible_cells_now() -> Array:
-	var vp := get_viewport()
-	if vp == null:
-		return shown.keys()
-	var inv: Transform2D = get_global_transform_with_canvas().affine_inverse()
-	var vr: Rect2 = vp.get_visible_rect()
-	var a: Vector2 = inv * vr.position
-	var b: Vector2 = inv * vr.end
-	var lo: Vector2 = Vector2(minf(a.x, b.x), minf(a.y, b.y))
-	var hi: Vector2 = Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
-	var c0: Vector2i = map.getTileCoord(to_global(lo)) - Vector2i(2, 2)
-	var c1: Vector2i = map.getTileCoord(to_global(hi)) + Vector2i(2, 2)
-	if (c1.x - c0.x) * (c1.y - c0.y) > shown.size():
+	# Every split view's cells (#231): this node draws once for all the views,
+	# so a cell on player 2's screen must be in the list even when player 1's
+	# camera is far away (it was culled to player 1's view only, so lava
+	# popped in late on player 2's screen).
+	var boxes: Array = []
+	for r: Rect2 in (Story.view_rects() if Keepers.local.getCount() > 1 and not single_view_cull else []):
+		boxes.append([map.getTileCoord(r.position) - Vector2i(2, 2), map.getTileCoord(r.end) + Vector2i(2, 2)])
+	if boxes.is_empty():
+		var vp := get_viewport()
+		if vp == null:
+			return shown.keys()
+		var inv: Transform2D = get_global_transform_with_canvas().affine_inverse()
+		var vr: Rect2 = vp.get_visible_rect()
+		var a: Vector2 = inv * vr.position
+		var b: Vector2 = inv * vr.end
+		var lo: Vector2 = Vector2(minf(a.x, b.x), minf(a.y, b.y))
+		var hi: Vector2 = Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
+		boxes.append([map.getTileCoord(to_global(lo)) - Vector2i(2, 2), map.getTileCoord(to_global(hi)) + Vector2i(2, 2)])
+	_view_boxes = boxes
+	_view_c0 = boxes[0][0]
+	_view_c1 = boxes[0][1]
+	var area := 0
+	for bx in boxes:
+		area += (bx[1].x - bx[0].x) * (bx[1].y - bx[0].y)
+	if area > shown.size():
 		return shown.keys()
 	var out: Array = []
-	for y in range(c0.y, c1.y + 1):
-		for x in range(c0.x, c1.x + 1):
-			var c := Vector2i(x, y)
-			if shown.has(c):
-				out.append(c)
+	var seen := {}
+	for bx in boxes:
+		for y in range(bx[0].y, bx[1].y + 1):
+			for x in range(bx[0].x, bx[1].x + 1):
+				var c := Vector2i(x, y)
+				if shown.has(c) and not seen.has(c):
+					seen[c] = true
+					out.append(c)
 	return out
-
-
-# Lava in a cell the player hasn't revealed yet (an unopened pool) stays hidden.
-func _seen(c: Vector2i) -> bool:
-	return map.visibleTileCoords.has(Vector2(c)) or map.visibleTileCoords.has(c)
 
 
 # The lava in a cell as it is drawn, in this node's space: a pouring stream
 # (a column) or a body (a rect at the cell's bottom, f x TILE tall, or the full
 # cell under more lava). _draw() and the burn and water checks all use this, so
-# what burns is what the player sees (#48).
+# what burns is what the player sees (#48). A stream's rect is its steady
+# extent (without the goop's swelling); "ext" is the part of it that runs on
+# into the cell below, down to the lava it lands on. _draw() draws it in
+# slices along stream_edges() (#122).
 func _lava_shape(c: Vector2i) -> Dictionary:
 	var f := _fill_of(c)
 	var o := _cell_origin(c)
-	var above_has: bool = shown.get(c + Vector2i.UP, 0.0) > 0.05
+	# Lava resting above (a body, not a stream pouring in) fills this cell to the top.
+	var up: Vector2i = c + Vector2i.UP
+	var above_has: bool = shown.get(up, 0.0) > 0.05 and not _is_stream(up)
 	if f <= 0.02:
 		return {"rect": Rect2(o, Vector2.ZERO), "stream": false, "above_has": above_has}
-	var below: Vector2i = c + Vector2i.DOWN
-	var falling: bool = _is_open(below) and shown.get(below, 0.0) < 0.95
-	if falling and not above_has and f < 0.9:
-		var w: float = clamp(round(6.0 + f * 16.0), 4.0, TILE)
-		var wob: float = round(sin(_time * 5.0 + c.y * 1.3) * 1.5)
-		var x: float = round((TILE - w) * 0.5) + wob
-		return {"rect": Rect2(o + Vector2(x, 0), Vector2(w, TILE)), "stream": true, "above_has": above_has}
-	var h: float = TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
+	if _is_stream(c):
+		var p: Array = _stream_params(c)
+		var e: Vector2 = _edges(p, c, 0.5, false)
+		return {"rect": Rect2(o + Vector2(e.x, p[3]), Vector2(e.y - e.x, TILE - p[3])), "stream": true, "above_has": above_has,
+			"ext": Rect2(o + Vector2(e.x, TILE), Vector2(e.y - e.x, p[4]))}
+	var h: float = _body_height(c, above_has)
 	return {"rect": Rect2(o + Vector2(0, TILE - h), Vector2(TILE, h)), "stream": false, "above_has": above_has}
+
+
+# How tall a resting cell's lava is drawn (px).
+func _body_height(c: Vector2i, above_has: bool) -> float:
+	var f := _fill_of(c)
+	return TILE if (above_has or f >= 0.98) else max(2.0, round(f * TILE))
+
+
+# Falling lava (#122): the cell below is open and not yet full. It draws as a
+# stream whether or not lava falls into it from above, so a long column is one
+# stream all the way down. (It used to need an empty cell above, so a column's
+# cells drew as stacked full-width pool blocks, and film cells near the 0.05
+# threshold flickered between a thin stream and a full block.) A cell with
+# resting lava on both sides is the bottom of a pool draining through a hole,
+# and stays a body, as does a near-full cell. With resting lava on one side
+# only it is the lip of a ledge: a stream that starts at that lava (#135).
+func _is_stream(c: Vector2i) -> bool:
+	var f := _fill_of(c)
+	if f >= 0.9 or not _falling(c):
+		return false
+	return not (_pool_beside(c + Vector2i.LEFT) and _pool_beside(c + Vector2i.RIGHT))
+
+
+func _pool_beside(n: Vector2i) -> bool:
+	return shown.get(n, 0.0) > 0.2 and not _falling(n)
+
+
+func _falling(c: Vector2i) -> bool:
+	var below: Vector2i = c + Vector2i.DOWN
+	return _is_open(below) and shown.get(below, 0.0) < 0.95
+
+
+# Lava lying in a cell (not falling through it): what a stream can pour from.
+func _rests(n: Vector2i) -> bool:
+	return shown.get(n, 0.0) > 0.05 and not _falling(n)
+
+
+# A stream's width: thicker with more lava, from the cell's fill averaged with
+# the stream cells above and below it, so lava moving down the column in
+# lumps (the simulation passes it on a tick at a time) doesn't pulse.
+func _stream_width(c: Vector2i) -> float:
+	var f := _fill_of(c)
+	var up: Vector2i = c + Vector2i.UP
+	var dn: Vector2i = c + Vector2i.DOWN
+	var fa: float = _fill_of(up) if shown.get(up, 0.0) > 0.02 and _falling(up) else f
+	var fb: float = _fill_of(dn) if shown.get(dn, 0.0) > 0.02 and _falling(dn) else f
+	var fs: float = (fa + 2.0 * f + fb) / 4.0
+	return clampf(6.0 + fs * 16.0, 4.0, TILE)
+
+
+# The side a stream's lava comes from (#135): -1 when it pours off lava resting
+# to its left, 1 to its right, 0 when it comes from straight above. The stream
+# is drawn against that side of its cells, so it leaves its source's edge and
+# runs down the rock face under it, instead of hanging in the middle of the
+# tile. The whole column takes the side of its top cell, and keeps it when the
+# source runs dry and the last of the stream falls away.
+func _stream_anchor(c: Vector2i) -> float:
+	var up: Vector2i = c + Vector2i.UP
+	var a: float
+	if shown.get(up, 0.0) > 0.02 and _is_stream(up):
+		a = _anchors[up] if _anchors.has(up) else _stream_anchor(up)
+	else:
+		var l: bool = _rests(c + Vector2i.LEFT)
+		var r: bool = _rests(c + Vector2i.RIGHT)
+		if l != r:
+			a = -1.0 if l else 1.0
+		else:
+			a = _anchors.get(c, 0.0)
+	_anchors[c] = a
+	return a
+
+
+# What _draw() and the contact checks need to know about a stream cell, worked
+# out once a physics frame:
+# [0] the side it hangs on (_stream_anchor), [1] its width, [2] its width at
+# the cell's bottom (the next stream cell's width), [3] where it starts, px
+# from the cell's top (the lip of a ledge starts at its source's surface),
+# [4] how far it runs on into the cell below (down to the lava it lands on),
+# [5] its lower end: 0 another stream cell, 1 it lands on lava, 2 a free tip,
+# [6] true when its top is a free end (nothing above, no source beside).
+func _stream_params(c: Vector2i) -> Array:
+	if _stream_memo.has(c):
+		return _stream_memo[c]
+	var a: float = _stream_anchor(c)
+	var w0: float = _stream_width(c)
+	var w1: float = w0
+	var ext := 0.0
+	var end := 2
+	var dn: Vector2i = c + Vector2i.DOWN
+	if shown.get(dn, 0.0) > 0.02:
+		if _is_stream(dn):
+			end = 0
+			w1 = _stream_width(dn)
+		else:
+			end = 1
+			ext = TILE - _body_height(dn, false)
+	var top := 0.0
+	var free_top := false
+	if shown.get(c + Vector2i.UP, 0.0) <= 0.02:
+		var n: Vector2i = c + (Vector2i.LEFT if a < 0.0 else Vector2i.RIGHT)
+		if a != 0.0 and _rests(n):
+			var n_up: Vector2i = n + Vector2i.UP
+			top = TILE - _body_height(n, shown.get(n_up, 0.0) > 0.05 and not _is_stream(n_up))
+		else:
+			free_top = true
+	var p: Array = [a, w0, w1, top, ext, end, free_top]
+	_stream_memo[c] = p
+	return p
+
+
+# A stream's left and right edge (x from the cell's left side) at `t` of the
+# way down the cell (0 top, 1 bottom; past 1 where it runs on into the cell
+# below). The width blends into the next stream cell's, and the goop and the
+# wobble follow world height, so the column has no steps at cell borders.
+func stream_edges(c: Vector2i, t: float) -> Vector2:
+	return _edges(_stream_params(c), c, t, true)
+
+
+func _edges(p: Array, c: Vector2i, t: float, goop: bool) -> Vector2:
+	var w: float = lerpf(p[1], p[2], clampf(t, 0.0, 1.0))
+	var y_px: float = (float(c.y) + t) * TILE
+	if goop:
+		# Blobs ride down the stream; each is a teardrop, fat at its lower end.
+		# (u runs 0..1 down one blob: a tail that widens slowly, a round end.)
+		var thin: float = 1.0 - smoothstep(6.4, 7.6, w)
+		var u: float = fposmod((y_px - _time * GOOP_SPEED) / GOOP_LENGTH + _noise(Vector2i(c.x, 0), 3), 1.0)
+		w = maxf(0.0, lerpf(w * (0.78 - 1.9 * thin), maxf(w * 1.18, 6.5), 3.079 * u * sqrt(u * (1.0 - u))))
+	var a: float = p[0]
+	var lo: float
+	if a < 0.0:
+		lo = 0.0
+	elif a > 0.0:
+		lo = TILE - w
+	else:
+		lo = TILE * 0.5 + sin(_time * 5.0 - y_px * 0.054) * 1.5 - w * 0.5
+	return Vector2(clampf(round(lo), 0.0, TILE), clampf(round(lo + w), 0.0, TILE))
 
 
 # Does a rect (world space) overlap drawn lava that is deep enough to burn
 # (BURN_MASS)? BURN_TOLERANCE px of overlap are forgiven, so skimming the
 # surface doesn't flicker.
 func lava_overlaps(world_rect: Rect2) -> bool:
+	return lava_touched(world_rect) != NO_CELL
+
+
+const NO_CELL := Vector2i(-1073741824, -1073741824)
+
+
+# The first lava cell whose drawn lava `world_rect` touches, or NO_CELL. A
+# stream running on into the cell below counts as the stream's own cell.
+func lava_touched(world_rect: Rect2) -> Vector2i:
 	var a: Vector2i = map.getTileCoord(world_rect.position)
 	var b: Vector2i = map.getTileCoord(world_rect.end)
 	var local := Rect2(to_local(world_rect.position), world_rect.size)
 	for y in range(a.y, b.y + 1):
 		for x in range(a.x, b.x + 1):
 			var c := Vector2i(x, y)
+			# A stream pouring in from the cell above runs on down to this cell's lava.
+			var up: Vector2i = c + Vector2i.UP
+			if mass.get(up, 0.0) >= BURN_MASS and shown.get(up, 0.0) > 0.02 and _is_stream(up):
+				var ext: Rect2 = _lava_shape(up)["ext"].grow(-BURN_TOLERANCE)
+				if ext.size.x > 0.0 and ext.size.y > 0.0 and ext.intersects(local):
+					return up
 			if mass.get(c, 0.0) < BURN_MASS:
 				continue
 			var r: Rect2 = _lava_shape(c)["rect"].grow(-BURN_TOLERANCE)
 			if r.size.x > 0.0 and r.size.y > 0.0 and r.intersects(local):
-				return true
-	return false
+				return c
+	return NO_CELL
 
 
 # The keeper's body for lava contact: a fixed box around its position, from its
 # collision shapes (a 5 px circle and two small squares 3.9 px above and below).
-func keeper_rect(keeper) -> Rect2:
-	return Rect2(keeper.global_position - KEEPER_BOX * 0.5, KEEPER_BOX)
-
-
 func keeper_in_lava(keeper) -> bool:
-	return lava_overlaps(keeper_rect(keeper))
+	return lava_overlaps(FieldUtil.keeper_rect(keeper))
 
 
 func _fill_of(c: Vector2i) -> float:
@@ -849,23 +1231,22 @@ func _draw() -> void:
 
 	for c in _visible_cells():
 		var f := _fill_of(c)
-		if f <= 0.02 or not _seen(c):
+		if f <= 0.02 or not FieldUtil.seen(map, c):
 			continue
 		var o := _cell_origin(c)
 		var sh: Dictionary = _lava_shape(c)
 		var above_has: bool = sh["above_has"]
 		if sh["stream"]:
-			# A pouring stream: a column that wobbles, thicker with more lava.
-			var w: float = sh["rect"].size.x
-			var x: float = sh["rect"].position.x - o.x
-			draw_rect(sh["rect"], COL_BODY)
-			draw_rect(Rect2(o + Vector2(x + 1, 0), Vector2(max(1.0, w - 2), TILE)), COL_HOT)
-			if w > 6:
-				draw_rect(Rect2(o + Vector2(x + round(w * 0.5) - 1, 0), Vector2(2, TILE)), COL_CORE)
+			_draw_stream(c, o)
 			continue
 		var h: float = sh["rect"].size.y
 		var top: float = TILE - h
-		draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_BODY)
+		# A thin film with nothing under it is cooling away (#41): it dulls from
+		# bright to a dark crust as it goes.
+		var warm: float = 1.0
+		if f < FILM_MASS and not above_has and shown.get(c + Vector2i.DOWN, 0.0) < LavaData.HOLDS_MASS:
+			warm = clampf(f / FILM_MASS, 0.0, 1.0)
+		draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_CRUST.lerp(COL_BODY, warm))
 		# Darker toward the bottom of a deep pool.
 		if h > 10:
 			draw_rect(Rect2(o + Vector2(0, TILE - floor(h * 0.35)), Vector2(TILE, floor(h * 0.35))), COL_DEEP)
@@ -881,26 +1262,133 @@ func _draw() -> void:
 			# Bright rippling surface.
 			for x in range(0, int(TILE), 2):
 				var ripple: float = round(sin(_time * 4.0 + (c.x * TILE + x) * 0.35))
-				draw_rect(Rect2(o + Vector2(x, top + max(0.0, ripple)), Vector2(2, 2)), COL_CORE)
-			draw_rect(Rect2(o + Vector2(0, top + 2), Vector2(TILE, 1)), COL_HOT)
+				draw_rect(Rect2(o + Vector2(x, top + max(0.0, ripple)), Vector2(2, 2)), COL_DEEP.lerp(COL_CORE, warm))
+			draw_rect(Rect2(o + Vector2(0, top + 2), Vector2(TILE, 1)), COL_CRUST.lerp(COL_HOT, warm))
 			# Embers that pop off the surface.
-			for i in 2:
+			for i in (2 if warm > 0.6 else 0):
 				var t: float = fposmod(_time * (0.5 + _noise(c, i + 40)) + _noise(c, i + 50), 1.0)
 				var ex: float = floor(_noise(c, i + 60 + int(_time * 0.5)) * (TILE - 1.0))
 				draw_rect(Rect2(o + Vector2(ex, top - t * 14.0), Vector2(1, 1)), Color(COL_CORE, 1.0 - t))
 
-	# Steam where water just hardened lava: a white-grey puff that fades.
+	# Steam where water just hardened lava: a white-grey flash that fades.
 	for e in _steam:
 		var a: float = clampf(e[1] / LavaData.STEAM_SECONDS, 0.0, 1.0)
 		var o := _cell_origin(e[0])
-		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.75 * a))
+		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.45 * a))
+	_draw_puffs()
 	_draw_barrier()
 	_draw_heat_bar()
 	if debug_boxes:
-		var k = Keepers.first()
+		var k = Story.local_keeper()
 		if k != null and is_instance_valid(k):
-			var r := keeper_rect(k)
+			var r := FieldUtil.keeper_rect(k)
 			draw_rect(Rect2(to_local(r.position), r.size), Color(0.3, 1.0, 0.4, 0.9), false, 1.0)
+
+
+# A pouring stream (#135): a ribbon of 2 px slices along stream_edges(), so it
+# runs on unbroken from cell to cell (#122). It starts at the surface of the
+# lava it pours from, with a rounded shoulder; runs on down to the lava it
+# lands on, where it spreads into a foot and throws sparks; and ends in a
+# rounded tip while it is still falling through empty space.
+func _draw_stream(c: Vector2i, o: Vector2) -> void:
+	var p: Array = _stream_params(c)
+	var a: float = p[0]
+	var top: float = p[3]
+	var end: int = p[5]
+	var bottom: float = TILE + p[4]
+	var y: float = top
+	var last_mid: float = TILE * 0.5
+	while y < bottom:
+		var hgt: float = minf(STREAM_SLICE, bottom - y)
+		var e: Vector2 = _edges(p, c, (y + hgt * 0.5) / TILE, true)
+		var w: float = e.y - e.x
+		# Rounded ends.
+		var k: float = 1.0
+		if top > 0.0 and y - top < 6.0:
+			k = sqrt(1.0 - pow(1.0 - (y - top + 2.0) / 8.0, 2.0))
+		elif p[6] and y < 8.0:
+			k = (y + 2.0) / 10.0
+		if end == 2 and y >= TILE - 6.0:
+			k *= sqrt(maxf(0.0, 1.0 - pow((y + hgt - (TILE - 6.0)) / 6.5, 2.0)))
+		if k < 1.0:
+			var nw: float = round(w * k)
+			if a < 0.0:
+				e.y = e.x + nw
+			elif a > 0.0:
+				e.x = e.y - nw
+			else:
+				e.x = round((e.x + e.y - nw) * 0.5)
+				e.y = e.x + nw
+		# The foot: the last few px spread out over the lava it lands on.
+		if end == 1 and w > 0.0 and bottom - y <= 4.0:
+			var spread: float = 1.0 if bottom - y > 2.0 else 2.0
+			if a <= 0.0:
+				e.y = minf(TILE, e.y + spread)
+			if a >= 0.0:
+				e.x = maxf(0.0, e.x - spread)
+		w = e.y - e.x
+		if w >= 1.0:
+			last_mid = (e.x + e.y) * 0.5
+			draw_rect(Rect2(o + Vector2(e.x, y), Vector2(w, hgt)), COL_BODY)
+			if w > 2.0:
+				# The dark rim is on the stream's free sides only.
+				var l: float = e.x + (0.0 if a < 0.0 else 1.0)
+				var r: float = e.y - (0.0 if a > 0.0 else 1.0)
+				draw_rect(Rect2(o + Vector2(l, y), Vector2(r - l, hgt)), COL_HOT)
+				if w > 5.0:
+					var cw: float = maxf(2.0, round(w * 0.3))
+					draw_rect(Rect2(o + Vector2(round((l + r - cw) * 0.5), y), Vector2(cw, hgt)), COL_CORE)
+		y += STREAM_SLICE
+	if end == 1:
+		# Sparks thrown up where the stream lands.
+		for i in 3:
+			var ph: float = _time * (1.3 + _noise(c, i + 70)) + _noise(c, i + 75)
+			var t: float = fposmod(ph, 1.0)
+			var dx: float = (_noise(c, i + 80 + int(ph)) - 0.5) * 22.0 * t
+			draw_rect(Rect2(o + Vector2(round(last_mid + dx), round(bottom - 1.0 - 28.0 * t * (1.0 - t))), Vector2(1, 1)), Color(COL_CORE, 1.0 - t * t))
+
+
+# --- steam (#135) -------------------------------------------------------------
+
+func _on_screen(c: Vector2i) -> bool:
+	if not FieldUtil.seen(map, c):
+		return false
+	for bx in _view_boxes:
+		if c.x >= bx[0].x and c.x <= bx[1].x and c.y >= bx[0].y and c.y <= bx[1].y:
+			return true
+	return false
+
+
+# `n` puffs of steam off the lava in cell `c` (`whole`: from anywhere in the
+# cell, for lava that water just turned to rock).
+func _puff(c: Vector2i, n: int, whole: bool = false) -> void:
+	if _puffs.size() + n > PUFF_MAX:
+		return
+	var o := _cell_origin(c)
+	var surface: float = TILE - max(2.0, round(_fill_of(c) * TILE))
+	for i in n:
+		var y: float = _puff_rng.randf_range(0.0, TILE) if whole else surface + 1.0
+		_puffs.append([o.x + _puff_rng.randf_range(2.0, TILE - 2.0), o.y + y, _time - (0.0 if whole else _puff_rng.randf() * TICK), _puff_rng.randf_range(1.1, 2.0), _puff_rng.randf()])
+
+
+# Each puff rises fast and slows, sways, swells and fades. It starts lit by
+# the lava under it and pales to grey.
+func _draw_puffs() -> void:
+	for q in _puffs:
+		var age: float = _time - q[2]
+		var t: float = age / q[3]
+		if t < 0.0 or t >= 1.0:
+			continue
+		var s: float = q[4]
+		var x: float = round(q[0] + sin(age * 2.6 + s * TAU) * (1.0 + 3.0 * t) + (s - 0.5) * 8.0 * t)
+		var y: float = round(q[1] - (20.0 + 12.0 * s) * (1.0 - (1.0 - t) * (1.0 - t)))
+		var col := Color(COL_STEAM_LIT.lerp(COL_STEAM, minf(1.0, t * 2.5)), 0.42 * pow(1.0 - t, 1.3) * minf(1.0, age * 10.0))
+		var r: float = 1.0 + floor(t * 2.6 + s * 0.9)
+		# A soft round puff: stacked bars, so its middle is denser than its rim.
+		draw_rect(Rect2(x - r, y - 1.0, r * 2.0, 2.0), col)
+		if r > 1.0:
+			draw_rect(Rect2(x - r + 1.0, y - r + 1.0, r * 2.0 - 2.0, r * 2.0 - 2.0), col)
+			draw_rect(Rect2(x - 1.0, y - r, 2.0, r * 2.0), col)
 
 
 # --- the boss chamber's energy barrier (#82) ------------------------------------
@@ -928,7 +1416,7 @@ func barrier_columns() -> Array:
 func _draw_barrier() -> void:
 	for x in barrier_columns():
 		var cell := Vector2i(x, _chamber.position.y)
-		if not (_seen(cell) or _seen(cell + Vector2i.UP)):
+		if not (FieldUtil.seen(map, cell) or FieldUtil.seen(map, cell + Vector2i.UP)):
 			continue
 		var o := _cell_origin(cell)
 		var pulse: float = 0.75 + 0.25 * sin(_time * 3.2 + x * 0.6)
@@ -949,27 +1437,22 @@ func _draw_barrier() -> void:
 
 
 func _draw_heat_bar() -> void:
-	# Shown whenever there is heat, and while passive heat is building.
-	if heat <= 0.5 and passive_rate <= 0.0:
-		return
-	var keeper = Keepers.first()
-	if keeper == null or not is_instance_valid(keeper):
-		return
-	var p: Vector2 = to_local(keeper.global_position) + Vector2(-9, -20)
-	p = p.round()
-	draw_rect(Rect2(p - Vector2(1, 1), Vector2(20, 5)), Color(0, 0, 0, 0.8))
-	var frac: float = heat / HEAT_MAX
-	var col: Color = COL_CORE.lerp(Color("ff2a1a"), frac)
-	if frac > 0.7 and fposmod(_time * 8.0, 1.0) < 0.5:
-		col = Color.WHITE
-	draw_rect(Rect2(p, Vector2(round(18.0 * frac), 3)), col)
+	# A bar over each local keeper (#231): shown whenever there is heat, and
+	# while passive heat is building.
+	for keeper in Story.local_keepers():
+		var h: float = heat_of(keeper)
+		if h <= 0.5 and passive_rate_of(keeper) <= 0.0:
+			continue
+		var frac: float = h / HEAT_MAX
+		FieldUtil.draw_bar(self, (to_local(keeper.global_position) + Vector2(-9, -20)).round(), frac,
+			COL_CORE.lerp(Color("ff2a1a"), frac), frac > 0.7 and fposmod(_time * 8.0, 1.0) < 0.5)
 
 
 func _draw_glow() -> void:
 	# Soft additive light around lava and around magma rock the player can see.
 	for c in _visible_cells():
 		var f := _fill_of(c)
-		if f <= 0.05 or not _seen(c):
+		if f <= 0.05 or not FieldUtil.seen(map, c):
 			continue
 		var center := _cell_origin(c) + Vector2(TILE, TILE) * 0.5
 		var flick: float = 0.85 + 0.15 * sin(_time * 6.0 + c.x * 2.1 + c.y)
@@ -983,7 +1466,7 @@ func _draw_glow() -> void:
 	# The chamber barrier's violet glow.
 	for x in barrier_columns():
 		var cell := Vector2i(x, _chamber.position.y)
-		if not (_seen(cell) or _seen(cell + Vector2i.UP)):
+		if not (FieldUtil.seen(map, cell) or FieldUtil.seen(map, cell + Vector2i.UP)):
 			continue
 		var p := _cell_origin(cell) + Vector2(TILE * 0.5, 0)
 		var pulse: float = 0.75 + 0.25 * sin(_time * 3.2 + x * 0.6)
@@ -998,5 +1481,5 @@ func stats() -> Dictionary:
 	for p in pools:
 		pool_cells += p.size()
 	return {"cells": mass.size(), "total": total, "magma": magma.size(), "sources": sources.size(),
-		"heat": heat, "recalls": recalls, "breaches": breaches, "pools": pools.size(), "pool_cells": pool_cells,
+		"heat": heat, "heats": heats.duplicate(), "recalls": recalls, "breaches": breaches, "pools": pools.size(), "pool_cells": pool_cells,
 		"pools_skipped": pools_skipped, "awake": _awake.size(), "ocean_cells": ocean_cells}

@@ -19,6 +19,11 @@ const CELLS: Dictionary = {
 	"mythril": [4, 21, "#1c5a6a", "#49c6cf", "#d9fffb"],
 	"unobtainium": [4, 24, "#3d0b6e", "#b440ff", "#f6d2ff"],
 	"metal": [4, 27, "#2b3038", "#5d6673", "#a9b4c2"],
+	# Story items (#93, #94): translator stone, its rune-eye, miner bones, data log.
+	"translator": [0, 16, "#4a3a34", "#a8957c", "#e6dcc4"],
+	"rune_eye": [0, 19, "#5c0b12", "#ff3b30", "#ffd0a0"],
+	"bones": [0, 22, "#544a3e", "#b9ae97", "#f1e9d4"],
+	"datalog": [0, 25, "#0c2a1e", "#2fbf78", "#c4ffdf"],
 }
 
 static var _patched: Texture2D = null

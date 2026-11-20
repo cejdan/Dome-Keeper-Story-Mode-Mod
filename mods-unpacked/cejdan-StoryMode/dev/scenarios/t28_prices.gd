@@ -100,7 +100,7 @@ func run(h) -> void:
 		if t.max_health != want:
 			bad.append([key, t.max_health, want])
 	h.note("tile max_health [got, want] by type@biome index", rows)
-	h.check("tile HP matches round((3 + 2) x 2 x 2.1^(biome - 1)) and rock round(3 x 2 x 2.1^(biome - 1)) (%d samples)" % rows.size(), bad.is_empty() and rows.size() >= 20, bad)
+	h.check("tile HP matches round((3 + 2) x 2 x %.1f^(biome - 1)) and rock round(3 x 2 x %.1f^(biome - 1)) (%d samples)" % [per, per, rows.size()], bad.is_empty() and rows.size() >= 20, bad)
 
 	# ---- drill4 repeats
 	h.set_inv("money", 100000)
@@ -114,7 +114,7 @@ func run(h) -> void:
 		paid.append(m0 - h.inv("money"))
 		strength.append(Data.of("player1.keeper1.drillStrength"))
 	h.note("drill4", {"paid": paid, "strength": strength})
-	h.check("drill4 three times costs $1,400, $9,400, $17,400", paid == [1400, 9400, 17400], paid)
+	h.check("drill4 three times costs $900, $3,900, $6,900 (#148)", paid == [900, 3900, 6900], paid)
 	# Vanilla's repeat rule multiplies drill4's own gain by 3 (+56, +168, +504).
 	var gains: Array = [strength[1] - strength[0], strength[2] - strength[1], strength[3] - strength[2]]
 	h.check("drill strength gain rises x3 each time", absf(gains[1] - 3 * gains[0]) < 0.01 and absf(gains[2] - 3 * gains[1]) < 0.01, {"strength": strength, "gains": gains})
