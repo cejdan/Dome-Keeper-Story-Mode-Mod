@@ -9,6 +9,32 @@ extends "res://content/caves/bombcave/CaveBomb.gd"
 # behave like any cave bomb from then on.
 
 const CALM := "story_calm"
+const DropNet = preload("res://mods-unpacked/flantor-StoryMode/util/drop_net.gd")
+static var _DropNet = DropNet  # calls go through this: lazy_preload makes const-preload calls slow
+
+
+# A charge no bomb cave spawned (Velle's) has no cave synchronizer to tell the
+# clients its fuse and its blast: BombCave.gd connects state_updated to its
+# own. Those go through the drop synchronizer's drop events instead, and a
+# blast frees the charge on every client, so it can't stay drawn there (#315).
+func _ready():
+	super()
+	if multiplayer.is_server():
+		state_updated.connect(_story_send_state)
+
+
+func _story_cave_synced() -> bool:
+	return state_updated.get_connections().size() > 1
+
+
+func _story_send_state() -> void:
+	if not _story_cave_synced():
+		drop_event.emit(get_bomb_state())
+
+
+func on_drop_event(buffer: PackedByteArray) -> void:
+	if not multiplayer.is_server():
+		set_bomb_state(buffer)
 
 
 func server_process(delta: float) -> void:
@@ -39,3 +65,5 @@ func explode():
 	if not exploded:
 		load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").explosion_at(global_position, "bomb")
 	super()
+	if multiplayer.is_server() and not _story_cave_synced():
+		_DropNet.consume(self)

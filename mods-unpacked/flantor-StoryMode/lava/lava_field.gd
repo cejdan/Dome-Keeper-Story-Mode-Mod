@@ -20,6 +20,8 @@ const StoryNet = preload("res://mods-unpacked/flantor-StoryMode/net/story_net.gd
 static var _StoryNet = StoryNet  # calls go through this: lazy_preload makes const-preload calls slow
 const FieldUtil = preload("res://mods-unpacked/flantor-StoryMode/util/field_util.gd")
 static var _FieldUtil = FieldUtil  # calls go through this: lazy_preload makes const-preload calls slow
+const DropNet = preload("res://mods-unpacked/flantor-StoryMode/util/drop_net.gd")
+static var _DropNet = DropNet  # calls go through this: lazy_preload makes const-preload calls slow
 const SAVE_KEY := "story.lava"
 
 const POCKET_MIN_DEPTH := LavaData.POCKET_MIN_DEPTH
@@ -656,10 +658,7 @@ func _check_water() -> void:
 		# top just under it, a stream pouring past): harden from there (#296).
 		var c: Vector2i = map.getTileCoord(d.global_position)
 		var cells := _harden_from(c if mass.get(c, 0.0) >= BURN_MASS else touched, LavaData.WATER_HARDENS_CELLS)
-		for k in Keepers.getAll():
-			if k.carriedCarryables.has(d):
-				k.dropCarry(d)
-		d.remove()
+		_DropNet.consume(d)   # gone on the clients too (#315)
 		InputSystem.shake(6.0, 0.35, 20.0, d.global_position)
 		ModLoaderLog.info("Water hardened %d lava cells" % cells.size(), "flantor-StoryMode")
 

@@ -77,6 +77,19 @@ $script:LogScanAllow = @(
     # Swapping back to a dome picked before in the same loadout re-adds its
     # limit (GameWorld.setUpgradeLimitAvailable; Relic Hunt in t28_loadout).
     @{ Name = "vanilla dome swap"; Pattern = 'removing listener who is not listening Data: \{"listener":"team[0-9]+Dome:<Node2D#[0-9]+>","property":"team[0-9]+\.inventory\.(iron|water|sand)"\}|tech limit that.s already available Data: "team[0-9]+\.dome[0-9]"' },
+    # Vanilla since the Nov 15 staging build: systems/platform/Platform.gd
+    # retries the PlayFab login every 15 s, and PlatformFacadeSteam
+    # .login_to_playfab asks Steam for an auth ticket, which the godotsteam
+    # module refuses with no Steam user signed in (dev runs). No ticket, no
+    # login request.
+    @{ Name = "vanilla PlayFab login (no Steam user)"; Pattern = '\[STEAM\] User class not found when calling: getAuthSessionTicket' },
+    # Vanilla and godotsteam with the Steam client closed (playtests don't
+    # need it: online runs are ENet on 127.0.0.1). PlatformFacadeSteam.init
+    # logs "Steam failed to initialize", then every Steam call vanilla makes
+    # logs "[STEAM] <class> class not found": isSubscribedApp (the DLC checks),
+    # isSteamRunningOnSteamDeck, getAchievement (systems/achievements/
+    # Achievements.gd). No mod code calls Steam.
+    @{ Name = "vanilla Steam calls (Steam client closed)"; Pattern = 'PlatformFacadeSteam\.init: Steam failed to initialize|\[STEAM\] [A-Za-z ]+ class not found when calling: [A-Za-z]+' },
     # Engine audio driver (drivers\wasapi\audio_driver_wasapi.cpp): the
     # machine's audio device hiccups mid-run (seen once in t269_dome2, #269).
     @{ Name = "engine audio (WASAPI)"; Pattern = 'WASAPI: GetBufferSize error' }
