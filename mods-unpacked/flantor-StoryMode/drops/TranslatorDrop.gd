@@ -1,11 +1,14 @@
 extends "res://content/drop/Drop.gd"
 
-# A translator (#93): the monsters' carved horn, carried home like a relic. Its
-# trigger answers the dome's relic socket, which floats it in and shrinks it
-# into team1.inventory.translator; Storymode.gd installs it from there.
+# A translator (#93): the monsters' carved horn, carried home like a relic. It
+# is delivered as one (drops/delivery.gd): its trigger answers the dome's relic
+# socket, which floats it in and shrinks it into team1.inventory.translator;
+# Storymode.gd installs it from there.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
 static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
+const Delivery = preload("res://mods-unpacked/flantor-StoryMode/drops/delivery.gd")
+static var _Delivery = Delivery  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func _ready():
@@ -14,5 +17,10 @@ func _ready():
 		$Sprite2D.texture = tex
 	var trigger: Node = get_node_or_null("DropEnterTrigger")
 	if trigger != null:
-		trigger.set_script(load("res://mods-unpacked/flantor-StoryMode/drops/TranslatorDropTrigger.gd"))
+		trigger.set_script(load("res://mods-unpacked/flantor-StoryMode/drops/StoryDropTrigger.gd"))
 	super._ready()
+
+
+# Vanilla's stuck check misses a drop wedged against a frozen body (#327).
+func processIndependantStuckResolver(delta):
+	_Delivery.resolve_stuck(self, delta)

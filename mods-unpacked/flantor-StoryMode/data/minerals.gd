@@ -4,6 +4,8 @@ const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
 static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
+const Delivery = preload("res://mods-unpacked/flantor-StoryMode/drops/delivery.gd")
+static var _Delivery = Delivery  # calls go through this: lazy_preload makes const-preload calls slow
 
 # The mineral ladder: every mineral Story Mode knows, in rising dollar value.
 # All numbers here are starting values for the user to tune.
@@ -80,9 +82,8 @@ static func sheet_for_tile_id(id: int) -> Texture2D:
 static func register() -> void:
 	for m: String in MOD_MINERALS:
 		Data.TILE_ID_TO_STRING_MAP[int(TABLE[m]["tile_id"])] = m
-		if not Data.DROP_TYPES.has(m):
-			Data.DROP_TYPES.append(m)
-		Data.DROP_SCENES[m] = load(DROPS + m + "_drop.tscn")
+		# Delivered to the shredder as iron, credited as itself.
+		_Delivery.register(m, load(DROPS + m + "_drop.tscn"), "iron")
 		Data.DROP_ICONS[m] = _Assets.tex(ART + "icon_%s.png" % m)
 
 

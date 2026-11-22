@@ -1,12 +1,15 @@
 extends "res://content/drop/Drop.gd"
 
 # Miner bones (#94), carried home like a mineral piece. The dome's shredder
-# takes them as iron (StoryDropTrigger); they pay `value` dollars, set by
-# Map.destroyTile from the biome they were found in (data/bones.gd), and keep
-# it through a save and reload. Selling them opens that biome's data log.
+# takes them as iron (drops/delivery.gd, StoryDropTrigger.gd); they pay
+# `value` dollars, set by Map.destroyTile from the biome they were found in
+# (data/bones.gd), and keep it through a save and reload. Selling them opens
+# that biome's data log.
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
 static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
+const Delivery = preload("res://mods-unpacked/flantor-StoryMode/drops/delivery.gd")
+static var _Delivery = Delivery  # calls go through this: lazy_preload makes const-preload calls slow
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
 static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const SalePops = preload("res://mods-unpacked/flantor-StoryMode/hud/sale_pops.gd")
@@ -53,3 +56,8 @@ func deserialize(data: Dictionary):
 	super(data)
 	value = int(data.get("story.value", 0))
 	biome = int(data.get("story.biome", 0))
+
+
+# Vanilla's stuck check misses a drop wedged against a frozen body (#327).
+func processIndependantStuckResolver(delta):
+	_Delivery.resolve_stuck(self, delta)

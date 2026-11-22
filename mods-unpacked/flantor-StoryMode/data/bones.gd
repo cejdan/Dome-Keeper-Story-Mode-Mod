@@ -9,6 +9,8 @@ extends RefCounted
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
 static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
+const Delivery = preload("res://mods-unpacked/flantor-StoryMode/drops/delivery.gd")
+static var _Delivery = Delivery  # calls go through this: lazy_preload makes const-preload calls slow
 
 const TYPE := "minerbones"
 const TILE_ID := 50
@@ -27,7 +29,6 @@ static func sheet() -> Texture2D:
 
 static func register() -> void:
 	Data.TILE_ID_TO_STRING_MAP[TILE_ID] = TYPE
-	if not Data.DROP_TYPES.has(TYPE):
-		Data.DROP_TYPES.append(TYPE)
-	Data.DROP_SCENES[TYPE] = load("res://mods-unpacked/flantor-StoryMode/drops/minerbones_drop.tscn")
+	# Sold at the shredder like iron (BonesDrop.shred pays their value).
+	_Delivery.register(TYPE, load("res://mods-unpacked/flantor-StoryMode/drops/minerbones_drop.tscn"), "iron")
 	Data.DROP_ICONS[TYPE] = _Assets.tex("res://mods-unpacked/flantor-StoryMode/art/items/minerbones.png")
