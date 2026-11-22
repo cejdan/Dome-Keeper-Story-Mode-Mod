@@ -20,8 +20,13 @@ const DIRS: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0
 const DIRS8: Array = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
 
 
-static func after_resources(_gen, map_data, rand: RandomNumberGenerator) -> void:
-	fill_bottom(map_data, _sub_rand(rand, "bottom"))
+static func after_resources(gen, map_data, rand: RandomNumberGenerator) -> void:
+	# A smaller map (#320) fills fewer rows at the bottom, in step with its depth.
+	var root: float = 1.0
+	if gen != null and gen.a != null:
+		root = float(gen.a.get_meta("story_map_root", 1.0))
+	map_data.set_meta("story_map_size", gen.a.get_meta("story_map_size", MapConfig.FULL_MAP_SIZE) if gen != null and gen.a != null else MapConfig.FULL_MAP_SIZE)
+	fill_bottom(map_data, _sub_rand(rand, "bottom"), roundi(MapConfig.BOTTOM_FILL_ROWS * root))
 	place_minerals(map_data, rand)
 	place_start_bronze(map_data, _sub_rand(rand, "startbronze"))
 	remove_gadget_chambers(map_data)
@@ -70,7 +75,7 @@ static func _pool_cells(map_data) -> Dictionary:
 # with B8 rock down to that row, so digging straight down reaches the ocean.
 # Side arms that end higher up stay as they are. Runs before the minerals,
 # metal and pools, so the new rock gets B8's share of them.
-static func fill_bottom(map_data, rand: RandomNumberGenerator) -> int:
+static func fill_bottom(map_data, rand: RandomNumberGenerator, rows: int = MapConfig.BOTTOM_FILL_ROWS) -> int:
 	var low: Dictionary = {}   # x -> lowest map row
 	var yb: int = -(1 << 20)
 	for c: Vector2i in map_data.get_used_biome_cells():
@@ -84,7 +89,7 @@ static func fill_bottom(map_data, rand: RandomNumberGenerator) -> int:
 	xs.sort()
 	for x: int in xs:
 		var y0: int = int(low[x])
-		if yb - y0 > MapConfig.BOTTOM_FILL_ROWS:
+		if yb - y0 > rows:
 			continue
 		for y in range(y0 + 1, yb + 1):
 			var c := Vector2i(x, y)

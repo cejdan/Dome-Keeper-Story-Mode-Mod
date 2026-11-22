@@ -102,10 +102,47 @@ static func size_range(mineral: String, _biome: int) -> Array:
 	return SIZES[mineral]
 
 
-# The archetype a Story Mode map is generated from.
-static func make_archetype() -> MapArchetype:
+# Map sizes (#320), picked in the loadout with vanilla's Relic Hunt size
+# choices (same ids). Each is a share of the full map's tiles (ARCHETYPE,
+# "Huge"): every biome is that share of its full size, so all eight biomes are
+# still there, and the width, depth, rows filled at the bottom and power core
+# depths shrink by the square root of it. Caves per biome shrink with the tile
+# share, so a smaller map is not more cave. The per-biome story items
+# (translators, bones) keep their counts, so they turn up more often (#326).
+const MAP_SIZE_SHARE: Dictionary = {
+	"regular-small": 0.3,
+	"regular-medium": 0.5,
+	"regular-large": 0.7,
+	"regular-huge": 1.0,
+}
+# Picked for a player who has never chosen a Story Mode size.
+const DEFAULT_MAP_SIZE: String = "regular-medium"
+# The size the playtest scenarios and dev boots generate when none is given:
+# the full map, which every regression scenario was written against.
+const FULL_MAP_SIZE: String = "regular-huge"
+const SCALED_BY_SHARE: Array = ["tileCount", "first_biome_size", "biome_size_addition", "biome_max_size"]
+const SCALED_BY_ROOT: Array = ["width", "depth", "powercore_first_depth", "powercore_depth_step", "gadget_first_depth", "gadget_depth_step"]
+
+
+static func map_share(size_id: String) -> float:
+	return float(MAP_SIZE_SHARE.get(size_id, 1.0))
+
+
+# The archetype a Story Mode map is generated from, for a size id
+# (MAP_SIZE_SHARE; anything else is the full map).
+static func make_archetype(size_id: String = FULL_MAP_SIZE) -> MapArchetype:
 	var a: MapArchetype = load("res://content/map/generation/archetypes/prestige-10k.tres").duplicate()
 	for key: String in ARCHETYPE:
 		a.set(key, ARCHETYPE[key])
+	var share: float = map_share(size_id)
+	var root: float = sqrt(share)
+	if share != 1.0:
+		for key: String in SCALED_BY_SHARE:
+			a.set(key, roundi(float(a.get(key)) * share))
+		for key: String in SCALED_BY_ROOT:
+			a.set(key, roundi(float(a.get(key)) * root))
+		a.holes_per_biome = maxi(2, roundi(a.holes_per_biome * share))
 	a.set_meta("story_map", true)
+	a.set_meta("story_map_size", size_id if MAP_SIZE_SHARE.has(size_id) else FULL_MAP_SIZE)
+	a.set_meta("story_map_root", root)
 	return a
