@@ -115,6 +115,8 @@ func _process(delta):
 	super(delta)
 	if flood_pending():
 		_run_flood(FLOOD_BUDGET_USEC)
+	if _pets_changed or not _pets_waiting.is_empty():
+		_pets_pass()
 
 
 # Vanilla's onTileRemoved, with one change (#159). To see whether the removed
@@ -146,8 +148,11 @@ func onTileRemoved(tileCoord: Vector2):
 # point, so drones and the wave meter's way home are routed through solid rock.
 # Here a cell has one point at most: opening reuses it, and a cell that becomes
 # rock again loses it, and drones whose path crosses it look for a new one.
+# A cell that gets a point again is announced too (path_cell_opened): drones
+# that found no way home listen while they wait (TransportDrone.gd).
 
 signal path_cell_closed(coord: Vector2)
+signal path_cell_opened(coord: Vector2)
 
 
 func _path_pos(coord: Vector2) -> Vector2:
@@ -156,12 +161,18 @@ func _path_pos(coord: Vector2) -> Vector2:
 
 func _path_open(tileCoord: Vector2) -> void:
 	var pos := _path_pos(tileCoord)
-	if not pathfinder.pointIdsByCoord.has(pos):
+	var new := not pathfinder.pointIdsByCoord.has(pos)
+	if new:
 		pathfinder.add_point_in_coord(tileCoord)
 	for n in NEIGHBOR_TILE_OFFSETS1:
 		var c = n + tileCoord
 		if not tiles.has(c):
 			pathfinder.try_connect_coord(tileCoord, c)
+	if new:
+		_pets_changed = true
+		if not _pets_cells.has(Vector2i(tileCoord)):
+			_pets_cells[Vector2i(tileCoord)] = false
+		path_cell_opened.emit(tileCoord)
 
 
 func _path_close(tileCoord: Vector2) -> void:
@@ -174,7 +185,91 @@ func _path_close(tileCoord: Vector2) -> void:
 	pathfinder.pointIdsByCoord.erase(pos)
 	if pathfinder.pathfinder.has_point(id):
 		pathfinder.pathfinder.remove_point(id)
+	_pets_changed = true
+	_pets_cells[Vector2i(tileCoord)] = true
 	path_cell_closed.emit(tileCoord)
+
+
+# --- the Beastmaster's pets follow the map too (#313) ------------------------------
+# The pets walk a graph of their own (content/keeper/keeper4/GoblinNavigator.gd,
+# on the host), rebuilt from the whole map at most every 100 ms and 5 ms of it
+# a frame, but only when the map's tile count has changed or a tile_destroyed
+# marked it dirty. Two gaps, with Story Mode's rock coming and going all the
+# time: a change that lands while a rebuild is under way is lost (the finished
+# rebuild clears the mark and takes the new count), so the pets keep walking
+# into rock that came back or ignore an opening; and a pet whose path crosses a
+# cell that turns to rock walks on through it, as vanilla only checks the rock
+# a path stands on. So once a frame with changes, each team's navigator is
+# marked dirty (its throttle and budget still decide when it rebuilds), marked
+# again when a rebuild under way finishes if a change was within
+# PETS_REACH_TILES of a pet (farther off, the next rebuild picks it up; each
+# rebuild costs several ms), and pets whose path crosses a cell that closed
+# re-path once a rebuild after the change is done. With no pets, a frame with
+# changes costs a dirty mark per team.
+
+var _pets_changed := false
+var _pets_cells: Dictionary = {}    # Vector2i -> closed (true) or opened, since the last pass
+var _pets_waiting: Array = []       # [navigator, generation to wait for, pet or null, since (ms)]
+const PETS_WAIT_MS := 5000          # given up after this (no pet asking, so no rebuild)
+const PETS_REACH_TILES := 24
+
+
+func _pets_pass() -> void:
+	if _pets_changed:
+		_pets_changed = false
+		if is_server():
+			for dome in Level.domesByTeamId.values():
+				var g = dome.get("goblins") if is_instance_valid(dome) else null
+				if g == null or g._navigator == null:
+					continue
+				var nav = g._navigator
+				nav._dirty = true
+				var gen: int = nav._graph_generation + 1
+				if g.all_goblins.is_empty():
+					continue
+				if nav._pathfinder_scratch != null and _pets_near(g.all_goblins):
+					# A rebuild under way may already have read these cells.
+					_pets_waiting.append([nav, gen, null, Time.get_ticks_msec()])
+					gen += 1
+				for pet in g.all_goblins:
+					if not is_instance_valid(pet):
+						continue
+					var path: Array = pet.current_surface_path
+					for i in range(pet.surface_path_index, path.size()):
+						if _pets_cells.get(path[i].get("coord", Vector2i.ZERO), false):
+							_pets_waiting.append([nav, gen, pet, Time.get_ticks_msec()])
+							break
+		_pets_cells.clear()
+	var i := 0
+	while i < _pets_waiting.size():
+		var w: Array = _pets_waiting[i]
+		var nav = w[0]
+		if nav._graph_generation < w[1]:
+			if Time.get_ticks_msec() - int(w[3]) > PETS_WAIT_MS:
+				_pets_waiting.remove_at(i)
+			else:
+				i += 1
+			continue
+		if w[2] == null:
+			nav._dirty = true
+		elif is_instance_valid(w[2]):
+			# The pet's next look at its path (Goblin._is_path_stale) finds it
+			# stale and asks the fresh graph for a new one.
+			w[2]._stale_check_at_ms = Time.get_ticks_msec()
+			w[2]._stale_cached_result = true
+		_pets_waiting.remove_at(i)
+
+
+# Whether a cell changed since the last pass lies within PETS_REACH_TILES of a pet.
+func _pets_near(pets: Array) -> bool:
+	for pet in pets:
+		if not is_instance_valid(pet):
+			continue
+		var p: Vector2i = getTileCoord(pet.global_position)
+		for c: Vector2i in _pets_cells:
+			if absi(c.x - p.x) <= PETS_REACH_TILES and absi(c.y - p.y) <= PETS_REACH_TILES:
+				return true
+	return false
 
 
 # Whether get_entry_coords() holds a cell in column x.
