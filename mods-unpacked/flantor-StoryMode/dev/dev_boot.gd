@@ -168,13 +168,16 @@ func _start_run(mode_id: String) -> void:
 # ERR_UNAUTHORIZED). At boot SaveGame takes those keepers out of the list
 # unless Steam says the DLC is owned (GameWorld.update_keeper_dlc), so on a
 # machine without the DLC a Beastmaster save made by a scenario can't be
-# reloaded. This puts just the keepers back in this run's list before the
-# load, as vanilla does itself for an online save with unowned DLC content.
-# DLC pets, skins and assignments stay checked. Only this node calls it: it
-# lives in dev/, which release/package_mod.py leaves out of the mod, and
-# DevBoot runs only on the editor binary (wanted()).
+# reloaded. This puts just the keepers back in this run's lists before the
+# load, with their base skin (skin0, which the same boot step takes away; with
+# no skin left, Data.sanitizeLoadout errors on the load), as
+# update_keeper_dlc(true) would. Vanilla does that itself for an online save
+# with unowned DLC content. DLC pets, other skins and assignments stay checked.
+# Only this node calls it: it lives in dev/, which release/package_mod.py
+# leaves out of the mod, and DevBoot runs only on the editor binary (wanted()).
 func _unlock_dlc_keepers() -> void:
 	for k: String in Data.dlcKeepers:
 		if not GameWorld.isUnlocked(k):
 			GameWorld.unlockElement(k)
+			GameWorld.unlockSkin(k, "skin0")
 			print("Dev boot: --dlckeepers unlocked %s for this load" % k)
