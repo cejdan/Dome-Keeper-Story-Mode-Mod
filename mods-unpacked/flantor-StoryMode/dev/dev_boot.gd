@@ -12,6 +12,9 @@ extends Node
 #   --mapsize=<id>       vanilla archetype for vanilla modes (default regular-medium)
 #   --load=<slot>        load the save in that slot (singleplayer folder), e.g. one a
 #                        scenario wrote with SaveGame.saveGame(..., slot, true)
+#   --dlckeepers         with --load: let a save with a DLC keeper (keeper3, or
+#                        keeper4 the Beastmaster) load on a machine whose Steam
+#                        account does not own the keeper DLC (see below)
 #   --horror-defeated    with --story: play the saved ending (#97) once the keeper
 #                        can move (handled by gamemode/Storymode.gd)
 #   --nethost            host an online (ENet) session, then open the loadout (#223)
@@ -107,6 +110,8 @@ func _process(_delta: float) -> void:
 		while StageManager.currentStage == null or StageManager.isSwitchingStage():
 			await get_tree().process_frame
 		await get_tree().create_timer(0.5).timeout
+		if _Story.has_user_arg("dlckeepers"):
+			_unlock_dlc_keepers()
 		var err = await SaveGame.loadGame("singleplayer", slot)
 		if err != OK:
 			push_error("Dev boot: loading save slot %d failed (%s)" % [slot, str(err)])
@@ -155,3 +160,21 @@ func _start_run(mode_id: String) -> void:
 	var startData: LevelStartData = LevelStartData.new()
 	startData.loadout = loadout
 	StageManager.startStage("stages/landing/landing", [startData])
+
+
+# `--dlckeepers` (playtests only): vanilla SaveGame.loadGame refuses an offline
+# save whose keeper is a DLC keeper (Data.dlcKeepers) not in
+# GameWorld.unlockedElements ("unavailable dlc keeper content",
+# ERR_UNAUTHORIZED). At boot SaveGame takes those keepers out of the list
+# unless Steam says the DLC is owned (GameWorld.update_keeper_dlc), so on a
+# machine without the DLC a Beastmaster save made by a scenario can't be
+# reloaded. This puts just the keepers back in this run's list before the
+# load, as vanilla does itself for an online save with unowned DLC content.
+# DLC pets, skins and assignments stay checked. Only this node calls it: it
+# lives in dev/, which release/package_mod.py leaves out of the mod, and
+# DevBoot runs only on the editor binary (wanted()).
+func _unlock_dlc_keepers() -> void:
+	for k: String in Data.dlcKeepers:
+		if not GameWorld.isUnlocked(k):
+			GameWorld.unlockElement(k)
+			print("Dev boot: --dlckeepers unlocked %s for this load" % k)

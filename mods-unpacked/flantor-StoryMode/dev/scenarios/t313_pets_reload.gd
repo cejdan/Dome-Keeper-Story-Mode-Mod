@@ -5,12 +5,13 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenarios/t313_pets.gd"
 # pets out, the lava chamber hardening and melting and three drones stranded)
 # the way Continue does, then plays the churn again: a mining stretch, a wave
 # to its end, and the same checks on the pets' graph and paths and the drones.
-# A save with the Beastmaster loads only with Steam running: vanilla refuses
-# DLC keepers it can't confirm are owned (SaveGame.gd, ERR_UNAUTHORIZED).
+# Vanilla refuses an offline save with a DLC keeper the Steam account doesn't
+# own (SaveGame.gd, ERR_UNAUTHORIZED); `dlckeepers` (dev/dev_boot.gd) lets the
+# Beastmaster's save load here anyway.
 
 
 func boot() -> Dictionary:
-	return {"load": PET_SLOT, "keeper": "keeper4"}
+	return {"load": PET_SLOT, "keeper": "keeper4", "dlckeepers": true}
 
 
 func run(h) -> void:
