@@ -3,7 +3,8 @@ extends "res://content/map/Map.gd"
 # Story Mode minerals on the map: reveal (richness and the visible ore mark),
 # drops when a mineral tile breaks, and the ore edge overlay between tiles.
 # Vanilla resources and vanilla modes run vanilla code only, except
-# onTileRemoved's lift-entry check (#159), which gives vanilla's answer cheaper.
+# onTileRemoved's lift-entry check (#159), which gives vanilla's answer cheaper,
+# and the drone path graph's upkeep (#313), which only drops vanilla's leftovers.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
@@ -126,16 +127,54 @@ func onTileRemoved(tileCoord: Vector2):
 	tileData.clear_resource(tileCoord)
 	for listener in tileDestroyedListeners.get(tileCoord, []):
 		listener.tileDestroyed(tileCoord)
-	pathfinder.add_point_in_coord(tileCoord)
-	for n in NEIGHBOR_TILE_OFFSETS1:
-		var c = n + tileCoord
-		if not tiles.has(c):
-			pathfinder.try_connect_coord(tileCoord, c)
+	_path_open(tileCoord)
 	updateBorderSpriteOfTileCoord(tileCoord)
 	if _has_entry(int(tileCoord.x)):
 		updateLiftLength(tileCoord.x)
 	var world_tile_pos: Vector2 = getTilePos(tileCoord)
 	tile_destroyed.emit(world_tile_pos)
+
+
+# --- the drone path graph follows the map (#313) ----------------------------------
+# Vanilla's graph (content/map/Pathfinding.gd, an AStar2D) only ever gains
+# points: each time a cell opens, add_point_in_coord makes a new point and
+# drops the old one's id from its lookup, but the old point stays in the graph
+# with its links. A dug tile opens twice (destroyTile, then the flood reveal),
+# and Story Mode opens cells again and again (lava melting rock, water
+# hardening it back, gas bursts), so the graph fills with these leftover points.
+# And a cell that turns back into rock (lava hardened by water) keeps its
+# point, so drones and the wave meter's way home are routed through solid rock.
+# Here a cell has one point at most: opening reuses it, and a cell that becomes
+# rock again loses it, and drones whose path crosses it look for a new one.
+
+signal path_cell_closed(coord: Vector2)
+
+
+func _path_pos(coord: Vector2) -> Vector2:
+	return coord * GameWorld.TILE_SIZE + CONST.TILE_OFFSET
+
+
+func _path_open(tileCoord: Vector2) -> void:
+	var pos := _path_pos(tileCoord)
+	if not pathfinder.pointIdsByCoord.has(pos):
+		pathfinder.add_point_in_coord(tileCoord)
+	for n in NEIGHBOR_TILE_OFFSETS1:
+		var c = n + tileCoord
+		if not tiles.has(c):
+			pathfinder.try_connect_coord(tileCoord, c)
+
+
+func _path_close(tileCoord: Vector2) -> void:
+	if pathfinder == null:
+		return
+	var pos := _path_pos(tileCoord)
+	if not pathfinder.pointIdsByCoord.has(pos):
+		return
+	var id: int = pathfinder.pointIdsByCoord[pos]
+	pathfinder.pointIdsByCoord.erase(pos)
+	if pathfinder.pathfinder.has_point(id):
+		pathfinder.pathfinder.remove_point(id)
+	path_cell_closed.emit(tileCoord)
 
 
 # Whether get_entry_coords() holds a cell in column x.
@@ -153,6 +192,8 @@ func revealTile(coord: Vector2):
 	super(coord)
 	if had or not tiles.has(coord):
 		return
+	# A tile where the path graph had an open cell: rock came back (#313).
+	_path_close(coord)
 	var tile = tiles[coord]
 	if _Minerals.is_mod_mineral(tile.type):
 		tile.richness = float(Minerals.TABLE[tile.type]["richness"])
