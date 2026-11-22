@@ -8,7 +8,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 #         IronDrop, Story iron, every mod mineral, miner bones. Each must be
 #         pulled in, counted in the inventory, and paid its value; the bones
 #         pay their sale value and open their biome's log.
-#   batch four at once inside the suction: all pulled in, one after another.
+#   batch four at once inside the suction: pulled in one after another, and
+#         paid for. One may be knocked out of reach by another flying in,
+#         vanilla iron as much as any; it is logged and the rest must go.
 #   left  a translator and a vanilla relic: the suction leaves relics alone,
 #         so it leaves the translator too. Both stay, pickable.
 #
@@ -78,6 +80,16 @@ func _value(label: String) -> int:
 	if label == _Bones.TYPE:
 		return _Bones.value_for(BONES_BIOME)
 	return _Minerals.value_of("iron" if label == VANILLA_IRON else label)
+
+
+func _taken(d) -> bool:
+	return not is_instance_valid(d) or d.absorbed
+
+
+# Inside the suction's circle (with a pixel to spare).
+func _in_reach(d) -> bool:
+	var r: float = tp.get_node("ResourceSucker/CollisionShape2D").shape.radius
+	return d.global_position.distance_to(tp.global_position) <= r + 1.0
 
 
 func _ready_to_pull() -> bool:
@@ -160,7 +172,6 @@ func run(h) -> void:
 	await h.until(_ready_to_pull, PULL_WAIT)
 	var batch: Array = ["iron", "water", "sand", VANILLA_IRON] if _vanilla() else ["bronze", "sapphire", "emerald", VANILLA_IRON]
 	var m0b: int = _money(h)
-	var expect_b: int = 0
 	var bd: Array = []
 	# Dropped side by side beside the teleporter, a moment apart, to land on
 	# the floor inside the suction's 33.6 px (it hovers 12-25 px up). Spawned
@@ -169,18 +180,31 @@ func run(h) -> void:
 	var offs: Array = [Vector2(-20, -6), Vector2(-11, -6), Vector2(11, -6), Vector2(20, -6)]
 	for i in batch.size():
 		bd.append(_spawn(h, batch[i], offs[i]))
-		expect_b += _value(batch[i])
 		await h.wait(0.15)
 	await h.wait(0.6)
 	h.note("batch: in the suction at the start", bd.map(_row))
 	await h.shot("batch_start")
-	await h.until(func(): return bd.all(func(d): return not is_instance_valid(d) or d.absorbed), batch.size() * PULL_WAIT)
+	# A drop flying in can knock another out of the suction's reach (vanilla
+	# iron as much as any): wait until each is taken or out of reach.
+	await h.until(func(): return bd.all(func(d): return _taken(d) or not _in_reach(d)) and _ready_to_pull(), batch.size() * PULL_WAIT)
 	await h.wait(0.8)
 	await h.shot("batch_after")
+	var n_taken: int = 0
+	var paid_for: int = 0
 	for i in batch.size():
-		h.check("batch: %s pulled in and taken" % batch[i], not is_instance_valid(bd[i]) or bd[i].absorbed, _row(bd[i]))
+		var d = bd[i]
+		if _taken(d):
+			n_taken += 1
+			paid_for += _value(batch[i])
+		else:
+			h.note("batch: %s was knocked out of the suction's reach" % batch[i], _row(d))
+		h.check("batch: %s pulled in and taken, or knocked out of reach" % batch[i], _taken(d) or not _in_reach(d), _row(d))
+	h.check("batch: %d of %d pulled in, one after another" % [n_taken, batch.size()], n_taken >= batch.size() - 1)
 	if not _vanilla():
-		h.check("batch: paid $%d (expected $%d)" % [_money(h) - m0b, expect_b], _money(h) - m0b == expect_b)
+		h.check("batch: paid $%d for what was pulled in (expected $%d)" % [_money(h) - m0b, paid_for], _money(h) - m0b == paid_for)
+	for d in bd:
+		if not _taken(d):
+			d.remove()
 
 	# ---- left: relics stay, and so does the translator.
 	await h.until(_ready_to_pull, PULL_WAIT)
