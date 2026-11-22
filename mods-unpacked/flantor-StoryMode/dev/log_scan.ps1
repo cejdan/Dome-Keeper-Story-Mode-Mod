@@ -57,7 +57,7 @@ $script:LogScanAllow = @(
     # Online host, as it leaves the loadout for the run: the client's loadout
     # keeper still sends KeeperSynchronizer (Keeper1Synchronizer etc. on the Nov 15 build) packets for a node the host has
     # just freed. Vanilla: a relichunt pair logs the same (#249).
-    @{ Name = "loadout teardown"; Pattern = 'MultiplayerLoadoutStage/.*/player[0-9]+/KeeperSynchronizer' },
+    @{ Name = "loadout teardown"; Pattern = 'MultiplayerLoadoutStage/.*/player[0-9]+/Keeper[0-9]*Synchronizer' },
     # Online host, as a client quits: for a few frames the ENet peer is
     # disconnecting (its channels gone) but not yet removed, and whatever sends
     # to it then (vanilla's syncs as much as ours) is dropped by the engine.
