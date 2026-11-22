@@ -13,7 +13,8 @@ extends RefCounted
 # credited as themselves), a translator to the relic socket. The dome
 # (extensions/content/dome/Dome.gd, dome3.gd) and the drops' trigger
 # (StoryDropTrigger.gd) both read it, so a new drop type registered here works
-# at the station, the shredder and the socket alike.
+# at the station, the shredder and the socket alike. The teleporter's suction
+# (extensions/content/gadgets/teleporter/Teleporter.gd, #319) reads it too.
 
 static var _as: Dictionary = {}
 
@@ -33,6 +34,17 @@ static func register(type: String, scene: PackedScene, as_type: String) -> void:
 # The vanilla type `type` is delivered as (itself for vanilla types).
 static func as_vanilla(type: String) -> String:
 	return _as.get(type, type)
+
+
+# The types vanilla's teleporter suction pulls in (Teleporter.canTeleportDrop):
+# not relics, so it leaves a translator alone too.
+const TELEPORTED: Array[String] = ["iron", "water", "sand", "pack"]
+
+
+# True for a mod drop type the teleporter's suction takes: one delivered as a
+# type the suction takes (#319). Minerals and miner bones, not a translator.
+static func teleported(type: String) -> bool:
+	return _as.has(type) and TELEPORTED.has(_as[type])
 
 
 # Vanilla's stuck check for a drop on its way to its target
