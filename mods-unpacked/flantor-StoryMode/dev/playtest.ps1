@@ -1,14 +1,17 @@
 # Runs one playtest scenario and exits. Usage (from anywhere, PowerShell):
-#   & "<...>\mods-unpacked\flantor-StoryMode\dev\playtest.ps1" <scenario> [-Timeout 300] [-Headless] [-Res 1280x720] [-Extra "--foo=1"]
+#   & "<...>\mods-unpacked\flantor-StoryMode\dev\playtest.ps1" <scenario> [-Timeout 300] [-Headless] [-Visible] [-Res 1280x720] [-Extra "--foo=1"]
 # Output lands in ..\playtest_out\<scenario>\ next to the project: screenshots,
 # log.json, godot.log. Prints the result, the error lines log_scan.ps1 finds
 # (#249) and a VERDICT line; exits 0 when the run passed and the log is clean.
 # A scenario that needs longer than 300 s declares `const TIMEOUT := <seconds>`;
 # that is used unless -Timeout is given.
+# The window opens off-screen and focus goes back to the window that had it
+# (window_place.ps1); -Visible opens it on screen at 40,40 as before.
 param(
     [Parameter(Mandatory = $true)][string]$Scenario,
     [int]$Timeout = 300,
     [switch]$Headless,
+    [switch]$Visible,
     [string]$Res = "1280x720",
     [string]$Extra = ""
 )
@@ -25,11 +28,16 @@ if (-not $PSBoundParameters.ContainsKey("Timeout")) {
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 New-Item -ItemType Directory -Force $out | Out-Null
 $log = Join-Path $out "godot.log"
-$argList = @("--path", "`"$project`"", "--windowed", "--resolution", $Res, "--position", "40,40", "--log-file", "`"$log`"")
+. (Join-Path $PSScriptRoot "window_place.ps1")
+$pos = if ($Visible) { "40,40" } else { Get-OffscreenPosition 0 ([int]($Res.Split("x")[0])) }
+$argList = @("--path", "`"$project`"", "--windowed", "--resolution", $Res, "--position", $pos, "--log-file", "`"$log`"")
 if ($Headless) { $argList += "--headless" }
 $argList += @("--", "--scenario=$Scenario", "`"--out=$out`"")
+if (-not $Visible) { $argList += "--offscreen=$pos" }
 if ($Extra -ne "") { $argList += $Extra.Split(" ") }
+$prevFg = Get-ForegroundWindow
 $p = Start-Process -FilePath $engine -ArgumentList $argList -PassThru
+if (-not $Visible) { Write-Output (Restore-Foreground $prevFg $p) }
 $ok = $true
 if (-not $p.WaitForExit($Timeout * 1000)) {
     Stop-Process -Id $p.Id -Force
