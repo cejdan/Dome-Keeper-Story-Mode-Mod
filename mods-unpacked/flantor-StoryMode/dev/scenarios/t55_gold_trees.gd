@@ -1,6 +1,7 @@
 extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
-# Ticket 55: in Story Mode the Iron Tree cave and the Mineral Tree grow gold.
+# Ticket 55: in Story Mode the Iron Tree cave grows gold. (The Mineral Tree
+# grew gold too until #328; now it grows what it is planted on: bronze here.)
 # Run with -Extra "--mode=relichunt" to check that vanilla trees still give iron.
 
 
@@ -109,6 +110,8 @@ func run(h) -> void:
 				types.append(fs.type)
 	h.note("mineral tree", {"stage": tree.currentGrowthStage, "roots": tree.rootCoords.size(), "fruit types": types})
 	h.check("the Mineral Tree grew fruit", grown, types)
-	h.check("its fruit is " + want, types.size() > 0 and types.all(func(t): return t == want), types)
+	# #328: a tree grows what it is planted on, so bronze in Story Mode.
+	var tree_want: String = "bronze" if story else "iron"
+	h.check("its fruit is " + tree_want, types.size() > 0 and types.all(func(t): return t == tree_want), types)
 	await h.wait(1.0)
 	await h.shot("mineral_tree")

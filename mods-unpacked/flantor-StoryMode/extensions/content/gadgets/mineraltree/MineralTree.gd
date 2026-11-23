@@ -1,65 +1,81 @@
 extends "res://content/gadgets/mineraltree/MineralTree.gd"
 
-# Story Mode's Mineral Tree (#55): roots on any mineral tile (bronze through
-# unobtainium) count as vanilla counts iron, and grow gold fruit where vanilla
-# grows iron. Water and cobalt fruit stay vanilla. The two functions below are
-# vanilla's with only that mapping changed; vanilla modes run vanilla's.
+# Story Mode's Mineral Tree (#328): a tree grows what it is planted on. A tree
+# planted on one of the mod's minerals (bronze through unobtainium) grows that
+# mineral where vanilla grows iron, and its roots reach for mineral tiles as
+# vanilla's reach for iron; each root on a mineral counts as that mineral. A
+# tree planted on anything else (iron, water, cobalt, plain rock) runs
+# vanilla's code untouched, in every mode: vanilla's roots don't see the mod's
+# tiles, and its free fruit is iron. (#55 made every Story Mode tree grow gold
+# where vanilla grows iron, so a cobalt or water tree grew gold.) The three
+# functions below are vanilla's, with only that mapping changed.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
 static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
-const GOLD := "gold"
+
+# The mod mineral a resource id stands for, or "" (vanilla ids and rock).
+static func _mineral_of(res: int) -> String:
+	return _Minerals.by_tile_id(res) if res >= 40 else ""
 
 
-# A root tile's resource id as the tree sees it: every mineral reads as 0 (iron).
-static func _root_res(res: int) -> int:
-	if res >= 40 and _Minerals.by_tile_id(res) != "":
-		return 0
-	return res
+# The mod mineral this tree is planted on, or "" for a vanilla tree.
+func _planted_mineral() -> String:
+	if rootCoords.is_empty() or not _Story.is_story():
+		return ""
+	return _mineral_of(int(Level.map.getTileData().get_resourcev(rootCoords.front())))
+
+
+# Vanilla's test for a tile roots grow into and that counts toward the stem.
+static func _is_resource(res: int) -> bool:
+	return (res >= 0 and res <= 2) or _mineral_of(res) != ""
 
 
 func updateFruitType():
-	if not _Story.is_story():
+	var planted: String = _planted_mineral()
+	if planted == "":
 		super()
 		return
-	var rooted: = {GOLD: 1}
+	# Vanilla starts every tree with one free iron; this one with its mineral.
+	var rooted: = {planted: 1}
 	for rootCoord in rootCoords:
-		var res = _root_res(Level.map.getTileData().get_resourcev(rootCoord))
-		match int(res):
-			0: rooted[GOLD] = 1 + rooted.get(GOLD, 0)
+		var res: int = int(Level.map.getTileData().get_resourcev(rootCoord))
+		match res:
+			0: rooted[CONST.IRON] = 1 + rooted.get(CONST.IRON, 0)
 			1: rooted[CONST.WATER] = 1 + rooted.get(CONST.WATER, 0)
 			2: rooted[CONST.SAND] = min(1, 1 + rooted.get(CONST.SAND, 0))
+			_:
+				var m: String = _mineral_of(res)
+				if m != "":
+					rooted[m] = 1 + rooted.get(m, 0)
 	for f in fruits[fruitStage]:
-		match f.type:
-			GOLD, CONST.IRON: rooted[GOLD] = rooted.get(GOLD, 0) - 1
-			CONST.WATER: rooted[CONST.WATER] = rooted.get(CONST.WATER, 0) - 1
-			CONST.SAND: rooted[CONST.SAND] = rooted.get(CONST.SAND, 0) - 1
+		if f.type != "":
+			rooted[f.type] = rooted.get(f.type, 0) - 1
+	# Vanilla's order (cobalt, water, then iron), with the planted mineral and
+	# then any other mineral its roots reach ahead of iron.
+	var order: Array = [CONST.SAND, CONST.WATER, planted]
+	for m: String in Minerals.ORDER:
+		if m != planted and m != CONST.IRON:
+			order.append(m)
+	order.append(CONST.IRON)
 	for fs in fruits[fruitStage]:
 		if not fs.type or fs.type == "":
-			var type: String
-			if rooted.get(CONST.SAND, 0) > 0:
-				type = CONST.SAND
-				rooted[CONST.SAND] = rooted.get(CONST.SAND, 0) - 1
-			elif rooted.get(CONST.WATER, 0) > 0:
-				type = CONST.WATER
-				rooted[CONST.WATER] = rooted.get(CONST.WATER, 0) - 1
-			elif rooted.get(GOLD, 0) > 0:
-				type = GOLD
-				rooted[GOLD] = rooted.get(GOLD, 0) - 1
-			if type:
-				fs.setType(type)
+			for t: String in order:
+				if rooted.get(t, 0) > 0:
+					rooted[t] -= 1
+					fs.setType(t)
+					break
 
 
 func tryGrowingStem(growthStage: int):
-	if not _Story.is_story():
+	if _planted_mineral() == "":
 		super(growthStage)
 		return
 	var resourceTiles: = 0
 	for rootCoord in rootCoords:
-		var res = _root_res(Level.map.getTileData().get_resourcev(rootCoord))
-		if res >= 0 and res <= 2:
+		if _is_resource(int(Level.map.getTileData().get_resourcev(rootCoord))):
 			resourceTiles += 1
 	var baseCoord = rootCoords.front()
 	baseCoord.y += 1 if Data.ofOr("world.inversegravity", false) else -1
@@ -89,10 +105,9 @@ func tryGrowingStem(growthStage: int):
 
 
 func tryRooting():
-	if not _Story.is_story():
+	if _planted_mineral() == "":
 		super()
 		return
-	# Vanilla's, with roots reaching for mineral tiles as they reach for iron.
 	var baseCoord = rootCoords.front()
 	var randDir: Array = CONST.DIRECTIONS.duplicate()
 	randDir.shuffle()
@@ -104,8 +119,8 @@ func tryRooting():
 			var coord = root + d
 			if rootCoords.has(coord) or (baseCoord - coord).length() >= 30:
 				continue
-			var res = _root_res(Level.map.getTileData().get_resourcev(root + d))
-			if res >= 0 and res <= 2:
+			var res: int = int(Level.map.getTileData().get_resourcev(root + d))
+			if _is_resource(res):
 				grown_on_tile.emit(coord)
 				return
 			elif res == 10:
