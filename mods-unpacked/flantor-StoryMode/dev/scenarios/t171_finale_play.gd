@@ -78,8 +78,10 @@ func run(h) -> void:
 	await h.frames(5)
 	h.note("gear", {"laser level": level, "laser dps": Data.of("team1.laser.dps"), "dome health": Data.of("team1.dome.maxhealth"), "given": gear})
 	boss._stop_waves()
-	boss._set_state("finale")
-	boss._start_finale()
+	# (t342 may have reached the finale the real way already.)
+	if boss.finale == null or not is_instance_valid(boss.finale):
+		boss._set_state("finale")
+		boss._start_finale()
 	var fin = boss.finale
 	var st = _station(dome)
 	var t0: float = h.now()
