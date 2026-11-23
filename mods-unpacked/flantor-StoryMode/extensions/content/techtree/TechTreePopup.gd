@@ -12,8 +12,6 @@ const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd
 static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 const GadgetShop = preload("res://mods-unpacked/flantor-StoryMode/gamemode/gadget_shop.gd")
 static var _GadgetShop = GadgetShop  # calls go through this: lazy_preload makes const-preload calls slow
-const DomeGas = preload("res://mods-unpacked/flantor-StoryMode/gas/dome_gas.gd")
-static var _DomeGas = DomeGas  # calls go through this: lazy_preload makes const-preload calls slow
 
 var _story_money_listening := false
 # Call for Evacuation (#303): bought here, the shop closes so the company's
@@ -104,26 +102,3 @@ func updateCostLabels():
 			continue
 		label.text = _Minerals.dollars(int(cost)).substr(1) if costType == "money" else "%s" % cost
 		label.label_settings.font_color = color
-
-
-# A New Gadget entry is not bought here: it opens the gadget choice, and the
-# pick pays for it (extensions/stages/level/LevelStage.gd). Without the money
-# the choice stays shut and the panel shows vanilla's "can't afford" error.
-func buyUpgrade():
-	if _Story.is_story() and animationDone:
-		var tree = find_child("TechTree")
-		var panel = tree.focussedTechPanel if tree else null
-		# Vent the Dome (#213) with clean air in the dome would be water for
-		# nothing: refused, as vanilla refuses a repair at full health.
-		if panel and panel.techId.ends_with(DomeGas.VENT_ID) and not _DomeGas.has_gas():
-			GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
-			return
-		if panel and _GadgetShop.is_entry(panel.techId):
-			if panel.state == 1:
-				var cost = GameWorld.upgrades.get(panel.techId, {}).get("cost", {})
-				if cost is Dictionary and not GameWorld.canAfford(cost, teamId):
-					GameWorld.upgradeError.emit(panel.techId, teamId, playerId)
-				else:
-					Level.stage.openStoryGadgetChoice(teamId, playerId)
-			return
-	super()
