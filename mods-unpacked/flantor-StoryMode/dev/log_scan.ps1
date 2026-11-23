@@ -62,10 +62,11 @@ $script:LogScanAllow = @(
     # disconnecting (its channels gone) but not yet removed, and whatever sends
     # to it then (vanilla's syncs as much as ours) is dropped by the engine.
     # Vanilla PlatformFacadeSteam.gd calls Steam from the loadout (DLC ownership,
-    # isSubscribedApp; an auth ticket, getAuthSessionTicket); with the Steam
+    # isSubscribedApp; an auth ticket, getAuthSessionTicket; achievements,
+    # getAchievement, from the "User Stats" class); with the Steam
     # client not running, the Steam API's classes are missing and each call logs
     # this (#320 runs). The mod makes no Steam calls.
-    @{ Name = "steam not running"; Pattern = '\[STEAM\] [A-Za-z]+ class not found when calling' },
+    @{ Name = "steam not running"; Pattern = '\[STEAM\] [A-Za-z ]+ class not found when calling' },
     @{ Name = "client leaving"; Pattern = 'Unable to send packet on channel 0, max channels: 0' },
     # Vanilla's keeper choice (DeviceSelection stage; loading an online save,
     # #232/#251): a player takes a keeper, vanilla's spawner frees the dummy
