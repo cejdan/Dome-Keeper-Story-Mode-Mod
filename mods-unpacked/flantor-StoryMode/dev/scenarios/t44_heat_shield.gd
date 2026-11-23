@@ -71,7 +71,7 @@ func run(h) -> void:
 		if i == 2:
 			await _shop_shot(h, "shop_after_II")
 	h.note("purchases", tiers)
-	h.check("I-IV cost $200, $1,000, $4,000, $25,000", tiers.map(func(t): return t["paid"]) == [200, 1000, 4000, 25000], tiers)
+	h.check("I-IV cost $200, $1,000, $2,500, $7,500 (#321)", tiers.map(func(t): return t["paid"]) == [200, 1000, 2500, 7500], tiers)
 	h.check("each tier unlocks the next", tiers[0]["next offered"] and tiers[1]["next offered"] and tiers[2]["next offered"], tiers)
 	h.check("the suit is at tier IV", _LavaData.shield_tier(h.keeper()) == 4, _LavaData.shield_tier(h.keeper()))
 

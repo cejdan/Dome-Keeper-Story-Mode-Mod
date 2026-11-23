@@ -112,7 +112,10 @@ const STEAM_SECONDS := 0.7
 # base speed, ~24 s in lava): 0.06 gives 30 s of lava, so tier IV arrives under
 # 100% heat and tier III (9 s) doesn't.
 const HEAT_SHIELD_LAVA_MULT := [1.0, 0.6, 0.35, 0.2, 0.06]
-const HEAT_SHIELD_PRICES := [200, 1000, 4000, 25000]
+# #321: III $4,000 -> $2,500 and IV $25,000 -> $7,500. Each tier is bought in
+# the biome above the one it opens (IV in B7) and costs ~15% of a full biome
+# there (B7 holds ~$55k on the full map), so a dive needs part of B7, not half.
+const HEAT_SHIELD_PRICES := [200, 1000, 2500, 7500]
 # Each keeper has its own tier (#265), the way vanilla's keeper-tree upgrades
 # are per player: Data <playerId>.suit.heatshield, set by that player's
 # storyHeatShield upgrades (player2.storyheatshield1 sets player2.suit.heatshield).
