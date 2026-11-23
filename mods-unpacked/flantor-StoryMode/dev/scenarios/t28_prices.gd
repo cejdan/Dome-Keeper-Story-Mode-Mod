@@ -45,9 +45,9 @@ func run(h) -> void:
 	h.check("no upgrade in a Story Mode run costs iron", iron.is_empty(), iron)
 	h.check("every former iron cost is its table price (%d checked)" % checked, wrong.is_empty() and checked >= 30, wrong)
 	h.check("water and cobalt costs stay vanilla", lost_extra.is_empty(), lost_extra)
-	for id_price: Array in [["drill1", 4], ["drill3", 200], ["jetpackstrength3", 170], ["laserstrength4", 6300], ["lasermove3", 4000],
+	for id_price: Array in [["drill1", 4], ["drill3", 200], ["jetpackstrength3", 170], ["laserstrength4", 4000], ["lasermove3", 2500],
 			["dome1health2", 280], ["laseraimline", 7], ["domehealthmeter", 2], ["domewavemeter", 4], ["laserbend", 450],
-			["laserhitprojectiles", 10000], ["domesupplementresurrection2", 950], ["shieldovercharge", 30], ["repellentdelay3", 280]]:
+			["laserhitprojectiles", 6000], ["domesupplementresurrection2", 950], ["shieldovercharge", 30], ["repellentdelay3", 280]]:
 		var u: Dictionary = GameWorld.upgrades.get("team1." + id_price[0], GameWorld.upgrades.get("player1." + id_price[0], {}))
 		if u.is_empty():
 			h.note("not in this run's shop", id_price[0])

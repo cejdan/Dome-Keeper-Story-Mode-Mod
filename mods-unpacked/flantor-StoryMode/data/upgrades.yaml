@@ -47,7 +47,7 @@ storyNewGadget3:
   predecessors: [storyNewGadget2]
 
 storyNewGadget4:
-  cost: money=10000
+  cost: money=6000
   predecessors: [storyNewGadget3]
 
 # Call for Evacuation (#303): free, and the company refuses it. Buying it opens

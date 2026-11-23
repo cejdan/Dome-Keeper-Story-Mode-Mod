@@ -62,12 +62,12 @@ const DEPOSIT_SPACING: float = 4.0
 const MIX: Array = [
 	{"bronze": 100},
 	{"bronze": 80, "iron": 20},
-	{"bronze": 35, "iron": 50, "gold": 15},
+	{"iron": 75, "gold": 25},
 	{"gold": 55, "sapphire": 45},
 	{"gold": 20, "sapphire": 40, "emerald": 40},
 	{"sapphire": 20, "emerald": 40, "ruby": 40},
 	{"emerald": 15, "ruby": 35, "mythril": 50},
-	{"ruby": 15, "mythril": 45, "diamond": 40},
+	{"ruby": 10, "mythril": 40, "diamond": 50},
 ]
 
 # Rare extras given as a number of deposits across the whole biome, [min, max],
@@ -94,7 +94,7 @@ const SIZES: Dictionary = {
 	"emerald": [2, 4],
 	"ruby": [2, 3],
 	"mythril": [3, 5],
-	"diamond": [1, 1],   # always a lone tile (#186); see Minerals "drops"
+	"diamond": [2, 4],   # small clusters (#321; lone tiles since #186); each tile still drops 1 (Minerals "drops")
 }
 
 

@@ -9,6 +9,11 @@ extends RefCounted
 #   MAX_COST      dollar cap, replacing a "maxcost.iron = n" rule
 #   DEFAULT_RATE  dollars per vanilla iron for anything not listed (gadget
 #                 upgrades: the flat B4 rate from the price plan)
+#
+# #321: the deep tiers were cut to about 60-65% so they sit under Heat
+# Shielding IV ($7,500), the benchmark: a key buy costs about 15% of a full
+# biome where it is bought ($6,300 tiers -> $4,000, $5,900 -> $4,000,
+# $4,000 -> $2,500, $10,000 -> $6,000). Tiers I-III are unchanged.
 
 const DEFAULT_RATE: int = 14
 
@@ -45,61 +50,61 @@ const PRICES: Dictionary = {
 	"keeper4speed1": 4, "keeper4speed2": 15, "keeper4speed3": 170,
 	"keeper4catgoblinamount": 4, "keeper4catgoblindig1": 15, "keeper4catgoblindig2": 170, "keeper4catgoblinsleeptime": 1150,
 	# Laser dome
-	"laserstrength1": 6, "laserstrength2": 60, "laserstrength3": 570, "laserstrength4": 6300,
-	"lasermove1": 6, "lasermove2": 50, "lasermove3": 4000,
-	"laseraimline": 7, "laserbend": 450, "laserhitprojectiles": 10000,
+	"laserstrength1": 6, "laserstrength2": 60, "laserstrength3": 570, "laserstrength4": 4000,
+	"lasermove1": 6, "lasermove2": 50, "lasermove3": 2500,
+	"laseraimline": 7, "laserbend": 450, "laserhitprojectiles": 6000,
 	"dome1health1": 25, "dome1health2": 280,
 	"domehealthmeter": 2, "domewavemeter": 4,
 	"domesupplementresurrection2": 950,
 	# The other domes (#269): starting values, tier for tier like the laser dome
-	# (by depth in the tree: 6, ~55, ~570, ~6300; cheap side picks like the aim
+	# (by depth in the tree: 6, ~55, ~570, ~4000 since #321; cheap side picks like the aim
 	# line, mid-tree extras like Laser Bend / Move III). Not balanced yet.
 	# Sword dome
-	"swordblade1": 6, "swordlargeblade1": 60, "swordlargeblade2": 570, "swordlargeblade3": 6300,
-	"swordlongblade1": 60, "swordlongblade2": 570, "swordelectrified": 6300,
-	"swordaimline": 7, "swordextendlong1": 6, "swordextendlong2": 50, "swordextendlong3": 4000,
+	"swordblade1": 6, "swordlargeblade1": 60, "swordlargeblade2": 570, "swordlargeblade3": 4000,
+	"swordlongblade1": 60, "swordlongblade2": 570, "swordelectrified": 4000,
+	"swordaimline": 7, "swordextendlong1": 6, "swordextendlong2": 50, "swordextendlong3": 2500,
 	"swordstabfast1": 6, "swordstabfast2": 50, "swordstabshoot": 570,
 	"swordreflection1": 6, "swordreflection2": 50, "swordreflection3": 570,
 	"swordfastreflection": 50, "swordexplosivereflection": 450,
 	"dome2health1": 25, "dome2health2": 280,
 	# Artillery dome
-	"artillerydirecthit1": 6, "artillerydirecthit2": 60, "artillerydirecthit3": 570, "artillerydirecthit4": 6300,
-	"artillerysplash1": 6, "artillerysplash2": 60, "artillerysplash3": 570, "artillerysplash4": 6300,
-	"artillerygrenadefastreload": 6300, "artilleryrotation2": 50, "artilleryrotation1": 450,
-	"artillerymachinegun1": 6, "artillerymachinegun2": 50, "artillerymachinegun3": 570, "artillerydoublemachinegun": 6300,
-	"artillerymachinegunhoming1": 570, "artillerymachinegunhoming2": 6300,
+	"artillerydirecthit1": 6, "artillerydirecthit2": 60, "artillerydirecthit3": 570, "artillerydirecthit4": 4000,
+	"artillerysplash1": 6, "artillerysplash2": 60, "artillerysplash3": 570, "artillerysplash4": 4000,
+	"artillerygrenadefastreload": 4000, "artilleryrotation2": 50, "artilleryrotation1": 450,
+	"artillerymachinegun1": 6, "artillerymachinegun2": 50, "artillerymachinegun3": 570, "artillerydoublemachinegun": 4000,
+	"artillerymachinegunhoming1": 570, "artillerymachinegunhoming2": 4000,
 	"dome3health1": 25, "dome3health2": 280,
 	# Tesla dome
-	"teslapower1": 6, "teslapower2": 60, "teslapower3": 570, "teslapower4": 6300,
-	"teslaspeed1": 6, "teslaspeed2": 50, "teslaspeed3": 570, "teslaspeed4": 4000,
+	"teslapower1": 6, "teslapower2": 60, "teslapower3": 570, "teslapower4": 4000,
+	"teslaspeed1": 6, "teslaspeed2": 50, "teslaspeed3": 570, "teslaspeed4": 2500,
 	"teslaquickshot": 7, "teslaquickshot2": 60, "teslaautoaim": 7,
-	"teslaorbs": 6, "teslapersistance1": 50, "teslapersistance2": 450, "teslapersistance3": 4000,
-	"teslanurture": 50, "teslaorbstun": 450, "teslaorbdamage": 4000,
+	"teslaorbs": 6, "teslapersistance1": 50, "teslapersistance2": 450, "teslapersistance3": 2500,
+	"teslanurture": 50, "teslaorbstun": 450, "teslaorbdamage": 2500,
 	"dome4health1": 25, "dome4health2": 280,
 	# Turret dome (unreleased in vanilla; only the machine gun picks do anything)
 	"turretslot1machinegun": 60, "turretslot1railgun": 60, "turretslot2machinegun": 60, "turretslot2minelayer": 60,
 	"dome5health1": 25, "dome5health2": 280,
 	# Shield: strength (+ vanilla water), battle branches (+ vanilla cobalt), overcharge
 	"shieldstrength1": 7, "shieldstrength2": 30, "shieldstrength3": 280,
-	"shieldbattleelectroblast": 55, "shieldbattlelongerafterdepletion": 500, "shieldbattleblastdamage": 6300,
-	"shieldbattleinvulnerable": 55, "shieldbattleactivateondepletion": 500, "shieldbattledestructionprevention": 6300,
-	"shieldbattlereflect": 55, "shieldbattlereflectshortuses": 500, "shieldbattlereflectspeed": 6300,
-	"shieldovercharge": 30, "shieldoverchargestrength1": 400, "shieldoverchargestrength2": 5900,
+	"shieldbattleelectroblast": 55, "shieldbattlelongerafterdepletion": 500, "shieldbattleblastdamage": 4000,
+	"shieldbattleinvulnerable": 55, "shieldbattleactivateondepletion": 500, "shieldbattledestructionprevention": 4000,
+	"shieldbattlereflect": 55, "shieldbattlereflectshortuses": 500, "shieldbattlereflectspeed": 4000,
+	"shieldovercharge": 30, "shieldoverchargestrength1": 400, "shieldoverchargestrength2": 4000,
 	# The other primary gadgets, tier for tier like the shield
 	"repellentdelay1": 7, "repellentdelay2": 30, "repellentdelay3": 280,
-	"repellentbattlehealthreduction": 55, "repellentbattlelongerhealthreduction": 500, "repellentbattledamageovertime": 6300,
-	"repellentbattleslowdown": 55, "repellentbattlestrongerslowdown1": 500, "repellentbattlestrongerslowdown2": 6300,
-	"repellentbattleslowdownstun1": 500, "repellentbattleslowdownstun2": 6300,
-	"repellentovercharge": 30, "repellentoverchargeduration1": 400, "repellentoverchargeduration2": 5900,
+	"repellentbattlehealthreduction": 55, "repellentbattlelongerhealthreduction": 500, "repellentbattledamageovertime": 4000,
+	"repellentbattleslowdown": 55, "repellentbattlestrongerslowdown1": 500, "repellentbattlestrongerslowdown2": 4000,
+	"repellentbattleslowdownstun1": 500, "repellentbattleslowdownstun2": 4000,
+	"repellentovercharge": 30, "repellentoverchargeduration1": 400, "repellentoverchargeduration2": 4000,
 	"orchardduration1": 7, "orchardduration2": 30, "orchardduration3": 280,
-	"orchardbattlerooting": 55, "orchardbattlerootingexplosion": 500, "orchardbattlerootingmore": 6300,
-	"orchardbattleshield": 55, "orchardbattleshieldsecondlayer": 500, "orchardbattleshieldstrong": 6300,
-	"orchardovercharge": 30, "orchardovercharge2": 400, "orchardovercharge3": 5900,
+	"orchardbattlerooting": 55, "orchardbattlerootingexplosion": 500, "orchardbattlerootingmore": 4000,
+	"orchardbattleshield": 55, "orchardbattleshieldsecondlayer": 500, "orchardbattleshieldstrong": 4000,
+	"orchardovercharge": 30, "orchardovercharge2": 400, "orchardovercharge3": 4000,
 	"droneyarddrones": 7, "droneyarddronespeed1": 30,
-	"droneyardbattlegrid": 55, "droneyardbattlegridquick1": 500, "droneyardbattlegridquick2": 6300,
-	"droneyardbattlegridlong1": 500, "droneyardbattlegridlong2": 6300,
-	"droneyardparasites": 55, "droneyardparasites2": 500, "droneyardparasites3": 6300,
-	"droneyardovercharge1": 30, "droneyardovercharge2": 400, "droneyardovercharge3": 5900,
+	"droneyardbattlegrid": 55, "droneyardbattlegridquick1": 500, "droneyardbattlegridquick2": 4000,
+	"droneyardbattlegridlong1": 500, "droneyardbattlegridlong2": 4000,
+	"droneyardparasites": 55, "droneyardparasites2": 500, "droneyardparasites3": 4000,
+	"droneyardovercharge1": 30, "droneyardovercharge2": 400, "droneyardovercharge3": 4000,
 }
 
 const REPEAT_ADD: Dictionary = {
