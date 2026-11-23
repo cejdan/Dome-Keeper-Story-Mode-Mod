@@ -44,6 +44,8 @@ const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
 static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
 static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
+const DropNet = preload("res://mods-unpacked/flantor-StoryMode/util/drop_net.gd")
+static var _DropNet = DropNet  # calls go through this: lazy_preload makes const-preload calls slow
 
 signal defeated
 signal phase_changed(phase: int)
@@ -927,7 +929,7 @@ func _return_lost_bombs() -> void:
 		var p: Vector2 = to_local(b.global_position)
 		if p.y > arena.end.y + 8.0 or p.x < arena.position.x - 8.0 or p.x > arena.end.x + 8.0:
 			bombs.remove_at(i)
-			b.queue_free()
+			_DropNet.consume(b)   # gone on the clients too (#315)
 			stats["bombs_returned"] += 1
 			spawn_bomb(Vector2(_bomb_x(), arena.position.y + 16.0))
 
