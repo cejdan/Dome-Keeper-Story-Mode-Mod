@@ -1,7 +1,8 @@
 extends "res://content/drop/Drop.gd"
 
 # Miner bones (#94), carried home like a mineral piece. The dome's shredder
-# takes them as iron (drops/delivery.gd, StoryDropTrigger.gd); they pay
+# takes them as iron (drops/delivery.gd, StoryDropTrigger.gd), and so does the
+# teleporter's suction (#319); they pay
 # `value` dollars, set by Map.destroyTile from the biome they were found in
 # (data/bones.gd), and keep it through a save and reload. Selling them opens
 # that biome's data log.
@@ -35,7 +36,23 @@ func _ready():
 func shred(teamId: String):
 	var was: bool = absorbed
 	super(teamId)
-	if not was and multiplayer.is_server() and value > 0:
+	if not was:
+		_sold(teamId)
+
+
+# Vanilla also takes a drop by shrinking it, counted the way shred counts it:
+# the teleporter's suction (#319), and the crushers of domes whose shredder
+# shrinks what it takes (dome3's Shredder3, dome4's Shredder4). Bones taken
+# that way are sold the same.
+func shrink(teamId: String):
+	var was: bool = absorbed
+	super(teamId)
+	if not was:
+		_sold(teamId)
+
+
+func _sold(teamId: String) -> void:
+	if multiplayer.is_server() and teamId != "" and value > 0:
 		Data.changeByInt(teamId + ".inventory.money", value)
 		var pop_in: float = _SalePops.pop(value, SalePops.BONES)
 		ModLoaderLog.info("Miner bones from B%d sold for $%d" % [biome + 1, value], "flantor-StoryMode")
