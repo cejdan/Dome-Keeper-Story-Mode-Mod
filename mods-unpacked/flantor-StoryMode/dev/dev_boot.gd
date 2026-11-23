@@ -9,7 +9,8 @@ extends Node
 #   --gadget=<id>        primary gadget (default shield)
 #   --difficulty=<n>     -2, -1, 0 or 2
 #   --world=<worldN>     fixed world; --palette=<name> fixed palette
-#   --mapsize=<id>       vanilla archetype for vanilla modes (default regular-medium)
+#   --mapsize=<id>       map size id (regular-small/-medium/-large/-huge); default
+#                        regular-medium, but regular-huge (the full map) for Story Mode (#320)
 #   --load=<slot>        load the save in that slot (singleplayer folder), e.g. one a
 #                        scenario wrote with SaveGame.saveGame(..., slot, true)
 #   --dlckeepers         with --load: let a save with a DLC keeper (keeper3, or
@@ -139,7 +140,7 @@ func _start_run(mode_id: String) -> void:
 	ld1.additionalGadgets = []
 	loadout.domes = [ld1]
 	loadout.modeId = mode_id
-	loadout.modeConfig = {CONST.MODE_CONFIG_MAP_ARCHETYPE: _Story.user_arg("mapsize", CONST.MAP_MEDIUM)}
+	loadout.modeConfig = {CONST.MODE_CONFIG_MAP_ARCHETYPE: _Story.user_arg("mapsize", CONST.MAP_HUGE if mode_id == _Story.MODE_ID else CONST.MAP_MEDIUM)}
 	var diff: int = int(_Story.user_arg("difficulty", "0"))
 	loadout.difficultyByTeamId = {"team1": diff, "map": diff}
 	loadout.worldId = _Story.user_arg("world", "")

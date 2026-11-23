@@ -51,7 +51,7 @@ func run(h) -> void:
 	await h.shot("storymode_keepers")
 	var block = stage.find_child("BlockRelicHuntLoadout", true, false)
 	h.check("difficulty block visible", block.visible)
-	h.check("map size hidden", not block.find_child("MapSizeList", true, false).visible)
+	h.check("map size shown", block.find_child("MapSizeList", true, false).visible)  # #320: Story Mode has map sizes
 	h.note("loadout", {"dome": Level.loadout.domes.front().domeId, "keepers": Level.loadout.keepers.map(func(k): return k.keeperId), "config": Level.loadout.modeConfig})
 	stage.gameModeSelected("relichunt")
 	await h.wait(2.0)

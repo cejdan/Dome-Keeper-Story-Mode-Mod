@@ -1,11 +1,14 @@
 extends "res://stages/loadout/MultiplayerloadoutStage.gd"
 
 # Story Mode in the loadout screen. Story Mode borrows the Relic Hunt block for
-# its difficulty picker (map size and run modifiers hidden). Every dome (#269)
-# and every keeper (#297) vanilla offers is offered. Vanilla modes are
-# untouched.
+# its difficulty and map size pickers (run modifiers hidden). All four map
+# sizes are open in Story Mode, whatever Relic Hunt has unlocked (#320). Every
+# dome (#269) and every keeper (#297) vanilla offers is offered. Vanilla modes
+# are untouched.
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
+const MapConfig = preload("res://mods-unpacked/flantor-StoryMode/data/map_config.gd")
+const MAP_SIZES: Array = ["regular-small", "regular-medium", "regular-large", "regular-huge"]
 
 
 @rpc("reliable", "any_peer")
@@ -16,12 +19,17 @@ func gameModeSelected(id: String, playSound: = true, firstLoad: = false):
 
 
 func _story_apply() -> void:
+	# The size the player last had in Story Mode, or Story Mode's default
+	# (#320); never the size another mode left behind.
+	var size: String = MapConfig.DEFAULT_MAP_SIZE
 	if GameWorld.hasLastLoadoutsByMode(Story.MODE_ID):
 		var last: Loadout = GameWorld.getLastLoadoutsByMode(Story.MODE_ID)
 		if last.modeId == Story.MODE_ID:
 			setLoadout(last, false)
-	# The loadout block only shows once a map size is set; Story Mode's map is fixed.
-	Level.loadout.modeConfig[CONST.MODE_CONFIG_MAP_ARCHETYPE] = CONST.MAP_MEDIUM
+			var had: String = str(last.modeConfig.get(CONST.MODE_CONFIG_MAP_ARCHETYPE, ""))
+			if MapConfig.MAP_SIZE_SHARE.has(had):
+				size = had
+	mapSizeSelected(size, false, false)
 	Level.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
 	difficultySelected(Level.loadout.difficultyByTeamId.get("team1", 0), "team1", false, false)
 	updateClientLoadout()
@@ -46,9 +54,47 @@ func _story_dress(story: bool) -> void:
 		var headline: Label = block.get_node_or_null("Headline")
 		if headline != null:
 			headline.text = "loadout.storymode.headline" if story else "loadout.relichunt.title"
-		var mapsize: Node = block.find_child("MapSizeList", true, false)
-		if mapsize != null:
-			mapsize.visible = not story
+		_story_map_sizes(story)
 		var modifiers: Node = block.find_child("ModifiersBox", true, false)
 		if modifiers != null and story:
 			modifiers.visible = false
+
+
+func _story_on() -> bool:
+	return Level.loadout != null and Level.loadout.modeId == Story.MODE_ID
+
+
+# Vanilla puts a locked map size back to Small whenever unlocks change; in
+# Story Mode every size is open (#320).
+func fallbackLockedSelections() -> void:
+	var story: bool = _story_on()
+	var size = Level.loadout.modeConfig.get(CONST.MODE_CONFIG_MAP_ARCHETYPE) if story else null
+	super()
+	if story and MAP_SIZES.has(size):
+		mapSizeSelected(size, false, false)
+
+
+func refreshUnlockableChoices() -> void:
+	super()
+	if _story_on():
+		_story_map_sizes(true)
+
+
+# Story Mode opens every map size (#320); other modes get vanilla's locks back
+# (fillMapSizes), and a size Story Mode left selected that the mode has not
+# unlocked goes back to Small.
+func _story_map_sizes(story: bool) -> void:
+	var box: Node = find_child("MapsizeContainers", true, false)
+	if box == null:
+		return
+	for c in box.get_children():
+		if c is Label or not MAP_SIZES.has(c.id):
+			continue
+		var open: bool = story or (GameWorld.unlocks.is_unlocked(c.id) and not (GameWorld.buildType == CONST.BUILD_TYPE.EXHIBITION and c.id != CONST.MAP_SMALL))
+		var desc: String = CONST.mapSizesStringsById.get(c.id) + ".description" if story or GameWorld.unlocks.is_unlocked(c.id) else "unlock.mapsize." + c.id.replace("regular-", "")
+		c.setChoice(CONST.mapSizesStringsById.get(c.id), c.id, null, desc)
+		c.set_enabled(open)
+	if not story and Level.loadout != null and multiplayer.is_server():
+		var size: String = str(Level.loadout.modeConfig.get(CONST.MODE_CONFIG_MAP_ARCHETYPE, ""))
+		if MAP_SIZES.has(size) and not GameWorld.unlocks.is_unlocked(size):
+			mapSizeSelected(CONST.MAP_SMALL, false, true)

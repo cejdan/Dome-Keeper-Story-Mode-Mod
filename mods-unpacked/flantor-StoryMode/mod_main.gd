@@ -274,5 +274,8 @@ func prepareGameMode(modeId: String, levelStartData: LevelStartData) -> void:
 	# prepareCleanData sets 2.1 again before every run.
 	Data.apply("map.tileHealthMultiplierPerLayer", MapConfig.TILE_HEALTH_PER_BIOME)
 	levelStartData.loadout.modeConfig.erase(CONST.MODE_CONFIG_WORLDMODIFIERS)
-	levelStartData.mapArchetype = _MapConfig.make_archetype()
+	# The map size picked in the loadout (#320); vanilla's size ids.
+	var size_id: String = str(levelStartData.loadout.modeConfig.get(CONST.MODE_CONFIG_MAP_ARCHETYPE, MapConfig.FULL_MAP_SIZE))
+	levelStartData.mapArchetype = _MapConfig.make_archetype(size_id)
+	ModLoaderLog.info("Story Mode map size: %s (share %.2f)" % [size_id, _MapConfig.map_share(size_id)], Story.LOG)
 	GameWorld.prepareRegularLevelStart(levelStartData)
