@@ -1,7 +1,11 @@
 extends "res://content/drop/Drop.gd"
 
 # A Story Mode mineral piece. One scene per mineral (drops/<mineral>_drop.tscn)
-# sets `type`; the sprite comes from the mineral art by that type.
+# sets `type`; the sprite comes from the mineral art by that type. The scenes
+# are vanilla IronDrop.tscn's twins on MineralDrop.tscn, so each also carries
+# IronDrop's PhysicsMaterial (friction 0.2, bounce 0.15): MineralDrop's own is
+# 0.6 / 0.25, which made every Story piece drag and slide like it was glued to
+# the rock (#314, t314_drop_drag).
 
 const Assets = preload("res://mods-unpacked/flantor-StoryMode/util/assets.gd")
 static var _Assets = Assets  # calls go through this: lazy_preload makes const-preload calls slow
