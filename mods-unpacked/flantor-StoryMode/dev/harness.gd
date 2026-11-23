@@ -21,6 +21,7 @@ var shot_index: int = 0
 var failed: bool = false
 var _started: bool = false
 var _t0: int = 0
+var _pause_out_of_focus: bool = true
 
 
 func _ready() -> void:
@@ -34,7 +35,15 @@ func _ready() -> void:
 		return
 	scenario = script.new()
 	_t0 = Time.get_ticks_msec()
+	# The playtest window runs unfocused and off-screen (window_place.ps1), so it
+	# must not pause on focus loss; finish() puts the saved value back.
+	_pause_out_of_focus = Options.pauseWhenOutOfFocus
 	Options.pauseWhenOutOfFocus = false
+	# Godot keeps a new window partly on screen whatever --position says;
+	# moving it afterwards is not clamped (--offscreen=x,y from window_place.ps1).
+	var off: PackedStringArray = _Story.user_arg("offscreen", "").split(",")
+	if off.size() == 2:
+		get_window().position = Vector2i(int(off[0]), int(off[1]))
 	note("harness start", {"scenario": scenario_name, "out": out_dir, "user_dir": OS.get_user_data_dir(), "boot": scenario.boot()})
 
 
@@ -99,7 +108,25 @@ func finish() -> void:
 	f.store_string(JSON.stringify({"scenario": scenario_name, "failed": failed, "events": events}, "  "))
 	f.close()
 	Engine.time_scale = 1.0
+	_restore_options()
 	get_tree().quit(1 if failed else 0)
+
+
+# A vanilla Options.saveOptions() during the run (title screen, host panel)
+# would have written the harness's pauseWhenOutOfFocus = false into the
+# profile's options file: put the value it had back, there and in memory.
+func _restore_options() -> void:
+	Options.pauseWhenOutOfFocus = _pause_out_of_focus
+	var path: String = Options.optionsPath
+	if not FileAccess.file_exists(path):
+		return
+	var d = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if d is Dictionary and d.has("pauseWhenOutOfFocus") and d["pauseWhenOutOfFocus"] != _pause_out_of_focus:
+		d["pauseWhenOutOfFocus"] = _pause_out_of_focus
+		var f: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+		if f != null:
+			f.store_string(JSON.stringify(d))
+			f.close()
 
 
 # ---------------------------------------------------------------- logging

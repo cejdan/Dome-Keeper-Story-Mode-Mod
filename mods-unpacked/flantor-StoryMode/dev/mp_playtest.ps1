@@ -2,7 +2,9 @@
 # and a client instance over ENet on 127.0.0.1, each driven by its own scenario.
 # Usage (PowerShell):
 #   & "<...>\mods-unpacked\flantor-StoryMode\dev\mp_playtest.ps1" <host scenario> <client scenario> [-Timeout 420] [-Res 960x540]
-#       [-ClientDelay 6] [-Client2 <scenario>] [-Rejoin <scenario>] [-RejoinDelay 0]
+#       [-ClientDelay 6] [-Client2 <scenario>] [-Rejoin <scenario>] [-RejoinDelay 0] [-Visible]
+# The windows open off-screen and focus goes back to the window that had it
+# (window_place.ps1); -Visible tiles them on screen as before.
 # -ClientDelay: seconds between starting the host and the client(s) (a host that
 #   loads a save needs longer before it listens).
 # -Client2: a second client (a third instance), started with the first (#246).
@@ -20,7 +22,8 @@ param(
     [int]$ClientDelay = 6,
     [string]$Client2 = "",
     [string]$Rejoin = "",
-    [int]$RejoinDelay = 0
+    [int]$RejoinDelay = 0,
+    [switch]$Visible
 )
 $project = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 $root = Split-Path $project -Parent
@@ -28,6 +31,7 @@ $engine = Join-Path $root "custom_godot_for_windows\godot.windows.editor.x86_64.
 if (-not (Test-Path (Join-Path $project "override.cfg"))) { Write-Error "override.cfg missing: refusing to launch"; exit 3 }
 $w = [int]($Res.Split("x")[0])
 $hgt = [int]($Res.Split("x")[1])
+. (Join-Path $PSScriptRoot "window_place.ps1")
 # The machine-wide playtest lock (playtest_out/run_locked.ps1 takes the same
 # one): only one playtest at a time, and the ENet port is shared.
 $lock = New-Object System.Threading.Mutex($false, "Global\StoryModePlaytest")
@@ -35,27 +39,31 @@ $waited = [System.Diagnostics.Stopwatch]::StartNew()
 try { [void]$lock.WaitOne() } catch [System.Threading.AbandonedMutexException] { }
 if ($waited.Elapsed.TotalSeconds -gt 2) { Write-Output ("(waited {0:N0} s for another playtest to finish)" -f $waited.Elapsed.TotalSeconds) }
 try {
-function Start-Instance($scenario, $pos) {
+function Start-Instance($scenario, $pos, [int]$slot) {
+    if (-not $Visible) { $pos = Get-OffscreenPosition $slot $w }
     $out = Join-Path $root "playtest_out\$scenario"
     if (Test-Path $out) { Remove-Item -Recurse -Force $out }
     New-Item -ItemType Directory -Force $out | Out-Null
     $log = Join-Path $out "godot.log"
     $argList = @("--path", "`"$project`"", "--windowed", "--resolution", $Res, "--position", $pos, "--log-file", "`"$log`"", "--", "--scenario=$scenario", "`"--out=$out`"")
+    if (-not $Visible) { $argList += "--offscreen=$pos" }
     if ($Extra -ne "") { $argList += $Extra.Split(" ") }
+    $prevFg = Get-ForegroundWindow
     $proc = Start-Process -FilePath $engine -ArgumentList $argList -PassThru
+    if (-not $Visible) { Write-Host (Restore-Foreground $prevFg $proc) }
     $null = $proc.Handle   # keeps the exit code readable after HasExited
     return $proc
 }
-$hostProc = Start-Instance $HostScenario "20,40"
+$hostProc = Start-Instance $HostScenario "20,40" 0
 Start-Sleep -Seconds $ClientDelay
-$clientProc = Start-Instance $ClientScenario ("{0},40" -f (40 + $w))
+$clientProc = Start-Instance $ClientScenario ("{0},40" -f (40 + $w)) 1
 $runs = @(@($HostScenario, $hostProc), @($ClientScenario, $clientProc))
 $lastClient = $clientProc
 $lastPos = ("{0},40" -f (40 + $w))
 if ($Client2 -ne "") {
     Start-Sleep -Seconds 3
     $lastPos = ("20,{0}" -f (80 + $hgt))
-    $client2Proc = Start-Instance $Client2 $lastPos
+    $client2Proc = Start-Instance $Client2 $lastPos 2
     $runs += ,@($Client2, $client2Proc)
     $lastClient = $client2Proc
 }
@@ -66,7 +74,7 @@ while ((Get-Date) -lt $deadline) {
     if ($Rejoin -ne "" -and $rejoinProc -eq $null) {
         if ($lastClient.HasExited -and $rejoinAt -eq $null) { $rejoinAt = (Get-Date).AddSeconds($RejoinDelay) }
         if ($rejoinAt -ne $null -and (Get-Date) -ge $rejoinAt) {
-            $rejoinProc = Start-Instance $Rejoin $lastPos
+            $rejoinProc = Start-Instance $Rejoin $lastPos 3
             $runs += ,@($Rejoin, $rejoinProc)
         }
     }
