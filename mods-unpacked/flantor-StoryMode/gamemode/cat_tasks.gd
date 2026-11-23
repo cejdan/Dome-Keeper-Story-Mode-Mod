@@ -17,13 +17,16 @@ extends "res://content/keeper/keeper4/GoblinTaskManager.gd"
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
 static var _Minerals = Minerals  # calls go through this: lazy_preload makes const-preload calls slow
 
+const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
+
 const CACHE_META := &"story_cat_tiles"
 
 
-# A tile a cat extracts from: vanilla's three resources and Story Mode's minerals.
+# A tile a cat extracts from: vanilla's three resources, Story Mode's minerals
+# and the miner bones (one drop; the Map extension gives it its biome's value).
 static func is_cat_ore(tile) -> bool:
 	var t: String = tile.type
-	return t == CONST.IRON or t == CONST.SAND or t == CONST.WATER or _Minerals.is_mod_mineral(t)
+	return t == CONST.IRON or t == CONST.SAND or t == CONST.WATER or _Minerals.is_mod_mineral(t) or t == Bones.TYPE
 
 
 # GoblinHole.get_mineable_tiles with is_cat_ore, cached on the hole the same

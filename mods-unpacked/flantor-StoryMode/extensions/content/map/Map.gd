@@ -300,7 +300,9 @@ func revealTile(coord: Vector2):
 		_reveal_visually(coord)
 	elif tile.type == Bones.TYPE:
 		# Miner bones (#94). Their data log opens when they are sold at the dome
-		# (drops/BonesDrop.gd), not when they are uncovered.
+		# (drops/BonesDrop.gd), not when they are uncovered. One set: the
+		# Beastmaster's cats extract one drop (#345).
+		tile.richness = 1.0
 		_reveal_visually(coord)
 
 
@@ -324,6 +326,9 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 		_StoryBeats.trigger("gate_broken")
 	_mineral_mined(type, tile.coord)
 	if type == Bones.TYPE and is_inside_tree() and is_server():
+		# Cats that took the bones out first (#345) already dropped them.
+		if _value_cat_bones(tile):
+			return
 		# The bones come loose; they sell by the biome they were found in.
 		var biome: int = tileData.get_biomev(Vector2i(tile.coord))
 		var drop = Level.drops.network_spawn({"type": Bones.TYPE, "position": tile.global_position, "impulse": Vector2.ZERO})
@@ -380,8 +385,37 @@ func changeTileType(tile, typeId: int):
 	var type: String = tile.type
 	var spent: bool = tile.richness <= 0.0
 	super(tile, typeId)
-	if spent and typeId == Data.TILE_DIRT_START and _Minerals.is_mod_mineral(type):
+	if typeId != Data.TILE_DIRT_START:
+		return
+	if spent and _Minerals.is_mod_mineral(type):
 		_mineral_mined(type, tile.coord)
+	elif type == Bones.TYPE and is_server():
+		_value_cat_bones(tile)
+
+
+# A cat extracting miner bones (#345) spawns a plain bones drop, worth $0 with
+# no biome (Goblin._spawn_extraction_drop knows only the type), just before it
+# turns the tile to dirt or breaks it. Gives that drop the bones' biome and
+# value, as breaking the tile would, and takes away any second one the cats'
+# extra-resource upgrade spawned (there is one set of bones). True if it
+# found the cat's drop.
+func _value_cat_bones(tile) -> bool:
+	var sync = Level.drops.synchronizer if Level.drops != null else null
+	if sync == null:
+		return false
+	var near: float = 3.0 * GameWorld.TILE_SIZE
+	var found: Array = []
+	for d in sync.drops.values():
+		if is_instance_valid(d) and d.type == Bones.TYPE and int(d.value) == 0 and d.position.distance_to(tile.global_position) <= near:
+			found.append(d)
+	if found.is_empty():
+		return false
+	var biome: int = tileData.get_biomev(Vector2i(tile.coord))
+	found[0].value = _Bones.value_for(biome)
+	found[0].biome = biome
+	for i in range(1, found.size()):
+		Level.drops.network_free_drop(found[i].UID)
+	return true
 
 
 # Story Mode has no gadget chambers; its gadget tile id holds a translator
