@@ -27,7 +27,9 @@ static func after_resources(gen, map_data, rand: RandomNumberGenerator) -> void:
 		root = float(gen.a.get_meta("story_map_root", 1.0))
 	map_data.set_meta("story_map_size", gen.a.get_meta("story_map_size", MapConfig.FULL_MAP_SIZE) if gen != null and gen.a != null else MapConfig.FULL_MAP_SIZE)
 	fill_bottom(map_data, _sub_rand(rand, "bottom"), roundi(MapConfig.BOTTOM_FILL_ROWS * root))
-	place_minerals(map_data, rand)
+	# ... and packs its deposits closer: each biome is worth about root x the
+	# full map's (#320), not share x, so the shop's one price list still works.
+	place_minerals(map_data, rand, MapConfig.DEPOSITS_PER_1000 / root)
 	place_start_bronze(map_data, _sub_rand(rand, "startbronze"))
 	remove_gadget_chambers(map_data)
 	place_gate(map_data, MapConfig.GATE_BELOW_BIOME, MapConfig.GATE_THICKNESS)
@@ -588,7 +590,7 @@ static func place_gate(map_data, above: int, thickness: int) -> Array:
 
 # Replaces vanilla's iron with the per-biome mineral mix. Water, cobalt, caves
 # and chambers are left exactly where vanilla put them.
-static func place_minerals(map_data, rand: RandomNumberGenerator) -> Array:
+static func place_minerals(map_data, rand: RandomNumberGenerator, per_1000: float = MapConfig.DEPOSITS_PER_1000) -> Array:
 	for cell: Vector2i in map_data.get_resource_cells_by_id(Data.TILE_IRON):
 		map_data.set_resourcev(cell, Data.TILE_DIRT_START)
 
@@ -609,7 +611,7 @@ static func place_minerals(map_data, rand: RandomNumberGenerator) -> Array:
 	var deposits: Array = []
 	var centres: Array = []
 	for b in MapConfig.BIOMES:
-		var wanted: Array = _deposit_list(b, int(round(MapConfig.DEPOSITS_PER_1000 * total[b] / 1000.0)), rand)
+		var wanted: Array = _deposit_list(b, int(round(per_1000 * total[b] / 1000.0)), rand)
 		var candidates: Array = rock[b]
 		_shuffle(candidates, rand)
 		var next: int = 0

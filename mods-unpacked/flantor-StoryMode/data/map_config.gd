@@ -107,7 +107,10 @@ static func size_range(mineral: String, _biome: int) -> Array:
 # "Huge"): every biome is that share of its full size, so all eight biomes are
 # still there, and the width, depth, rows filled at the bottom and power core
 # depths shrink by the square root of it. Caves per biome shrink with the tile
-# share, so a smaller map is not more cave. The per-biome story items
+# share, so a smaller map is not more cave. Mineral deposits are packed closer
+# by 1 / that square root (DEPOSITS_PER_1000 / root: Small x1.8, Medium x1.4,
+# Large x1.2), so a biome is worth about root x the full map's (Small ~55%)
+# and the one shop price list fits every size. The per-biome story items
 # (translators, bones) keep their counts, so they turn up more often (#326).
 const MAP_SIZE_SHARE: Dictionary = {
 	"regular-small": 0.3,
