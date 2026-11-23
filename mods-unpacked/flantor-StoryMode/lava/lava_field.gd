@@ -1001,7 +1001,15 @@ func _visible_cells_now() -> Array:
 	for bx in boxes:
 		area += (bx[1].x - bx[0].x) * (bx[1].y - bx[0].y)
 	if area > shown.size():
-		return shown.keys()
+		# A view wider than the lava (the zoomed-out surface battle): walk the lava
+		# cells instead of the view's, but still keep only those on screen. It
+		# used to hand back every cell, so a revealed lava ocean far below was
+		# drawn in full every frame of the finale (#342).
+		var near: Array = []
+		for c in shown:
+			if _in_boxes(c):
+				near.append(c)
+		return near
 	var out: Array = []
 	var seen := {}
 	for bx in boxes:
@@ -1218,9 +1226,11 @@ func _fill_of(c: Vector2i) -> float:
 
 
 func _draw() -> void:
-	# Magma rock the player can see: glowing cracks that pulse.
+	# Magma rock the player can see: glowing cracks that pulse. (The view boxes
+	# come from _visible_cells(), so it runs first.)
+	var vis: Array = _visible_cells()
 	for c in magma:
-		if not map.tiles.has(Vector2(c)):
+		if not _in_boxes(c) or not map.tiles.has(Vector2(c)):
 			continue
 		var o := _cell_origin(c)
 		var pulse: float = 0.55 + 0.45 * sin(_time * 3.0 + c.x * 1.7 + c.y * 0.9)
@@ -1232,7 +1242,7 @@ func _draw() -> void:
 			draw_rect(Rect2(o + p, size), Color(COL_HOT, 0.35 + 0.65 * pulse))
 			draw_rect(Rect2(o + p, Vector2(1, 1)), Color(COL_CORE, pulse))
 
-	for c in _visible_cells():
+	for c in vis:
 		var f := _fill_of(c)
 		if f <= 0.02 or not _FieldUtil.seen(map, c):
 			continue
@@ -1354,8 +1364,11 @@ func _draw_stream(c: Vector2i, o: Vector2) -> void:
 # --- steam (#135) -------------------------------------------------------------
 
 func _on_screen(c: Vector2i) -> bool:
-	if not _FieldUtil.seen(map, c):
-		return false
+	return _FieldUtil.seen(map, c) and _in_boxes(c)
+
+
+# Is cell `c` in a view box of the last draw (_visible_cells_now)?
+func _in_boxes(c: Vector2i) -> bool:
 	for bx in _view_boxes:
 		if c.x >= bx[0].x and c.x <= bx[1].x and c.y >= bx[0].y and c.y <= bx[1].y:
 			return true
@@ -1462,7 +1475,7 @@ func _draw_glow() -> void:
 		var r: float = 30.0 + 18.0 * f
 		_glow.draw_texture_rect(_glow_tex, Rect2(center - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(1, 1, 1, 0.22 * flick * (0.4 + 0.6 * f)))
 	for c in magma:
-		if map.tiles.has(Vector2(c)):
+		if _in_boxes(c) and map.tiles.has(Vector2(c)):
 			var center := _cell_origin(c) + Vector2(TILE, TILE) * 0.5
 			var pulse: float = 0.5 + 0.5 * sin(_time * 3.0 + c.x * 1.7 + c.y * 0.9)
 			_glow.draw_texture_rect(_glow_tex, Rect2(center - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 1, 1, 0.10 + 0.14 * pulse))
