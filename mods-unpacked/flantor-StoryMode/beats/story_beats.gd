@@ -25,7 +25,8 @@ extends Node
 # client that closes its box tells the host (_ack); the host closes the beat
 # for the team by CLOSE_RULE, records it as played and clears the key, which
 # unpauses everyone and closes any box still open. Offline play (single
-# player, splitscreen) takes none of these paths.
+# player, splitscreen) takes none of these paths; splitscreen pauses with
+# vanilla's group pause, as single player's stage.pause() refuses it (#316).
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
@@ -302,8 +303,22 @@ func _open_box(id: String, beat: Dictionary) -> void:
 	_input = i
 	if not Network.is_offline_mode():
 		return
-	Level.stage.pause()
+	if GameWorld.can_pause_game():
+		Level.stage.pause()
+	else:
+		# Splitscreen (#316): vanilla's stage.pause() is single player only
+		# (GameWorld.can_pause_game), so pause the way its group pause does, as
+		# its pause menu does in splitscreen. _on_closed's stage.unpause() undoes it.
+		_force_pause(Level.stage)
 	_hide_pause_label()
+
+
+# Vanilla's group pause (LevelStage.groupPause), which works in any mode.
+func _force_pause(stage) -> void:
+	GameWorld.pause(true)
+	if stage.has_node("Tween"):
+		stage.get_node("Tween").stop_all()
+	get_tree().call_group("monster", "pause")
 
 
 # The beat is the pause's own signal: vanilla's "Paused" label stays hidden.
@@ -384,10 +399,7 @@ func _follow_team(delta: float) -> void:
 	# vanilla's own group pause check may unpause when a pause menu closes.
 	_team_paused = true
 	if not GameWorld.paused:
-		GameWorld.pause(true)
-		if stage.has_node("Tween"):
-			stage.get_node("Tween").stop_all()
-		get_tree().call_group("monster", "pause")
+		_force_pause(stage)
 		_hide_pause_label()
 	# No pause menu over this player's box; with the box closed it may open.
 	if _box != null and is_instance_valid(_box):
