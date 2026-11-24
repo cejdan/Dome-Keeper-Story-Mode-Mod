@@ -665,15 +665,20 @@ func _check_water() -> void:
 
 # Breadth-first from `start` through connected lava (>= BURN_MASS), nearest
 # first, up to `limit` cells; each becomes plain rock. Returns the cells.
+# Lava under or beside a keeper's body stays lava, or the keeper would be
+# sealed inside the rock (#348): the fill passes through those cells and
+# hardens the next ones instead.
 func _harden_from(start: Vector2i, limit: int) -> Array:
 	var out: Array = []
+	var kept := _keeper_cells()
 	var seen := {start: true}
 	var open: Array = [start]
 	while not open.is_empty() and out.size() < limit:
 		var c: Vector2i = open.pop_front()
 		if mass.get(c, 0.0) < BURN_MASS:
 			continue
-		out.append(c)
+		if not kept.has(c):
+			out.append(c)
 		for d in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
 			var n: Vector2i = c + d
 			if not seen.has(n):
@@ -685,6 +690,26 @@ func _harden_from(start: Vector2i, limit: int) -> Array:
 		_StoryNet.lava_harden(PackedVector2Array(out.map(func(c): return Vector2(c))))
 	last_hardened = out
 	hardened += out.size()
+	return out
+
+
+# Cells overlapping any keeper's body, with a small margin: every keeper the
+# host has (local, splitscreen and online clients' keepers, whose positions
+# arrive a little late), so none is left inside a tile it can't leave (#348).
+const KEEPER_CLEAR_MARGIN := 3.0
+
+
+func _keeper_cells() -> Dictionary:
+	var out := {}
+	for k in Keepers.all.getAll():
+		if k == null or not is_instance_valid(k) or not k.is_inside_tree():
+			continue
+		var r: Rect2 = _FieldUtil.keeper_rect(k).grow(KEEPER_CLEAR_MARGIN)
+		var a: Vector2i = map.getTileCoord(r.position)
+		var b: Vector2i = map.getTileCoord(r.end)
+		for x in range(a.x, b.x + 1):
+			for y in range(a.y, b.y + 1):
+				out[Vector2i(x, y)] = true
 	return out
 
 
