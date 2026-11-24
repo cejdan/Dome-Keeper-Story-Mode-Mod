@@ -93,14 +93,16 @@ func startGadgetChoiceInput(teamId: String, playerId: String, offerType: String)
 			if is_instance_valid(prev) and prev.is_inside_tree() and prev.is_visible_in_tree():
 				InputSystem.grabFocus(prev))
 	showingChoicePopup = true
-	i.connect("onStop", unpause)
+	# Vanilla opens the choice from the running game and unpauses when it closes.
+	# This one opens over the shop, which paused the game and unpauses it when
+	# the shop itself closes: the choice leaves the pause alone (#349).
+	i.connect("onStop", func(): showingChoicePopup = false)
 	i.connect("onStop", Network.rpc_server.bind(continueOfferQueue.bind(playerId)))
 	if not multiplayer.is_server():
 		# The host clears its mark in continueOfferQueue; a client clears its own.
 		i.connect("onStop", func(): story_shop.erase(playerId))
 	i.connect("gadgetSelected", onGadgetSelected)
 	i.integrate(self)
-	pause()
 
 
 func _from_shop(playerId: String) -> bool:
