@@ -29,8 +29,8 @@ const MARGIN := 3               # tiles of plain rock kept round the room
 
 # Wake stages: per-joint swing (degrees) and wave speed (rad/s). Stage 0 is
 # "alive but held down", stage 4 is every chain broken.
-const WAKE_AMP := [0.8, 2.5, 4.5, 7.0, 10.0]
-const WAKE_SPEED := [0.7, 1.0, 1.3, 1.6, 2.0]
+const WAKE_AMP := [2.0, 6.0, 10.0, 15.0, 20.0]
+const WAKE_SPEED := [0.8, 1.1, 1.4, 1.7, 2.0]
 
 var wake: int = 0
 var room: Rect2i = Rect2i()     # tile rect, empty until built
@@ -337,8 +337,12 @@ class TentacleRig extends Node2D:
 		for i in count:
 			var s := Segment.new()
 			var f: float = float(i) / maxf(1.0, float(count - 1))
-			s.width = lerpf(width0, width1, f)
-			s.length = seg_len + 6.0
+			var f1: float = float(i + 1) / maxf(1.0, float(count - 1))
+			s.w_root = lerpf(width0, width1, f)
+			s.w_tip = lerpf(width0, width1, minf(f1, 1.0))
+			s.width = (s.w_root + s.w_tip) * 0.5
+			s.length = seg_len
+			s.last = i == count - 1
 			s.index = i
 			add_child(s)
 			segments.append(s)
@@ -346,7 +350,7 @@ class TentacleRig extends Node2D:
 
 	func _physics_process(delta: float) -> void:
 		# Ease between wake stages so a change never snaps.
-		amp = move_toward(amp, target_amp, delta * 0.05)
+		amp = move_toward(amp, target_amp, delta * 0.12)
 		speed = move_toward(speed, target_speed, delta * 0.5)
 		_t += delta * speed
 		_pose()
@@ -366,9 +370,12 @@ class TentacleRig extends Node2D:
 
 
 class Segment extends AnimatableBody2D:
-	var width: float = 24.0
-	var length: float = 30.0
+	var width: float = 24.0     # mean width, for callers
+	var w_root: float = 24.0    # at the joint toward the base
+	var w_tip: float = 24.0     # at the joint toward the tip
+	var length: float = 24.0    # joint to joint: neighbours meet exactly
 	var index: int = 0
+	var last: bool = false
 
 	func _ready() -> void:
 		sync_to_physics = true
@@ -378,12 +385,34 @@ class Segment extends AnimatableBody2D:
 		material = mat
 		collision_layer = 1
 		collision_mask = 0
+		# A taper from joint to joint, so each piece's edge lines up with
+		# the next (a rect per piece left a small ledge at every joint, which
+		# stopped a keeper walking toward the thicker end), plus a round
+		# knuckle on the root joint to smooth over the bend between pieces.
 		var shape := CollisionShape2D.new()
-		var rect := RectangleShape2D.new()
-		rect.size = Vector2(length, width)
-		shape.shape = rect
+		var poly := ConvexPolygonShape2D.new()
+		poly.points = _outline()
+		shape.shape = poly
 		add_child(shape)
+		var knuckle := CollisionShape2D.new()
+		var c := CircleShape2D.new()
+		c.radius = w_root * 0.5
+		knuckle.shape = c
+		knuckle.position = Vector2(-length * 0.5, 0)
+		add_child(knuckle)
+		if last:
+			var tip := CollisionShape2D.new()
+			var ct := CircleShape2D.new()
+			ct.radius = w_tip * 0.5
+			tip.shape = ct
+			tip.position = Vector2(length * 0.5, 0)
+			add_child(tip)
 		queue_redraw()
+
+	func _outline() -> PackedVector2Array:
+		var hl: float = length * 0.5
+		return PackedVector2Array([Vector2(-hl, -w_root * 0.5), Vector2(hl, -w_tip * 0.5),
+			Vector2(hl, w_tip * 0.5), Vector2(-hl, w_root * 0.5)])
 
 	func _draw() -> void:
 		var hl: float = length * 0.5
@@ -391,9 +420,15 @@ class Segment extends AnimatableBody2D:
 		var body := Color(0.33, 0.17, 0.52)
 		var dark := Color(0.16, 0.08, 0.27)
 		var light := Color(0.50, 0.30, 0.72)
-		draw_rect(Rect2(-hl, -hw, length, width), dark)
-		draw_rect(Rect2(-hl, -hw + 2, length, width - 4), body)
-		draw_rect(Rect2(-hl, -hw + 2, length, 3), light)
+		draw_colored_polygon(_outline(), dark)
+		draw_circle(Vector2(-hl, 0), w_root * 0.5, dark)
+		if last:
+			draw_circle(Vector2(hl, 0), w_tip * 0.5, dark)
+		var a: float = w_root * 0.5 - 2.0
+		var b: float = w_tip * 0.5 - 2.0
+		draw_colored_polygon(PackedVector2Array([Vector2(-hl, -a), Vector2(hl, -b), Vector2(hl, b), Vector2(-hl, a)]), body)
+		draw_circle(Vector2(-hl, 0), a, body)
+		draw_colored_polygon(PackedVector2Array([Vector2(-hl, -a), Vector2(hl, -b), Vector2(hl, -b + 3), Vector2(-hl, -a + 3)]), light)
 		# Suckers along the underside.
 		draw_circle(Vector2(0, hw - 5), 3.0, Color(0.72, 0.55, 0.85))
 		draw_circle(Vector2(0, hw - 5), 1.5, dark)

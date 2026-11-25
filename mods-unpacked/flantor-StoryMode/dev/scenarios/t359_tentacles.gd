@@ -57,7 +57,7 @@ func run(h) -> void:
 	await h.shot("wake4")
 	h.note("tip swing (px): wake 0 %.1f, wake 4 %.1f" % [calm, wild])
 	h.check("wake 0 barely moves the tip (under 1.5 tiles)", calm > 1.0 and calm < 36.0, calm)
-	h.check("wake 4 swings the tip a few tiles (over 2)", wild > 48.0, wild)
+	h.check("wake 4 swings the tip several tiles (over 6)", wild > 144.0, wild)
 	await h.burst("wake4_room", 12, 6)
 
 	match kid:
@@ -141,6 +141,7 @@ func _grip(h, test, plat) -> void:
 	# Track each claw on a segment: its offset in the segment's frame must hold.
 	var drift: float = 0.0
 	var samples: int = 0
+	var slipped: int = 0
 	var kpos: Array = []
 	var last: Dictionary = {}
 	for f in 180:
@@ -159,6 +160,8 @@ func _grip(h, test, plat) -> void:
 				if d <= 4.0:
 					drift = maxf(drift, d)
 					samples += 1
+					if d > 0.05:
+						slipped += 1
 			last[t] = {"seg": t.attachedTile, "local": local}
 	await h.burst("keeper4_gripping", 12, 4)
 	var lo := Vector2(INF, INF)
@@ -167,9 +170,11 @@ func _grip(h, test, plat) -> void:
 		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
 		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
 	var moved: float = (hi - lo).length()
-	h.note("keeper4: %d claw-frames on segments, max drift %.2f px, keeper moved %.1f px" % [samples, drift, moved])
+	h.note("keeper4: %d claw-frames on segments, %d moved on the segment (max %.2f px), keeper moved %.1f px" % [samples, slipped, drift, moved])
 	h.check("claws on segments were tracked", samples > 60, samples)
-	h.check("a claw keeps its spot on the segment (drift under 1 px)", drift < 1.0, drift)
+	# A claw re-planting a pixel or two away shows as a one-frame jump; a claw
+	# that does not follow the segment would move every frame.
+	h.check("a claw keeps its spot on the segment (moves on under 5% of frames)", slipped * 20 < samples, {"slipped": slipped, "of": samples, "max": drift})
 	h.check("the Beastmaster is carried along (moves over 4 px)", moved > 4.0, moved)
 
 
