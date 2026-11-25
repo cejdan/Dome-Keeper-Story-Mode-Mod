@@ -8,6 +8,7 @@
 #              jetpack, the dome's top weapon, Heat Shielding IV, Suit Blaster)
 #   -NoUnlock  leave the unlocks as the dev profile has them
 #   -Extra     more dev switches, e.g. "--gas" (F10) or "--lava" (F9)
+#              or "--tentacles --keeper=keeper3" (the tentacle test room, #359)
 # In the run, F1 opens the cheat panel; its first column is Story Mode's.
 # Runs use the dev profile (%APPDATA%\StoryModeDev, from override.cfg), never
 # the real saves.
