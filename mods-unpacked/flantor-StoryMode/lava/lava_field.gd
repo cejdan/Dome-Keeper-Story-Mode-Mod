@@ -48,6 +48,7 @@ const HEAT_PER_SECOND := LavaData.HEAT_PER_SECOND
 const COOL_MINE_PER_SECOND := LavaData.COOL_MINE_PER_SECOND
 const COOL_DOME_PER_SECOND := LavaData.COOL_DOME_PER_SECOND
 const HEAT_MAX := LavaData.HEAT_MAX
+const HOLDS_MASS := LavaData.HOLDS_MASS
 const OVERHEAT_AFTER: float = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd").OVERHEAT_HEAT_AFTER
 
 const TILE := 24.0
@@ -88,6 +89,7 @@ var recalls := 0
 var gas_recalls := 0              # how many of the recalls were gas deaths (#357)
 var last_penalty := 0
 var hardened := 0                 # lava cells water turned to rock this run
+var tiles_rev := 0                # goes up whenever lava turns a cell to rock (the gas look's open cells, #347)
 var last_hardened: Array = []     # the cells of the latest hardening
 var _steam: Array = []            # [cell, seconds left] for the steam flash
 var _puffs: Array = []            # steam puffs: [x, y, time born, seconds to live, 0..1 seed], this node's space
@@ -113,6 +115,20 @@ var recall_pos:
 var _acc := 0.0
 var _time := 0.0
 var _glow: Node2D
+# The ocean's plain cells are drawn by one shader rect (#347; _setup_ocean_body()).
+var _ob: Node2D = null
+var _ob_mat: ShaderMaterial
+var _og: Node2D = null              # ... and their glow (ocean_glow.gdshader)
+var _og_mat: ShaderMaterial
+var _ob_rect := Rect2i()           # the ocean's cells (its rows and columns)
+var _ob_mask := PackedByteArray()  # per cell 255: the shader draws it
+var _ob_mask_img: Image
+var _ob_mask_tex: ImageTexture
+var _ob_stamp := PackedInt32Array()  # per cell: the draw that last found it plain
+var _ob_draw := 0
+var _ob_origin = null              # the rect's top-left in this node's space, once known
+# Dev only: draw the ocean's plain cells on the CPU as before (timing comparisons).
+var no_ocean_shader := false
 var _glow_tex: GradientTexture2D
 var _barrier_glow_tex: GradientTexture2D
 # Dev only: the old rule (every cell cools), for timing comparisons.
@@ -193,10 +209,123 @@ func setup(p_map) -> void:
 		_fill_ocean()
 	map.tile_destroyed.connect(_on_tile_destroyed)
 	add_to_group("saveable")
+	_setup_ocean_body()
 	if net_client:
 		_StoryNet.lava_full_request()
 	else:
 		_net_sent = mass.duplicate()
+
+
+# --- the ocean's plain cells (#347) ----------------------------------------------
+# A screen of ocean is a few hundred cells, each four crust plates and a share
+# of a body rect: thousands of draw calls a redraw, a few ms of the frame. The
+# cells that are full, bright and not falling ("plain") are drawn instead by
+# one rect over the ocean with lava/ocean_body.gdshader, from each cell's
+# crust noise worked out here once; _draw_body() marks which cells those are
+# every redraw (the mask). The shader draws them as _draw_body() would, under
+# the rest of the field's drawing (surface ripples, streams, puffs...), which
+# draws into a plain cell only what it drew over it before.
+
+const OCEAN_BODY_SHADER := "res://mods-unpacked/flantor-StoryMode/lava/ocean_body.gdshader"
+const OCEAN_GLOW_SHADER := "res://mods-unpacked/flantor-StoryMode/lava/ocean_glow.gdshader"
+
+
+func _setup_ocean_body() -> void:
+	if _ocean.is_empty() or DisplayServer.get_name() == "headless":
+		return
+	var x0: int = int(_ocean["x0"])
+	var top: int = int(_ocean["top"])
+	_ob_rect = Rect2i(x0, top, int(_ocean["x1"]) - x0 + 1, int(_ocean["bottom"]) - top + 1)
+	var w: int = _ob_rect.size.x
+	var n: int = w * _ob_rect.size.y
+	var xs := PackedFloat32Array()
+	var vs := PackedFloat32Array()
+	var ys := PackedFloat32Array()
+	xs.resize(n * 4)
+	vs.resize(n * 4)
+	ys.resize(n * 4)
+	for i in n:
+		var c := _ob_rect.position + Vector2i(i % w, i / w)
+		for k in 4:
+			xs[i * 4 + k] = _noise(c, k) * TILE
+			vs[i * 4 + k] = 2.0 + 3.0 * _noise(c, k + 5)
+			ys[i * 4 + k] = 3.0 + floorf(_noise(c, k + 11) * (TILE - 6.0))
+	_ob_mask.resize(n)
+	_ob_mask.fill(0)
+	_ob_stamp.resize(n)
+	_ob_stamp.fill(-1)
+	_ob_mask_img = Image.create_from_data(w, _ob_rect.size.y, false, Image.FORMAT_R8, _ob_mask)
+	_ob_mask_tex = ImageTexture.create_from_image(_ob_mask_img)
+	_ob_mat = ShaderMaterial.new()
+	_ob_mat.shader = load(OCEAN_BODY_SHADER)
+	_ob_mat.set_shader_parameter("mask", _ob_mask_tex)
+	for e in [["plate_x", xs], ["plate_v", vs], ["plate_y", ys]]:
+		var img := Image.create_from_data(w, _ob_rect.size.y, false, Image.FORMAT_RGBAF, e[1].to_byte_array())
+		_ob_mat.set_shader_parameter(e[0], ImageTexture.create_from_image(img))
+	_ob_mat.set_shader_parameter("tile", TILE)
+	_ob_mat.set_shader_parameter("col_body", COL_BODY)
+	_ob_mat.set_shader_parameter("col_deep", COL_DEEP)
+	_ob_mat.set_shader_parameter("col_hot", COL_HOT)
+	_ob_mat.set_shader_parameter("col_crust", COL_CRUST)
+	_ob = Node2D.new()
+	_ob.name = "LavaOceanBody"
+	_ob.material = _ob_mat
+	_ob.show_behind_parent = true      # under everything this node draws
+	_ob.draw.connect(_draw_ocean_rect)
+	add_child(_ob)
+	# Their glow: additive, over the lava like the glow pass, reaching two
+	# cells past the ocean's edge.
+	_og_mat = ShaderMaterial.new()
+	_og_mat.shader = load(OCEAN_GLOW_SHADER)
+	_og_mat.set_shader_parameter("mask", _ob_mask_tex)
+	_og_mat.set_shader_parameter("glow_tex", _glow_tex)
+	_og_mat.set_shader_parameter("tile", TILE)
+	_og_mat.set_shader_parameter("first_cell", Vector2(_ob_rect.position))
+	_og = Node2D.new()
+	_og.name = "LavaOceanGlow"
+	_og.material = _og_mat
+	_og.z_index = _glow.z_index
+	_og.draw.connect(_draw_ocean_glow_rect)
+	add_child(_og)
+
+
+func _draw_ocean_rect() -> void:
+	if _ob_origin != null:
+		_ob.draw_rect(Rect2(_ob_origin, Vector2(_ob_rect.size) * TILE), Color.WHITE)
+
+
+func _draw_ocean_glow_rect() -> void:
+	if _ob_origin != null:
+		_og.draw_rect(Rect2(_ob_origin - Vector2(2, 2) * TILE, Vector2(_ob_rect.size + Vector2i(4, 4)) * TILE), Color.WHITE)
+
+
+# After the cells are sorted: the mask over every view box says which cells
+# this redraw handed to the shader (outside the boxes nothing is on screen).
+func _ob_update(b0: Vector2) -> void:
+	var o: Vector2 = b0 + Vector2(_ob_rect.position) * TILE
+	if _ob_origin != o:
+		_ob_origin = o
+		_ob_mat.set_shader_parameter("origin", o)
+		_og_mat.set_shader_parameter("origin", o)
+		_ob.queue_redraw()
+		_og.queue_redraw()
+	_ob_mat.set_shader_parameter("time", _time)
+	_og_mat.set_shader_parameter("time", _time)
+	var w: int = _ob_rect.size.x
+	var r0: Vector2i = _ob_rect.position
+	var r1: Vector2i = _ob_rect.end - Vector2i.ONE
+	var dirty := false
+	for bx in _view_boxes:
+		for y in range(maxi(bx[0].y, r0.y), mini(bx[1].y, r1.y) + 1):
+			var row: int = (y - r0.y) * w - r0.x
+			for x in range(maxi(bx[0].x, r0.x), mini(bx[1].x, r1.x) + 1):
+				var want: int = 255 if _ob_stamp[row + x] == _ob_draw else 0
+				if _ob_mask[row + x] != want:
+					_ob_mask[row + x] = want
+					dirty = true
+	if dirty:
+		_ob_mask_img.set_data(w, _ob_rect.size.y, false, Image.FORMAT_R8, _ob_mask)
+		_ob_mask_tex.update(_ob_mask_img)
 
 
 # --- pocket placement ----------------------------------------------------------
@@ -336,6 +465,8 @@ func add_pocket(cells: Array) -> void:
 
 func _on_tile_destroyed(world_pos: Vector2) -> void:
 	var c: Vector2i = map.getTileCoord(world_pos)
+	_open_cache.erase(c)
+	_tile_events += 1
 	_wake(c)
 	if not magma.has(c):
 		return
@@ -349,7 +480,20 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 # The boss chamber counts as closed for lava, so drilling into it from the
 # ocean doesn't flood the arena; the lava rests on its ceiling (#43).
 func _is_open(c: Vector2i) -> bool:
-	return c.y >= MIN_Y and map.is_tile_empty(c) and not _chamber.has_point(c)
+	var v = _open_cache.get(c)
+	if v == null:
+		v = c.y >= MIN_Y and map.is_tile_empty(c) and not _chamber.has_point(c)
+		_open_cache[c] = v
+	return v
+
+
+# _is_open() per cell, remembered (#347: the map's check is two calls into its
+# tile layers, and the flow and the drawing ask several times a cell a step).
+# A cell is forgotten when its tile breaks or lava hardens there, and all of
+# them every OPEN_CACHE_SECONDS, in case something else changes a tile.
+const OPEN_CACHE_SECONDS := 4.0
+var _open_cache: Dictionary = {}
+var _open_cache_t := 0.0
 
 
 # --- simulation ----------------------------------------------------------------
@@ -357,6 +501,9 @@ func _is_open(c: Vector2i) -> bool:
 # Time spent in this node's _physics_process (dev timing).
 var phys_us := 0
 var phys_frames := 0
+# Time spent in this node's draw callbacks, lava and glow (dev timing, #347).
+var draw_us := 0
+var glow_us := 0
 
 
 func _physics_process(delta: float) -> void:
@@ -371,6 +518,10 @@ func _physics_body(delta: float) -> void:
 	if map == null or GameWorld.paused:
 		return
 	_time += delta
+	_open_cache_t += delta
+	if _open_cache_t >= OPEN_CACHE_SECONDS:
+		_open_cache_t = 0.0
+		_open_cache.clear()
 	if not net_client:
 		_acc += delta
 		while _acc >= TICK:
@@ -402,7 +553,9 @@ func _physics_body(delta: float) -> void:
 			_shown_dirty[c] = true
 		for c in shown:
 			_shown_dirty[c] = true
-	for c in _shown_dirty.keys():
+	for c: Vector2i in _shown_dirty.keys():
+		if not _view_dirty and _near_view(c):
+			_view_dirty = true
 		var target: float = mass.get(c, 0.0)
 		var v: float = lerp(shown.get(c, 0.0), target, k)
 		if absf(v - target) < 0.002:
@@ -693,6 +846,10 @@ func _harden_from(start: Vector2i, limit: int) -> Array:
 # One lava cell becomes an ordinary rock tile: no resource, drillable, the cell's
 # own hardness (or medium in a dug cell that had none).
 func _harden(c: Vector2i) -> void:
+	_open_cache.erase(c)
+	_view_dirty = true
+	tiles_rev += 1
+	_tile_events += 1
 	mass.erase(c)
 	shown.erase(c)
 	_wake(c)
@@ -967,10 +1124,82 @@ func _noise(c: Vector2i, i: int) -> float:
 	return fposmod(sin(float(c.x * 127 + c.y * 311 + i * 74)) * 43758.5453, 1.0)
 
 
+# A cell's fixed draw noise, worked out once (#347): _noise(c, i) for the crust
+# plates (i 0..3, 5..8, 11..14) and the embers (40, 41, 50, 51).
+var _noise_cache: Dictionary = {}
+
+
+func _noises_of(c: Vector2i) -> PackedFloat64Array:
+	var a = _noise_cache.get(c)
+	if a != null:
+		return a
+	var out := PackedFloat64Array()
+	out.resize(16)
+	for i in 4:
+		out[i] = _noise(c, i)
+		out[4 + i] = _noise(c, i + 5)
+		out[8 + i] = _noise(c, i + 11)
+	for i in 2:
+		out[12 + i] = _noise(c, i + 40)
+		out[14 + i] = _noise(c, i + 50)
+	_noise_cache[c] = out
+	return out
+
+
+# A magma cell's five cracks, worked out once (#347): x, y, w, h each.
+var _crack_cache: Dictionary = {}
+
+
+func _cracks_of(c: Vector2i) -> PackedFloat32Array:
+	var a = _crack_cache.get(c)
+	if a != null:
+		return a
+	var out := PackedFloat32Array()
+	for i in 5:
+		var horizontal := _noise(c, i + 20) > 0.5
+		var length: float = 3.0 + floor(_noise(c, i + 30) * 5.0)
+		out.append(3 + floor(_noise(c, i) * 17.0))
+		out.append(3 + floor(_noise(c, i + 9) * 17.0))
+		out.append(length if horizontal else 1.0)
+		out.append(1.0 if horizontal else length)
+	_crack_cache[c] = out
+	return out
+
+
+# The top-left corner of cell (0, 0) in this node's space; cell c's is this
+# plus c x TILE (#347: _cell_origin() costs three calls into the map a cell).
+func _origin_base() -> Vector2:
+	return _cell_origin(Vector2i.ZERO)
+
+
 # The lava cells on screen (plus a margin), so drawing costs the same however
 # much lava the map holds. Falls back to every cell if the view can't be read.
 var _vis_frame := -1
 var _vis_cache: Array = []
+
+
+# The cached sort (#347): the cell list and how _draw_body() sorted it stay
+# while nothing changes near the view (_view_dirty: a cell's drawn lava, a
+# tile, the reveal, the view boxes).
+var _view_dirty := true
+var sorts := 0                       # times the cells were sorted (dev timing)
+var _vis_reused := false
+var _cache_seen := -1
+var _cache_tiles := -1
+var _sort_kind := PackedByteArray()
+var _sort_h := PackedFloat32Array()
+var _sort_warm := PackedFloat32Array()
+var _cpu_idx := PackedInt32Array()   # what the CPU draws: indices into the list
+var _glow_cells: Array = []          # lava cells the CPU glow pass lights
+
+
+# Could a change at `c` change how a cell in view is drawn? (Its neighbours
+# up to two cells away decide its shape; the boxes already have a margin.)
+func _near_view(c: Vector2i) -> bool:
+	for bx in _view_boxes:
+		if c.x >= bx[0].x - 2 and c.x <= bx[1].x + 2 and c.y >= bx[0].y - 2 and c.y <= bx[1].y + 2:
+			return true
+	return _view_boxes.is_empty()
 
 
 # Both draw passes (lava and glow) share one list per frame.
@@ -1001,6 +1230,16 @@ func _visible_cells_now() -> Array:
 		var lo: Vector2 = Vector2(minf(a.x, b.x), minf(a.y, b.y))
 		var hi: Vector2 = Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
 		boxes.append([map.getTileCoord(to_global(lo)) - Vector2i(2, 2), map.getTileCoord(to_global(hi)) + Vector2i(2, 2)])
+	# Nothing near the view changed since the last list (#347): the same cells,
+	# and _draw_body() keeps how it sorted them.
+	var seen_n: int = map.visibleTileCoords.size()
+	if not _view_dirty and boxes == _view_boxes and seen_n == _cache_seen and _tile_events == _cache_tiles:
+		_vis_reused = true
+		return _vis_cache
+	_vis_reused = false
+	_view_dirty = false
+	_cache_seen = seen_n
+	_cache_tiles = _tile_events
 	_view_boxes = boxes
 	_view_c0 = boxes[0][0]
 	_view_c1 = boxes[0][1]
@@ -1018,6 +1257,15 @@ func _visible_cells_now() -> Array:
 				near.append(c)
 		return near
 	var out: Array = []
+	if boxes.size() == 1:
+		# One view: no cell can come twice.
+		var bx: Array = boxes[0]
+		for y in range(bx[0].y, bx[1].y + 1):
+			for x in range(bx[0].x, bx[1].x + 1):
+				var c := Vector2i(x, y)
+				if shown.has(c):
+					out.append(c)
+		return out
 	var seen := {}
 	for bx in boxes:
 		for y in range(bx[0].y, bx[1].y + 1):
@@ -1233,62 +1481,91 @@ func _fill_of(c: Vector2i) -> float:
 
 
 func _draw() -> void:
+	var t0 := Time.get_ticks_usec()
+	_draw_body()
+	draw_us += Time.get_ticks_usec() - t0
+
+
+func _draw_body() -> void:
 	# Magma rock the player can see: glowing cracks that pulse. (The view boxes
 	# come from _visible_cells(), so it runs first.)
 	var vis: Array = _visible_cells()
-	for c in magma:
-		if not _in_boxes(c) or not map.tiles.has(Vector2(c)):
+	var b0: Vector2 = _origin_base()
+	var tiles: Dictionary = map.tiles
+	for c: Vector2i in magma:
+		if not _in_boxes(c) or not tiles.has(Vector2(c)):
 			continue
-		var o := _cell_origin(c)
+		var o := b0 + Vector2(c.x * TILE, c.y * TILE)
 		var pulse: float = 0.55 + 0.45 * sin(_time * 3.0 + c.x * 1.7 + c.y * 0.9)
+		var hot_col := Color(COL_HOT, 0.35 + 0.65 * pulse)
+		var core_col := Color(COL_CORE, pulse)
+		var cr: PackedFloat32Array = _cracks_of(c)
 		for i in 5:
-			var p := Vector2(3 + floor(_noise(c, i) * 17.0), 3 + floor(_noise(c, i + 9) * 17.0))
-			var horizontal := _noise(c, i + 20) > 0.5
-			var length: float = 3.0 + floor(_noise(c, i + 30) * 5.0)
-			var size := Vector2(length, 1) if horizontal else Vector2(1, length)
-			draw_rect(Rect2(o + p, size), Color(COL_HOT, 0.35 + 0.65 * pulse))
-			draw_rect(Rect2(o + p, Vector2(1, 1)), Color(COL_CORE, pulse))
+			var p := Vector2(cr[i * 4], cr[i * 4 + 1])
+			draw_rect(Rect2(o + p, Vector2(cr[i * 4 + 2], cr[i * 4 + 3])), hot_col)
+			draw_rect(Rect2(o + p, Vector2(1, 1)), core_col)
 
-	for c in vis:
-		var f := _fill_of(c)
-		if f <= 0.02 or not _FieldUtil.seen(map, c):
-			continue
-		var o := _cell_origin(c)
-		var sh: Dictionary = _lava_shape(c)
-		var above_has: bool = sh["above_has"]
-		if sh["stream"]:
+	# The lava cells (#347): sorted in a first pass (kept while nothing near the
+	# view changes), then drawn. A row of full, bright cells has its body and
+	# dark bottom drawn as one rect each (nothing else draws into another cell
+	# of the row in between, so the picture is the same), and the ocean's plain
+	# cells are left to its shaders.
+	if not _vis_reused or _sort_kind.size() != vis.size():
+		_sort_cells(vis, b0)
+	elif _ob != null:
+		_ob_mat.set_shader_parameter("time", _time)
+		_og_mat.set_shader_parameter("time", _time)
+	var n: int = vis.size()
+	var kind: PackedByteArray = _sort_kind
+	var hs: PackedFloat32Array = _sort_h
+	var warms: PackedFloat32Array = _sort_warm
+	var drawn_to := 0                  # cells before this index have their body drawn
+	var deep_h: float = floorf(TILE * 0.35)
+	for idx in _cpu_idx:
+		var k: int = kind[idx]
+		var c: Vector2i = vis[idx]
+		var o := b0 + Vector2(c.x * TILE, c.y * TILE)
+		if k == 1:
 			_draw_stream(c, o)
 			continue
-		var h: float = sh["rect"].size.y
+		var h: float = hs[idx]
+		var warm: float = warms[idx]
 		var top: float = TILE - h
-		# A thin film with nothing under it is cooling away (#41): it dulls from
-		# bright to a dark crust as it goes.
-		var warm: float = 1.0
-		if f < FILM_MASS and not above_has and shown.get(c + Vector2i.DOWN, 0.0) < LavaData.HOLDS_MASS:
-			warm = clampf(f / FILM_MASS, 0.0, 1.0)
-		draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_CRUST.lerp(COL_BODY, warm))
-		# Darker toward the bottom of a deep pool.
-		if h > 10:
-			draw_rect(Rect2(o + Vector2(0, TILE - floor(h * 0.35)), Vector2(TILE, floor(h * 0.35))), COL_DEEP)
+		if k >= 4:
+			# The ocean shader drew its body and crust; a surface's top is drawn here.
+			if k == 4:
+				_draw_surface(c, o, top, warm)
+			continue
+		if idx >= drawn_to:
+			if h == TILE and warm == 1.0:
+				# A run of full, bright cells side by side: one body, one bottom.
+				var j: int = idx
+				while j + 1 < n and (kind[j + 1] == 2 or kind[j + 1] == 3) and hs[j + 1] == TILE and warms[j + 1] == 1.0 and vis[j + 1] == vis[j] + Vector2i.RIGHT:
+					j += 1
+				var w: float = TILE * float(j - idx + 1)
+				draw_rect(Rect2(o, Vector2(w, TILE)), COL_BODY)
+				draw_rect(Rect2(o + Vector2(0, TILE - deep_h), Vector2(w, deep_h)), COL_DEEP)
+				drawn_to = j + 1
+			else:
+				draw_rect(Rect2(o + Vector2(0, top), Vector2(TILE, h)), COL_CRUST.lerp(COL_BODY, warm))
+				# Darker toward the bottom of a deep pool.
+				if h > 10:
+					draw_rect(Rect2(o + Vector2(0, TILE - floorf(h * 0.35)), Vector2(TILE, floorf(h * 0.35))), COL_DEEP)
+				drawn_to = idx + 1
 		# Slow drifting crust plates and hot veins.
+		var nz: PackedFloat64Array = _noises_of(c)
+		var span: float = maxf(1.0, h - 6.0)
 		for i in 4:
-			var px: float = floor(fposmod(_noise(c, i) * TILE + _time * (2.0 + 3.0 * _noise(c, i + 5)), TILE - 4.0))
-			var py: float = top + 3.0 + floor(_noise(c, i + 11) * max(1.0, h - 6.0))
+			var py: float = top + 3.0 + floorf(nz[8 + i] * span)
 			if py + 2.0 > TILE:
 				continue
-			var hot := i % 2 == 0
-			draw_rect(Rect2(o + Vector2(px, py), Vector2(4 if hot else 3, 1 if hot else 2)), COL_HOT if hot else COL_CRUST)
-		if not above_has:
-			# Bright rippling surface.
-			for x in range(0, int(TILE), 2):
-				var ripple: float = round(sin(_time * 4.0 + (c.x * TILE + x) * 0.35))
-				draw_rect(Rect2(o + Vector2(x, top + max(0.0, ripple)), Vector2(2, 2)), COL_DEEP.lerp(COL_CORE, warm))
-			draw_rect(Rect2(o + Vector2(0, top + 2), Vector2(TILE, 1)), COL_CRUST.lerp(COL_HOT, warm))
-			# Embers that pop off the surface.
-			for i in (2 if warm > 0.6 else 0):
-				var t: float = fposmod(_time * (0.5 + _noise(c, i + 40)) + _noise(c, i + 50), 1.0)
-				var ex: float = floor(_noise(c, i + 60 + int(_time * 0.5)) * (TILE - 1.0))
-				draw_rect(Rect2(o + Vector2(ex, top - t * 14.0), Vector2(1, 1)), Color(COL_CORE, 1.0 - t))
+			var px: float = floorf(fposmod(nz[i] * TILE + _time * (2.0 + 3.0 * nz[4 + i]), TILE - 4.0))
+			if i % 2 == 0:
+				draw_rect(Rect2(o + Vector2(px, py), Vector2(4, 1)), COL_HOT)
+			else:
+				draw_rect(Rect2(o + Vector2(px, py), Vector2(3, 2)), COL_CRUST)
+		if k == 2:
+			_draw_surface(c, o, top, warm)
 
 	# Steam where water just hardened lava: a white-grey flash that fades.
 	for e in _steam:
@@ -1303,6 +1580,97 @@ func _draw() -> void:
 		if k != null and is_instance_valid(k):
 			var r := _FieldUtil.keeper_rect(k)
 			draw_rect(Rect2(to_local(r.position), r.size), Color(0.3, 1.0, 0.4, 0.9), false, 1.0)
+
+
+# Sorts the cells in view for _draw_body() (#347): what each is (kind), how
+# tall its lava is drawn and how bright, which the ocean's shaders take (the
+# mask), which the CPU draws and which the CPU glow pass lights.
+func _sort_cells(vis: Array, b0: Vector2) -> void:
+	sorts += 1
+	var n: int = vis.size()
+	var seen: Dictionary = map.visibleTileCoords
+	_ob_draw += 1
+	var ob_on: bool = _ob != null and not no_ocean_shader
+	var r0: Vector2i = _ob_rect.position
+	var r1: Vector2i = _ob_rect.end
+	var rw: int = _ob_rect.size.x
+	# 0 not drawn, 1 stream, 2 surface, 3 under more lava; 4 and 5 the same
+	# but plain and in the ocean, so the ocean shader draws their body.
+	var kind := PackedByteArray()
+	kind.resize(n)
+	var hs := PackedFloat32Array()
+	hs.resize(n)
+	var warms := PackedFloat32Array()
+	warms.resize(n)
+	var cpu := PackedInt32Array()
+	_glow_cells = []
+	for idx in n:
+		var c: Vector2i = vis[idx]
+		var s: float = shown.get(c, 0.0)
+		# (_fill_of() is shown clamped to 0..1.)
+		if s <= 0.02 or not seen.has(Vector2(c)):
+			continue
+		var f: float = minf(s, 1.0)
+		var up := Vector2i(c.x, c.y - 1)
+		# Lava resting above (a body, not a stream pouring in) fills this cell to the top.
+		# (_is_stream() is false for a cell 0.9 full or more: asked only below that.)
+		var su: float = shown.get(up, 0.0)
+		var above_has: bool = su > 0.05 and (su >= 0.9 or not _is_stream(up))
+		if s < 0.9 and _is_stream(c):
+			kind[idx] = 1
+			continue
+		kind[idx] = 3 if above_has else 2
+		var h: float = TILE if (above_has or f >= 0.98) else maxf(2.0, roundf(f * TILE))
+		hs[idx] = h
+		# A thin film with nothing under it is cooling away (#41): it dulls from
+		# bright to a dark crust as it goes.
+		var warm: float = 1.0
+		if f < FILM_MASS and not above_has and shown.get(Vector2i(c.x, c.y + 1), 0.0) < HOLDS_MASS:
+			warm = clampf(f / FILM_MASS, 0.0, 1.0)
+		warms[idx] = warm
+		if h == TILE and warm == 1.0 and ob_on and c.x >= r0.x and c.y >= r0.y and c.x < r1.x and c.y < r1.y:
+			_ob_stamp[(c.y - r0.y) * rw + c.x - r0.x] = _ob_draw
+			kind[idx] += 2
+	if _ob != null:
+		_ob_update(b0)
+	for idx in n:
+		var k: int = kind[idx]
+		if k != 0 and k != 5:
+			cpu.append(idx)
+		if k != 0 and k < 4:
+			var c: Vector2i = vis[idx]
+			if shown.get(c, 0.0) > 0.05:
+				_glow_cells.append(c)
+	_sort_kind = kind
+	_sort_h = hs
+	_sort_warm = warms
+	_cpu_idx = cpu
+
+
+# A resting cell's open top (`top` px down its cell): the bright rippling
+# surface, its line, and embers popping off it.
+func _draw_surface(c: Vector2i, o: Vector2, top: float, warm: float) -> void:
+	# Bright rippling surface: 2 px steps, a step at the same height as the one
+	# before it drawn as one rect with it.
+	var rc: Color = COL_DEEP.lerp(COL_CORE, warm)
+	var x0 := 0
+	var y0 := -1.0
+	for x in range(0, int(TILE), 2):
+		var y: float = top + maxf(0.0, roundf(sin(_time * 4.0 + (c.x * TILE + x) * 0.35)))
+		if y != y0:
+			if x > x0:
+				draw_rect(Rect2(o + Vector2(x0, y0), Vector2(x - x0, 2)), rc)
+			x0 = x
+			y0 = y
+	draw_rect(Rect2(o + Vector2(x0, y0), Vector2(TILE - x0, 2)), rc)
+	draw_rect(Rect2(o + Vector2(0, top + 2), Vector2(TILE, 1)), COL_CRUST.lerp(COL_HOT, warm))
+	# Embers that pop off the surface.
+	if warm > 0.6:
+		var nz: PackedFloat64Array = _noises_of(c)
+		for i in 2:
+			var t: float = fposmod(_time * (0.5 + nz[12 + i]) + nz[14 + i], 1.0)
+			var ex: float = floorf(_noise(c, i + 60 + int(_time * 0.5)) * (TILE - 1.0))
+			draw_rect(Rect2(o + Vector2(ex, top - t * 14.0), Vector2(1, 1)), Color(COL_CORE, 1.0 - t))
 
 
 # A pouring stream (#135): a ribbon of 2 px slices along stream_edges(), so it
@@ -1426,13 +1794,22 @@ const COL_BARRIER_SPARK := Color("eeeaff")
 
 
 # The chamber columns whose crust is gone (the barrier shows there).
+# Worked out again only when a tile has broken or hardened since (#347).
+var _barrier_cols: Array = []
+var _barrier_key := -1
+var _tile_events := 0             # tiles broken or hardened so far
+
+
 func barrier_columns() -> Array:
+	if _barrier_key == _tile_events:
+		return _barrier_cols
 	var out: Array = []
-	if _chamber.size == Vector2i.ZERO:
-		return out
-	for x in range(_chamber.position.x, _chamber.end.x):
-		if map.is_tile_empty(Vector2i(x, _chamber.position.y - 1)):
-			out.append(x)
+	if _chamber.size != Vector2i.ZERO:
+		for x in range(_chamber.position.x, _chamber.end.x):
+			if map.is_tile_empty(Vector2i(x, _chamber.position.y - 1)):
+				out.append(x)
+	_barrier_cols = out
+	_barrier_key = _tile_events
 	return out
 
 
@@ -1472,18 +1849,26 @@ func _draw_heat_bar() -> void:
 
 
 func _draw_glow() -> void:
+	var t0 := Time.get_ticks_usec()
+	_draw_glow_body()
+	glow_us += Time.get_ticks_usec() - t0
+
+
+func _draw_glow_body() -> void:
 	# Soft additive light around lava and around magma rock the player can see.
-	for c in _visible_cells():
-		var f := _fill_of(c)
-		if f <= 0.05 or not _FieldUtil.seen(map, c):
-			continue
-		var center := _cell_origin(c) + Vector2(TILE, TILE) * 0.5
+	var b0: Vector2 = _origin_base() + Vector2(TILE, TILE) * 0.5
+	var seen: Dictionary = map.visibleTileCoords
+	_visible_cells()
+	for c: Vector2i in _glow_cells:
+		var f: float = minf(shown.get(c, 0.0), 1.0)
+		var center := b0 + Vector2(c.x * TILE, c.y * TILE)
 		var flick: float = 0.85 + 0.15 * sin(_time * 6.0 + c.x * 2.1 + c.y)
 		var r: float = 30.0 + 18.0 * f
 		_glow.draw_texture_rect(_glow_tex, Rect2(center - Vector2(r, r), Vector2(r, r) * 2.0), false, Color(1, 1, 1, 0.22 * flick * (0.4 + 0.6 * f)))
-	for c in magma:
-		if _in_boxes(c) and map.tiles.has(Vector2(c)):
-			var center := _cell_origin(c) + Vector2(TILE, TILE) * 0.5
+	var tiles: Dictionary = map.tiles
+	for c: Vector2i in magma:
+		if _in_boxes(c) and tiles.has(Vector2(c)):
+			var center := b0 + Vector2(c.x * TILE, c.y * TILE)
 			var pulse: float = 0.5 + 0.5 * sin(_time * 3.0 + c.x * 1.7 + c.y * 0.9)
 			_glow.draw_texture_rect(_glow_tex, Rect2(center - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 1, 1, 0.10 + 0.14 * pulse))
 	# The chamber barrier's violet glow.

@@ -61,12 +61,14 @@ var look = null                    # the first GasLook (the first local keeper's
 var looks: Dictionary = {}         # playerId -> the GasLook drawing that keeper's split view (#231)
 var dome = null                    # the DomeGas child: gas vented into the dome (#213)
 var revision := 0                  # goes up whenever any cell's gas changes (for the look)
+var tiles_rev := 0                 # goes up whenever a tile breaks (the look's open cells, #347)
 # Dev only: hold the gas still.
 var freeze_flow := false
 # Dev only: hold the toxin bar where it is.
 var freeze_toxin := false
 var phys_us := 0
 var phys_frames := 0
+var draw_us := 0                   # time in _draw (dev timing, #347)
 
 var _acc := 0.0
 var _time := 0.0
@@ -230,6 +232,7 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 	var c: Vector2i = map.getTileCoord(world_pos)
 	_wake(c)
 	revision += 1
+	tiles_rev += 1
 	if not rock.has(c):
 		return
 	rock.erase(c)
@@ -1030,20 +1033,50 @@ func _noise(c: Vector2i, i: int) -> float:
 	return fposmod(sin(float(c.x * 157 + c.y * 271 + i * 61)) * 43758.5453, 1.0)
 
 
+# A gas rock cell's five cracks, worked out once (#347): x, y, w, h each.
+var _crack_cache: Dictionary = {}
+
+
+func _cracks_of(c: Vector2i) -> PackedFloat32Array:
+	var a = _crack_cache.get(c)
+	if a != null:
+		return a
+	var out := PackedFloat32Array()
+	for i in 5:
+		var horizontal := _noise(c, i + 20) > 0.5
+		var length: float = 3.0 + floor(_noise(c, i + 30) * 5.0)
+		out.append(3 + floor(_noise(c, i) * 17.0))
+		out.append(3 + floor(_noise(c, i + 9) * 17.0))
+		out.append(length if horizontal else 1.0)
+		out.append(1.0 if horizontal else length)
+	_crack_cache[c] = out
+	return out
+
+
 func _draw() -> void:
-	# Gas rock the player can see: green seeping cracks that breathe.
-	for c in rock:
-		if not map.tiles.has(Vector2(c)):
+	var t0 := Time.get_ticks_usec()
+	_draw_body()
+	draw_us += Time.get_ticks_usec() - t0
+
+
+func _draw_body() -> void:
+	# Gas rock the player can see: green seeping cracks that breathe. Only what
+	# is in the lava field's view boxes (every split view, with a margin; #347).
+	var cull: bool = _lava != null and is_instance_valid(_lava) and not _lava._view_boxes.is_empty()
+	var tiles: Dictionary = map.tiles
+	var b0: Vector2 = _cell_origin(Vector2i.ZERO)
+	for c: Vector2i in rock:
+		if (cull and not _lava._in_boxes(c)) or not tiles.has(Vector2(c)):
 			continue
-		var o := _cell_origin(c)
+		var o := b0 + Vector2(c.x * TILE, c.y * TILE)
 		var pulse: float = 0.5 + 0.5 * sin(_time * 2.2 + c.x * 1.3 + c.y * 0.7)
+		var seep := Color(COL_ROCK_SEEP, 0.3 + 0.6 * pulse)
+		var core := Color(COL_ROCK_CORE, pulse)
+		var cr: PackedFloat32Array = _cracks_of(c)
 		for i in 5:
-			var p := Vector2(3 + floor(_noise(c, i) * 17.0), 3 + floor(_noise(c, i + 9) * 17.0))
-			var horizontal := _noise(c, i + 20) > 0.5
-			var length: float = 3.0 + floor(_noise(c, i + 30) * 5.0)
-			var size := Vector2(length, 1) if horizontal else Vector2(1, length)
-			draw_rect(Rect2(o + p, size), Color(COL_ROCK_SEEP, 0.3 + 0.6 * pulse))
-			draw_rect(Rect2(o + p, Vector2(1, 1)), Color(COL_ROCK_CORE, pulse))
+			var p := Vector2(cr[i * 4], cr[i * 4 + 1])
+			draw_rect(Rect2(o + p, Vector2(cr[i * 4 + 2], cr[i * 4 + 3])), seep)
+			draw_rect(Rect2(o + p, Vector2(1, 1)), core)
 	_draw_gas()
 	_draw_puffs()
 
