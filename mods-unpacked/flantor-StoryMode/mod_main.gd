@@ -125,6 +125,11 @@ func _ready():
 	var lava_finder = load("res://mods-unpacked/flantor-StoryMode/lava/dev_lava_finder.gd").new()
 	lava_finder.name = "DevLavaFinder"
 	add_child(lava_finder)
+	# Dev-only tentacle test room (#359); needs `-- --story --tentacles`.
+	if ResourceLoader.exists(Story.MOD_DIR + "dev/dev_tentacle_test.gd"):
+		var tentacle_test = load(Story.MOD_DIR + "dev/dev_tentacle_test.gd").new()
+		tentacle_test.name = "DevTentacleTest"
+		add_child(tentacle_test)
 	# Dev-only cheats (#292): a Story Mode column in the F1 panel, and the
 	# `--unlockall` / `--money=` / `--gear` launch switches (dev/play_dev.ps1).
 	# Added before DevBoot so the unlocks land before the loadout is built.
