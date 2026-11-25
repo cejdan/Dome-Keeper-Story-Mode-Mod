@@ -85,6 +85,7 @@ var heat: float:
 	set(v):
 		heats[_Story.local_pid()] = v
 var recalls := 0
+var gas_recalls := 0              # how many of the recalls were gas deaths (#357)
 var last_penalty := 0
 var hardened := 0                 # lava cells water turned to rock this run
 var last_hardened: Array = []     # the cells of the latest hardening
@@ -574,7 +575,7 @@ func serialize() -> Dictionary:
 	for c in magma:
 		rock.append([c.x, c.y])
 	_StoryNet.save_blob(SAVE_KEY, JSON.stringify({"seed": Level.levelSeed, "mass": cells, "sources": src, "magma": rock,
-		"heat": heat, "heats": heats, "breaches": breaches, "recalls": recalls, "ocean_cells": ocean_cells, "boss_chamber_reached": boss_chamber_reached}))
+		"heat": heat, "heats": heats, "breaches": breaches, "recalls": recalls, "gas_recalls": gas_recalls, "ocean_cells": ocean_cells, "boss_chamber_reached": boss_chamber_reached}))
 	return {"meta.priority": 9000, "meta.kind": "storylava"}
 
 
@@ -598,6 +599,7 @@ func _restore(blob: String) -> bool:
 	heats = _FieldUtil.per_player(d, "heats", "heat")
 	breaches = int(d.get("breaches", 0))
 	recalls = int(d.get("recalls", 0))
+	gas_recalls = int(d.get("gas_recalls", 0))
 	ocean_cells = int(d.get("ocean_cells", 0))
 	boss_chamber_reached = bool(d.get("boss_chamber_reached", false))
 	ModLoaderLog.info("Lava restored from save: %d cells, %d magma" % [mass.size(), magma.size()], "flantor-StoryMode")
@@ -794,17 +796,18 @@ func _update_keeper_heat(keeper, delta: float) -> void:
 # A full heat or toxin bar: a recall, the suit's death. Velle jams the recall
 # through the boss sequence (#160): there it costs a heart instead, and this
 # returns true (the bar drops to OVERHEAT_AFTER of full). `teleport` false: a
-# death where the keeper stands (gassed in the dome, #213).
-func overheat(keeper, teleport: bool = true) -> bool:
+# death where the keeper stands (gassed in the dome, #213). `cause` "gas" plays
+# the gas death beat instead of the lava one (#357).
+func overheat(keeper, teleport: bool = true, cause: String = "lava") -> bool:
 	var BossDirector = load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
 	if BossDirector.jams_recall():
 		BossDirector.overheated(keeper)
 		return true
-	_recall(keeper, teleport)
+	_recall(keeper, teleport, cause)
 	return false
 
 
-func _recall(keeper, teleport: bool = true) -> void:
+func _recall(keeper, teleport: bool = true, cause: String = "lava") -> void:
 	# Placeholder for "the keeper dies in the mine": the suit dumps its cargo where
 	# it stands and yanks the keeper back to the dome. This runs on the keeper's
 	# own instance (#227); the team's side (team_death) on the host.
@@ -822,19 +825,23 @@ func _recall(keeper, teleport: bool = true) -> void:
 			var loss: int = int(floor(int(Data.ofOr(keeper.teamId + ".inventory.money", 0)) / 2.0))
 			if loss > 0:
 				_float_loss(keeper, loss)
-		_StoryNet.lava_died(keeper.playerId)
+		_StoryNet.lava_died(keeper.playerId, cause)
 		return
-	team_death(keeper)
+	team_death(keeper, cause)
 
 
-# The team's side of a lava death, on the host: the count, the horror's beat
+# The team's side of a lava or gas death, on the host: the count, the beat
 # and the money penalty. `keeper` died on its own instance (maybe a client's).
-func team_death(keeper) -> void:
+func team_death(keeper, cause: String = "lava") -> void:
 	recalls += 1
+	if cause == "gas":
+		gas_recalls += 1
 	# The horror is tender about it (#26): its own beat for each of the first
 	# five deaths in a run (#157); the 5th plays again on every death after.
+	# Lava and gas deaths count apart, each with its own beats (#357).
 	if _Story.is_story():
-		load("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd").trigger("lava_death:%d" % mini(recalls, 5))
+		var n: int = gas_recalls if cause == "gas" else recalls - gas_recalls
+		load("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd").trigger("%s_death:%d" % [cause, mini(n, 5)])
 	# Dying in the deep costs half the money (#45). With $0 or $1 it stays free.
 	last_penalty = 0
 	if _Story.is_story():

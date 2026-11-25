@@ -522,21 +522,22 @@ func _lava_harden(cells: PackedVector2Array) -> void:
 		f.net_harden(cells)
 
 
-# Client -> host: my keeper died in the heat (the host takes the money, plays the beat).
-static func lava_died(player_id: String) -> void:
+# Client -> host: my keeper died in the heat or the gas (the host takes the
+# money, plays the beat; `cause` "lava" or "gas", #357).
+static func lava_died(player_id: String, cause: String = "lava") -> void:
 	if _inst != null:
-		_inst.rpc_id(1, "_lava_died", player_id)
+		_inst.rpc_id(1, "_lava_died", player_id, cause)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _lava_died(player_id: String) -> void:
+func _lava_died(player_id: String, cause: String) -> void:
 	if Network.is_client():
 		return
 	var f = _lava()
 	var k = Keepers.getKeeper(player_id) if Keepers.hasKeeper(player_id) else null
 	if f == null or k == null or k.peerId != multiplayer.get_remote_sender_id():
 		return
-	f.team_death(k)
+	f.team_death(k, "gas" if cause == "gas" else "lava")
 
 
 # Client -> host: my keeper broke into the boss chamber (#95 wakes the horror).

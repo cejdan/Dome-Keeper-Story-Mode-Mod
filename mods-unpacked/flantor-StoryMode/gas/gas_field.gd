@@ -774,10 +774,10 @@ func _gassed_in_dome(keeper) -> void:
 	ModLoaderLog.info("Gassed in the dome: death %d" % gassed, "flantor-StoryMode")
 
 
-# The same death as an overheat in lava (cargo dropped, half the money, the
-# same count and lines), or a heart in the boss sequence.
+# The same death as an overheat in lava (cargo dropped, half the money), or a
+# heart in the boss sequence; but its own count and beat (#357).
 func _gassed(keeper, teleport: bool = true) -> void:
-	var jammed: bool = _lava != null and _lava.overheat(keeper, teleport)
+	var jammed: bool = _lava != null and _lava.overheat(keeper, teleport, "gas")
 	toxins[keeper.playerId] = GasData.TOXIN_MAX * _lava.OVERHEAT_AFTER if jammed else 0.0
 
 
