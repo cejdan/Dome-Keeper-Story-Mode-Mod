@@ -86,6 +86,17 @@ func startGadgetChoiceInput(teamId: String, playerId: String, offerType: String)
 	var prev: Control = vp.gui_get_focus_owner() if vp != null else null
 	if prev != null:
 		prev.release_focus()
+	# The arrows move the focus to the nearest focusable control on screen when a
+	# card has none that way, and the GUI does that before any input processor
+	# sees the key: up and down from the cards went to the shop's panels behind
+	# the choice (#373). The shop takes no focus until the choice closes (this is
+	# connected before the focus goes back to its panel below).
+	var shop = InputSystem.getLastChild(keeper.deviceId)
+	var held: Array = []
+	if shop is UpgradesInputProcessor and shop.popup is Control:
+		held = _hold_focus(shop.popup)
+	i.connect("onStop", func(): _end_focus_hold(held))
+	if prev != null:
 		var cards: Array = i.popup.get_node("%Gadgets").get_children()
 		if not cards.is_empty():
 			InputSystem.grabFocus(cards.front())
@@ -93,14 +104,39 @@ func startGadgetChoiceInput(teamId: String, playerId: String, offerType: String)
 			if is_instance_valid(prev) and prev.is_inside_tree() and prev.is_visible_in_tree():
 				InputSystem.grabFocus(prev))
 	showingChoicePopup = true
-	i.connect("onStop", unpause)
+	# Vanilla opens the choice from the running game and unpauses when it closes.
+	# This one opens over the shop, which paused the game and unpauses it when
+	# the shop itself closes: the choice leaves the pause alone (#349).
+	i.connect("onStop", func(): showingChoicePopup = false)
 	i.connect("onStop", Network.rpc_server.bind(continueOfferQueue.bind(playerId)))
 	if not multiplayer.is_server():
 		# The host clears its mark in continueOfferQueue; a client clears its own.
 		i.connect("onStop", func(): story_shop.erase(playerId))
 	i.connect("gadgetSelected", onGadgetSelected)
 	i.integrate(self)
-	pause()
+
+
+const UpgradesInputProcessor = preload("res://stages/level/UpgradesInputProcessor.gd")
+
+
+# Makes every control under `root` that can take focus unable to. Returns
+# [control, focus mode] pairs for _end_focus_hold.
+func _hold_focus(root: Node) -> Array:
+	var out: Array = []
+	var open: Array = [root]
+	while not open.is_empty():
+		var n: Node = open.pop_back()
+		if n is Control and n.focus_mode != Control.FOCUS_NONE:
+			out.append([n, n.focus_mode])
+			n.focus_mode = Control.FOCUS_NONE
+		open.append_array(n.get_children())
+	return out
+
+
+func _end_focus_hold(held: Array) -> void:
+	for p: Array in held:
+		if is_instance_valid(p[0]):
+			p[0].focus_mode = p[1]
 
 
 func _from_shop(playerId: String) -> bool:
