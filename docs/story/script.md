@@ -96,6 +96,17 @@ Then fly free from this prison.
 ---
 > Confused and dazed and not sure if you are dreaming, you can't shake the feeling someone, or something saved you.
 
+### gas_death_1 (tier 2)
+> Your suit's air tank is polluted by the noxious fumes, and green gas starts to fill the inside of your visor.
+---
+> You hold your breath as long as possible to avoid breathing in the toxic gas.
+---
+> Eventually, your lungs feel as though they are about to burst. Your body screams for oxygen and finally you are forced to sip an inhale. Nearly instantly, your vision begins to fade to black.
+---
+> You wake up back in the dome, confused and disoriented.
+---
+> You get the feeling someone saved you. But on this hostile planet, you're not sure who. Or why.
+
 ### translator_1 (tier 1)
 > You bring the alien artifact back into your dome for closer study. It's covered in alien symbols and hums and sings quietly. It sounds just like the animals outside your dome.
 ---

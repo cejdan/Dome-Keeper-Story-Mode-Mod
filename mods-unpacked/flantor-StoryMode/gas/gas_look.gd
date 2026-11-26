@@ -15,6 +15,7 @@ extends Node2D
 
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
+const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
 const DIR := "res://mods-unpacked/flantor-StoryMode/gas/look/"
 const TILE := 24.0
 const SUB := 8                      # field texels per tile
@@ -56,6 +57,27 @@ var _built_c0 := Vector2i(1 << 20, 0)
 var _built_seen := -1
 var _flux_live := false
 var _glided := false
+# Asleep (#347): no gas, fire or gas movement in the window for SLEEP_AFTER
+# seconds, so the dye has long cleared (it loses CLEAR_RATE of what is left a
+# step, 60 steps a second): nothing is drawn, so the four fields stop
+# rendering and both layers hide until gas comes into the window again.
+const SLEEP_AFTER := 2.0
+var asleep := false
+var _empty_for := 0.0
+var _viewports: Array = []
+# What stays put while the window does (#347): per window cell, bit 0 open
+# (inside the mine, no rock, not the boss chamber), bit 1 revealed. Rebuilt
+# when the window moves, a tile opens or closes, the reveal grows, or after
+# STATIC_REFRESH seconds; the per-frame pass reads only the gas and lava
+# dictionaries.
+const STATIC_REFRESH := 1.0
+var _static := PackedByteArray()
+var _static_c0 := Vector2i(1 << 20, 0)
+var _static_tiles := -1
+var _static_seen := -1
+var _static_t := 0.0
+var _shifted := false            # the window moved this frame
+var _has_gas := false            # the last pass found gas, fire or movement in the window
 
 
 func setup(p_field) -> void:
@@ -122,10 +144,11 @@ func _pair(label: String, size: Vector2i, mat: ShaderMaterial) -> Array:
 		vp.disable_3d = true
 		vp.transparent_bg = true
 		vp.use_hdr_2d = true
-		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 		vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 		add_child(vp)
 		out.append(vp)
+		_viewports.append(vp)
 	var sim := ColorRect.new()
 	sim.size = Vector2(size)
 	sim.material = mat
@@ -151,7 +174,12 @@ func _process(delta: float) -> void:
 			step = true
 			_acc = minf(_acc - 1.0 / STEPS, 1.0 / STEPS)
 	_update_window()
-	_update_tiles()
+	_update_tiles(step)
+	_update_sleep(delta)
+	if asleep:
+		cpu_us += Time.get_ticks_usec() - t0
+		cpu_frames += 1
+		return
 	var keeper = _keeper()
 	var kp := Vector2(-999, -999)
 	if keeper != null and is_instance_valid(keeper):
@@ -168,6 +196,12 @@ func _process(delta: float) -> void:
 			_last_keeper = local
 	for m in [_vel_mat, _dye_mat]:
 		m.set_shader_parameter("run", 1.0 if step else 0.0)
+	# The fields change only on a step, or when the window moves under them
+	# (#347): between steps a pass would copy each field onto itself, so the
+	# four viewports render only on those frames, not on every frame.
+	if step or _shifted:
+		for vp in _viewports:
+			vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_vel_mat.set_shader_parameter("time", _time)
 	_vel_mat.set_shader_parameter("origin", Vector2(c0 * SUB))
 	_vel_mat.set_shader_parameter("keeper", kp)
@@ -225,22 +259,92 @@ func _update_window() -> void:
 	_have_window = true
 	_vel_mat.set_shader_parameter("shift", shift)
 	_dye_mat.set_shader_parameter("shift", shift)
+	_shifted = shift != Vector2.ZERO
 	var pos: Vector2 = to_local(map.getTilePos(Vector2(c0))) - Vector2(TILE, TILE) * 0.5
 	_sprite.position = pos
 	_glow.position = pos
 
 
+# Sleeps once the window has held no gas for SLEEP_AFTER seconds; wakes the
+# frame gas (or fire, or gas moving) is in it again (#347).
+func _update_sleep(delta: float) -> void:
+	if _has_gas:
+		_empty_for = 0.0
+		if asleep:
+			_set_asleep(false)
+		return
+	_empty_for += delta
+	if not asleep and _empty_for >= SLEEP_AFTER:
+		_set_asleep(true)
+
+
+func _set_asleep(v: bool) -> void:
+	asleep = v
+	for vp in _viewports:
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED if v else SubViewport.UPDATE_ONCE
+	_sprite.visible = not v
+	_glow.visible = not v
+
+
+# Tiles that opened or closed anywhere: the gas field counts tile breaks, the
+# lava field its hardenings.
+func _tiles_rev() -> int:
+	var n: int = field.tiles_rev
+	if field._lava != null and is_instance_valid(field._lava):
+		n += field._lava.tiles_rev
+	return n
+
+
+func _update_static(vis: Dictionary) -> void:
+	var tr: int = _tiles_rev()
+	_static_t += get_process_delta_time()
+	if c0 == _static_c0 and tr == _static_tiles and vis.size() == _static_seen and _static_t < STATIC_REFRESH:
+		return
+	_static_c0 = c0
+	_static_tiles = tr
+	_static_seen = vis.size()
+	_static_t = 0.0
+	if _static.size() != WIN.x * WIN.y:
+		_static.resize(WIN.x * WIN.y)
+	var chamber: Rect2i = field._chamber
+	var i := 0
+	for y in range(c0.y, c0.y + WIN.y):
+		for x in range(c0.x, c0.x + WIN.x):
+			var c := Vector2i(x, y)
+			var b := 0
+			if y >= GasData.MIN_Y and map.is_tile_empty(c) and not chamber.has_point(c):
+				b = 1
+			if vis.has(Vector2(c)):
+				b |= 2
+			_static[i] = b
+			i += 1
+
+
 # One texel a tile. tiles: r open, g gas density / 4, b revealed, a how hot it burns. flux: the
 # grid's gas movement through the tile. Rebuilt only when something changed.
-func _update_tiles() -> void:
+func _update_tiles(step: bool = true) -> void:
 	var vis: Dictionary = map.visibleTileCoords
 	var flux_now: bool = not field.flux.is_empty()
 	# Gas between two steps glides (#211): redrawn every frame while the last
 	# step moved some, and once more when the glide ends.
 	var gliding: bool = field.moving and field.step_blend() < 1.0
 	var glided: bool = _glided
+	_update_static(vis)
+	var moved: bool = c0 != _built_c0 or vis.size() != _built_seen
+	if not moved and field.revision == _built_rev and not flux_now and not _flux_live and not gliding and not glided:
+		_glided = false
+		return
+	# The fields read the gas only on a step (#347): a change between steps
+	# waits for the next one (a new window can't wait: it is drawn this frame).
+	if not moved and not step:
+		_glided = true
+		return
 	_glided = gliding
-	if field.revision == _built_rev and c0 == _built_c0 and vis.size() == _built_seen and not flux_now and not _flux_live and not gliding and not glided:
+	# Asleep with no gas anywhere: nothing can be in the window.
+	if asleep and field.mass.is_empty() and field.fire.is_empty():
+		_built_rev = field.revision
+		_built_c0 = c0
+		_built_seen = vis.size()
 		return
 	_built_rev = field.revision
 	_built_c0 = c0
@@ -253,26 +357,47 @@ func _update_tiles() -> void:
 	fdata.fill(128)
 	var i := 0
 	var j := 0
+	var k := 0
 	var any_flux := false
+	var any_gas := false
 	var burning: bool = not field.fire.is_empty()
+	var mass: Dictionary = field.mass
+	var prev: Dictionary = field.prev_mass
+	var flux: Dictionary = field.flux
+	var fire: Dictionary = field.fire
+	var lava: Dictionary = field._lava.mass if field._lava != null and is_instance_valid(field._lava) else {}
+	# shown_mass(), inline: the gas between its last two steps.
+	var blend: float = 1.0 if field.freeze_flow else field.step_blend()
 	for y in range(c0.y, c0.y + WIN.y):
 		for x in range(c0.x, c0.x + WIN.x):
+			var st: int = _static[k]
+			k += 1
 			var c := Vector2i(x, y)
-			if field._is_open(c):
+			if st & 1 and lava.get(c, 0.0) < 0.9:
 				data[i] = 255
-				data[i + 1] = int(clampf(field.shown_mass(c) / 4.0, 0.0, 1.0) * 255.0)
-				if flux_now and field.flux.has(c):
+				var now: float = mass.get(c, 0.0)
+				var m: float = lerpf(prev.get(c, now), now, blend) if blend < 1.0 else now
+				if m > 0.0:
+					any_gas = true
+					data[i + 1] = int(clampf(m / 4.0, 0.0, 1.0) * 255.0)
+				if flux_now and flux.has(c):
 					var f: Vector2 = (field.flux_at(c) / FLUX_FULL).limit_length(1.0)
 					if f != Vector2.ZERO:
 						any_flux = true
 						fdata[j] = int(clampf(f.x * 0.5 + 0.5, 0.0, 1.0) * 255.0)
 						fdata[j + 1] = int(clampf(f.y * 0.5 + 0.5, 0.0, 1.0) * 255.0)
-			if vis.has(Vector2(c)):
+			if st & 2:
 				data[i + 2] = 255
-			if burning:
-				data[i + 3] = int(field.fire_at(c) * 255.0)
+			if burning and fire.has(c):
+				var fa: float = field.fire_at(c)
+				if fa > 0.0:
+					any_gas = true
+					data[i + 3] = int(fa * 255.0)
 			i += 4
 			j += 2
+	_has_gas = any_gas or any_flux
+	if asleep and not _has_gas:
+		return
 	_tiles_img.set_data(WIN.x, WIN.y, false, Image.FORMAT_RGBA8, data)
 	_tiles_tex.update(_tiles_img)
 	if any_flux or _flux_live:
