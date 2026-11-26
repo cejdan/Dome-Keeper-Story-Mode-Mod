@@ -80,6 +80,9 @@ const OCEAN_UNOB_CLUMP := [1, 3]
 const OCEAN_FLOOR_ROWS := 2               # rock under the ocean (1 row over the chamber)
 const BOSS_CHAMBER := Vector2i(20, 10)    # width x height, empty and sealed
 const BOSS_CHAMBER_WALL := 2
+# Roof tiles (columns from the chamber's left edge) left drillable as the way in
+# (#361); the rest of the roof, the walls and the floor are undrillable.
+const BOSS_CHAMBER_ENTRY := [3, 4, 15, 16]
 
 # --- passive heat (#46, #187) ---------------------------------------------
 # The suit heats from depth alone, out of lava, from B4 down (a per-tile biome

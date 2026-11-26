@@ -49,6 +49,13 @@ func _process(_delta: float) -> void:
 		chains.setup(map)
 		map.add_child(chains)
 		ModLoaderLog.info("Chains added: %d" % chains.chains.size(), "flantor-StoryMode")
+		# Velle's chamber in living stone (#361).
+		var stone = load(_Story.MOD_DIR + "boss/chamber_stone.gd").new()
+		if stone.setup(map):
+			map.add_child(stone)
+			ModLoaderLog.info("Chamber stone added: %d bodies" % stone.bodies.size(), "flantor-StoryMode")
+		else:
+			stone.free()
 
 
 func _wants_lava() -> bool:

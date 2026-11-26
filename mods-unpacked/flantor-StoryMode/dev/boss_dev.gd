@@ -89,7 +89,8 @@ static func path_cells(ch: Rect2i, path_seed: int, avoid: Dictionary = {}) -> Ar
 	var rng := RandomNumberGenerator.new()
 	rng.seed = path_seed
 	var cells: Array = []
-	var x: int = ch.position.x + ch.size.x / 2 - 4
+	# Up from the roof's left entry tile (#361: the rest of the roof is undrillable).
+	var x: int = ch.position.x + int(load("res://mods-unpacked/flantor-StoryMode/data/lava.gd").BOSS_CHAMBER_ENTRY[0])
 	var y: int = ch.position.y - 1
 	var reach: int = maxi(3, ch.size.x / 2 - 2)
 	var run: int = rng.randi_range(5, 10)

@@ -189,6 +189,7 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 		for x in range(ch_x0, ch_x0 + ch_w):
 			map_data.set_resourcev(Vector2i(x, y), Data.TILE_EMPTY)
 			map_data.set_hardnessv(Vector2i(x, y), Data.HARDNESS_MEDIUM)
+	seal_chamber(map_data, Rect2i(ch_x0, ch_y0, ch_w, ch_h), wall)
 	# Unobtainium: clumps in the ocean, some resting on its floor or slopes
 	# (the lowest funnel row of a column). The total is set by the map's full
 	# width: what the first, full-size ocean held (#43, #175).
@@ -229,6 +230,23 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 	map_data.set_meta("story_ocean", info)
 	map_data.set_meta("story_boss_chamber", Rect2i(ch_x0, ch_y0, ch_w, ch_h))
 	return info
+
+
+# The chamber's living stone (#361): its walls and floor (`wall` tiles thick)
+# and its roof row are undrillable, as vanilla's own border tiles are, except
+# the roof's entry tiles (LavaData.BOSS_CHAMBER_ENTRY), which stay the thin
+# crust the player drills through to get in. boss/chamber_stone.gd draws them.
+static func seal_chamber(map_data, ch: Rect2i, wall: int) -> void:
+	for y in range(ch.position.y - 1, ch.end.y + wall):
+		for x in range(ch.position.x - wall, ch.end.x + wall):
+			var c := Vector2i(x, y)
+			if ch.has_point(c):
+				continue
+			if y == ch.position.y - 1 and (x - ch.position.x) in LavaData.BOSS_CHAMBER_ENTRY:
+				continue
+			map_data.set_biomev(c, MapConfig.BIOMES - 1)
+			map_data.set_resourcev(c, Data.TILE_BORDER)
+			map_data.set_hardnessv(c, Data.HARDNESS_INDESTRUCTIBLE)
 
 
 # The funnel's columns per row (#184): y -> [x0, x1]. The top two rows span
