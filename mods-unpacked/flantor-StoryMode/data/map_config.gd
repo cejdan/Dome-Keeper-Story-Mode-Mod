@@ -79,8 +79,8 @@ const RARE_COUNTS: Dictionary = {}
 # rows START_BRONZE_ROWS, START_BRONZE_REACH columns or less from the dome
 # (column 0), at least START_BRONZE_SPACING columns apart, so the first defence
 # money is a short dig away, like vanilla's early iron.
-# #375: 3 deposits were too much; 2 now.
-const START_BRONZE_DEPOSITS: int = 2
+# #375: 3 deposits were too much; 1 now (the user's call).
+const START_BRONZE_DEPOSITS: int = 1
 const START_BRONZE_SIZE: Array = [2, 3]
 const START_BRONZE_ROWS: Array = [2, 4]
 const START_BRONZE_REACH: int = 14
