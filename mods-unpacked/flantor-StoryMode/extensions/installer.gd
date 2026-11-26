@@ -64,6 +64,7 @@ const EXTENSIONS: Array[String] = [
 	"content/gadgets/droneyard/Squidley.gd",
 	"content/keeper/keeper1/TileHitSounds.gd",
 	"content/gadgets/teleporter/Teleporter.gd",
+	"content/keeper/keeper4/Goblins.gd",
 ]
 
 # Scripts that name a class_name of EXTENSIONS in a type: extends, a typed
@@ -100,6 +101,7 @@ const NAMED_BY: Array[String] = [
 	"res://content/keeper/keeper2/Keeper2Synchronizer.gd",
 	"res://content/keeper/keeper3/KunaiCarrier.gd",
 	"res://content/keeper/keeper4/GoblinHole.gd",
+	"res://content/keeper/keeper4/GoblinsSynchronizer.gd",
 	"res://content/keeper/keeper4/Keeper4.gd",
 	"res://content/map/DropSynchronizer.gd",
 	"res://content/map/Drops.gd",
@@ -150,6 +152,7 @@ const SCENES: Array[String] = [
 	"res://content/gadgets/suitblaster/SuitblasterExplosion.tscn",
 	"res://content/gadgets/teleporter/Teleporter.tscn",
 	"res://content/hud/inventory/Inventory.tscn",
+	"res://content/keeper/keeper4/Goblins.tscn",
 	"res://content/map/generation/TileDataGenerator.tscn",
 	"res://content/map/Map.tscn",
 	"res://content/map/tile/DirtParticle.tscn",
