@@ -61,7 +61,7 @@ const DEPOSIT_SPACING: float = 4.0
 # B7 mythril, B8 diamond.
 const MIX: Array = [
 	{"bronze": 100},
-	{"bronze": 80, "iron": 20},
+	{"bronze": 90, "iron": 10},   # #375: iron 20 -> 10
 	{"iron": 75, "gold": 25},
 	{"gold": 55, "sapphire": 45},
 	{"gold": 20, "sapphire": 40, "emerald": 40},
@@ -79,7 +79,8 @@ const RARE_COUNTS: Dictionary = {}
 # rows START_BRONZE_ROWS, START_BRONZE_REACH columns or less from the dome
 # (column 0), at least START_BRONZE_SPACING columns apart, so the first defence
 # money is a short dig away, like vanilla's early iron.
-const START_BRONZE_DEPOSITS: int = 3
+# #375: 3 deposits were too much; 1 now (the user's call).
+const START_BRONZE_DEPOSITS: int = 1
 const START_BRONZE_SIZE: Array = [2, 3]
 const START_BRONZE_ROWS: Array = [2, 4]
 const START_BRONZE_REACH: int = 14
@@ -87,7 +88,7 @@ const START_BRONZE_SPACING: int = 5
 
 # Deposit size in tiles, [min, max].
 const SIZES: Dictionary = {
-	"bronze": [3, 6],
+	"bronze": [2, 4],   # #375: [3, 6] gave about twice vanilla's early iron
 	"iron": [3, 6],
 	"gold": [5, 9],
 	"sapphire": [3, 4],
