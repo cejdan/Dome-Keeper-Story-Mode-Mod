@@ -1,7 +1,7 @@
 {
   "name": "StoryMode",
   "namespace": "flantor",
-  "version_number": "0.2.0",
+  "version_number": "0.2.1",
   "description": "Adds Story Mode, a new single-player game mode: a deep descent with a money economy, a depth-based mineral ladder, metal gates and a voice from the depths.",
   "website_url": "https://github.com/cejdan/Dome-Keeper-Story-Mode-Mod",
   "dependencies": [],
