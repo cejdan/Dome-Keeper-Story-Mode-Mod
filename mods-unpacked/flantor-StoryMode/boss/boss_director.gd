@@ -490,7 +490,7 @@ func _net_host(delta: float) -> void:
 	if _net_repeat <= 0.0 and (st != "" or _client_state != ""):
 		_net_repeat = NET_REPEAT
 		_client_state = st     # on the host: the state last sent
-		_to_clients(_net_boss.bind(st, int(Data.ofOr(KeeperHealth.KEY, Boss.HEARTS))))
+		_to_clients(_net_boss.bind(st, int(Data.ofOr(KeeperHealth.KEY, _Boss.max_hearts()))))
 	_net_t -= delta
 	var tick: bool = _net_t <= 0.0
 	if tick:

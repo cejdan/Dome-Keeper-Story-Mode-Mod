@@ -76,7 +76,7 @@ func run(h) -> void:
 
 	# ---- the client's keeper waits: it is grabbed
 	var grabbed: bool = await h.until(func(): return hit_ids.has(ck.playerId), 30.0)
-	h.check("a tentacle grabs the client's keeper: a heart from the team", grabbed and boss.health.hearts() < Boss.HEARTS, {"hits": hit_ids, "hearts": boss.health.hearts(), "chase": _facts(chase)})
+	h.check("a tentacle grabs the client's keeper: a heart from the team", grabbed and boss.health.hearts() < Boss.max_hearts(), {"hits": hit_ids, "hearts": boss.health.hearts(), "chase": _facts(chase)})
 	h.check("the host's keeper, far off, was not hit", not hit_ids.has(me.playerId), hit_ids)
 	await h.shot("host_client_grabbed")
 	share("grabbed", {"hearts": boss.health.hearts(), "chase": _facts(chase)})

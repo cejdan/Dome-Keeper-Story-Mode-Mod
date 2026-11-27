@@ -5,7 +5,7 @@ extends RefCounted
 # tune; everything is here in one place.
 
 # --- keeper health (#160) ----------------------------------------------------
-const HEARTS := 5
+# Hearts per difficulty: T_HEARTS below (#385).
 const HURT_INVULNERABLE := 1.2       # seconds safe after a hit
 const HURT_KNOCKBACK := 46.0         # px the keeper is thrown
 const OVERHEAT_HEAT_AFTER := 0.55    # heat (share of max) left after an overheat hit
@@ -41,8 +41,10 @@ const BOMB_EVERY := 3.0
 const BOMB_EVERY_OPEN := 2.2
 const BOMB_CAP := 5
 const BOMBS_ON_OPEN := 2
-# Each new phase shakes a heart loose; it waits this long to be picked up.
+# Each new phase shakes hearts loose (#385: two); each waits HEART_SECONDS to
+# be picked up.
 const HEART_ON_PHASE := true
+const HEARTS_PER_PHASE := 2
 const HEART_SECONDS := 25.0
 # The Suit Blaster recharges this fast in the chamber (seconds per charge).
 const BLASTER_RECHARGE := 12.0
@@ -67,8 +69,11 @@ const T_JAWS: Array = [false, false, true, true]
 const T_DOUBLE_LUNGE: Array = [false, false, true, true]
 # You Asked For It draws each phase's attacks from the next phase's list.
 const T_POOL_SHIFT: Array = [0, 0, 0, 1]
-# Hearts handed back when Velle dies, before the chase (easy: all of them).
-const T_HEARTS_AFTER_VELLE: Array = [HEARTS, 3, 1, 0]
+# The keeper's hearts for the whole boss sequence (#385): one more for each
+# step down (the game's labels: Normal 8, Hard 7, Brutal 6, You Asked For It 5).
+const T_HEARTS: Array = [8, 7, 6, 5]
+# Hearts handed back when Velle dies, before the chase (-1: all of them).
+const T_HEARTS_AFTER_VELLE: Array = [-1, 3, 1, 0]
 
 
 static func tier() -> int:
@@ -95,8 +100,13 @@ static func open_beams(phase: int) -> int:
 	return int(T_OPEN_BEAMS[tier()][phase])
 
 
+static func max_hearts() -> int:
+	return int(T_HEARTS[tier()])
+
+
 static func hearts_after_velle() -> int:
-	return int(T_HEARTS_AFTER_VELLE[tier()])
+	var n: int = int(T_HEARTS_AFTER_VELLE[tier()])
+	return max_hearts() if n < 0 else n
 
 
 # --- the chase (#161) --------------------------------------------------------

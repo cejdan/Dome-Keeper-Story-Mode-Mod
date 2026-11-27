@@ -15,6 +15,7 @@ extends Node2D
 const Story = preload("res://mods-unpacked/flantor-StoryMode/story.gd")
 static var _Story = Story  # calls go through this: lazy_preload makes const-preload calls slow
 const Boss = preload("res://mods-unpacked/flantor-StoryMode/data/boss.gd")
+static var _Boss = Boss  # calls go through this: lazy_preload makes const-preload calls slow
 const Pix = preload("res://mods-unpacked/flantor-StoryMode/boss/pix.gd")
 static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload calls slow
 
@@ -47,7 +48,7 @@ func _ready() -> void:
 	z_index = 9
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if not Data.has(KEY) and multiplayer.is_server():
-		Data.apply(KEY, Boss.HEARTS)
+		Data.apply(KEY, _Boss.max_hearts())
 	# A red wash over the whole screen on a hit.
 	_layer = CanvasLayer.new()
 	_layer.layer = 5
@@ -90,11 +91,11 @@ func _place_flashes() -> void:
 
 
 func hearts() -> int:
-	return int(Data.ofOr(KEY, Boss.HEARTS))
+	return int(Data.ofOr(KEY, _Boss.max_hearts()))
 
 
 func refill() -> void:
-	Data.apply(KEY, Boss.HEARTS)
+	Data.apply(KEY, _Boss.max_hearts())
 	dead = false
 
 
@@ -102,7 +103,7 @@ func refill() -> void:
 func give(n: int) -> int:
 	if dead:
 		return 0
-	var add: int = clampi(n, 0, Boss.HEARTS - hearts())
+	var add: int = clampi(n, 0, _Boss.max_hearts() - hearts())
 	if add > 0:
 		Data.apply(KEY, hearts() + add)
 		_gain_flash = 0.9
@@ -111,7 +112,7 @@ func give(n: int) -> int:
 
 # One heart back. False when already full (or dead).
 func heal() -> bool:
-	if dead or hearts() >= Boss.HEARTS:
+	if dead or hearts() >= _Boss.max_hearts():
 		return false
 	Data.apply(KEY, hearts() + 1)
 	_gain_flash = 0.6
@@ -208,7 +209,7 @@ func _draw() -> void:
 
 
 func _draw_hearts(keeper) -> void:
-	var n: int = Boss.HEARTS
+	var n: int = _Boss.max_hearts()
 	var have: int = hearts()
 	var w: float = n * 8.0 - 1.0
 	var p: Vector2 = (to_local(keeper.global_position) + Vector2(-w * 0.5, -29)).round()

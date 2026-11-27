@@ -44,8 +44,8 @@ func run(h) -> void:
 	var fight: bool = await h.until(func(): return _Director.current() == "fight", 30.0)
 	h.check("Velle's fight is on", fight, _Director.current())
 	h.get_tree().process_frame.connect(func():
-		if int(Data.ofOr("team1.story.hearts", Boss.HEARTS)) < Boss.HEARTS and _Director.current() == "fight":
-			Data.apply("team1.story.hearts", Boss.HEARTS))
+		if int(Data.ofOr("team1.story.hearts", Boss.max_hearts())) < Boss.max_hearts() and _Director.current() == "fight":
+			Data.apply("team1.story.hearts", Boss.max_hearts()))
 	await h.wait(4.0)    # the lava and gas settle; the first client sees the fight
 	var leaver: String = ""
 	for k in Keepers.getAll():
