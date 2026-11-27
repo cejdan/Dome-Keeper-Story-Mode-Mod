@@ -166,16 +166,19 @@ func _build_ocean() -> void:
 	put_keepers_on_tip(0)
 
 
-# Every local keeper onto tentacle `i`'s pad, side by side.
+# Every local keeper just over tentacle `i`'s rounded tip, on the side facing
+# the ocean's middle (the tips are not for standing on: they slide off, ready
+# to wall-jump or grab).
 func put_keepers_on_tip(i: int) -> void:
 	if ocean == null or ocean.rigs.is_empty():
 		return
 	var r = ocean.rigs[clampi(i, 0, ocean.rigs.size() - 1)]
-	# Where the pad is now by the rig's clock (it may not have posed yet).
+	# Where the tip is now by the rig's clock (it may not have posed yet).
 	var top: Vector2 = r.pad_top_now()
+	var side: float = 1.0 if r.base.x < 0.0 else -1.0
 	var j: int = 0
 	for k in _Story.local_keepers():
-		k.teleport(top + Vector2(-8.0 + 16.0 * j, -14.0))
+		k.teleport(top + Vector2(side * (r.pad_width * 0.5 + 10.0 + 16.0 * j), -14.0))
 		ocean.refresh_near()
 		var cam = Level.viewports.getPlayerCam(k.playerId) if Level.viewports != null else null
 		if cam != null:
@@ -210,8 +213,8 @@ func _build() -> void:
 	plat.width0 = 30.0
 	plat.width1 = 16.0
 	plat.sweep = PLAT_SWEEP
-	plat.pad_width = 30.0
-	plat.pad_height = 10.0
+	plat.pad_width = 22.0
+	plat.pad_height = 14.0
 	# Wall: up from the floor at the right, 12 tiles tall, swaying side to
 	# side, its pad kept level like the ocean's.
 	var wall = _Rig.new()
@@ -223,8 +226,8 @@ func _build() -> void:
 	wall.width0 = 32.0
 	wall.width1 = 18.0
 	wall.sweep = WALL_SWEEP
-	wall.pad_width = 36.0
-	wall.pad_height = 12.0
+	wall.pad_width = 24.0
+	wall.pad_height = 16.0
 	wall.tip_level = TentData.TIP_LEVEL
 	wall.phase = 1.7
 	for r in [plat, wall]:

@@ -7,7 +7,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenarios/t347_meter.gd"
 #   - in the ocean's air band by the left tip, both tentacles on screen, at
 #     10 chains (the fastest swing), then the same spot with the tentacles'
 #     node switched off and hidden (the reference), then at 0 chains;
-#   - standing on the swinging pad at 10 chains (the keeper riding it).
+#   - dropped onto the swinging tip at 10 chains (the keeper bumping off it).
 # Also each step's time inside the rigs' pose (map/tentacle_rig.gd pose_us).
 # Checks: on screen they add under 0.5 ms a frame on average over the
 # switched-off reference; far away they pose nothing.
@@ -96,8 +96,8 @@ func run(h) -> void:
 	k.teleport(_tents.rigs[0].pad_top_now() + Vector2(0, -14))
 	_tents.refresh_near()
 	h.snap_camera(k)
-	await measure(h, "on the pad, 10 chains", 6.0)
-	await h.shot("on_pad")
+	await measure(h, "on the tip, 10 chains", 6.0)
+	await h.shot("on_tip")
 	meter_stop()
 	h.get_tree().process_frame.disconnect(_on_pose_frame)
 	var rep: Dictionary = report(h)

@@ -9,14 +9,16 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 #   all:      the keeper never ends up inside rock while beside a tentacle
 #             swinging at 10 chains (the swing never pushes it into a wall);
 #   keeper1/2 (they fly): up from the ocean floor beside a tentacle to its tip
-#             and over the pad, at 0 and at 10 chains;
-#   keeper3:  stands on a vertical tip at every wake (0, 3, 5, 8, 10 chains
-#             broken); climbs a tentacle from low down with the hook (throw
-#             at a segment above, get pulled up, chain-jump, again) onto the
-#             pad, at 0 and at 5 chains;
+#             and over it, at 0 and at 10 chains;
+#   keeper3:  wall-slides on a tentacle's side and wall-jumps up it (0, 5 and
+#             10 chains broken); climbs a tentacle from low down with the hook
+#             (throw at a segment above, get pulled up, chain-jump, again) up
+#             to its rounded tip, at 0 and at 5 chains. The tips are not for
+#             standing on (the flat club was dropped in #364's review);
 #   keeper4:  climbs from low down to the tip with its claws (holding up), at
-#             0 and at 10 chains; its claws hold their spot on the segments
-#             and it rides along at 10.
+#             0 and at 10 chains, with a claw on the tip area (the dome or the
+#             top segments); its claws hold their spot on the segments and it
+#             rides along at 10.
 # Bursts of each for the look.
 
 const Ocean = preload("res://mods-unpacked/flantor-StoryMode/map/ocean_tentacles.gd")
@@ -29,6 +31,8 @@ const T := 24.0
 var tents
 var lava
 var _lava_frames: int = 0
+var _tip_rig = null          # the hook climb's tentacle: any frame at its tip counts
+var _tip_hit: bool = false
 
 
 func boot() -> Dictionary:
@@ -45,7 +49,7 @@ func run(h) -> void:
 	await h.wait(2.0)
 	var k = h.keeper()
 	h.check("the keeper is the %s" % kid, k.techId == kid, k.techId)
-	h.check("the dev ocean mode put it on the left tip", k.global_position.distance_to(tents.rigs[0].pad_top()) < 60.0, k.global_position.distance_to(tents.rigs[0].pad_top()))
+	h.note("the dev ocean mode put it by the left tip; 2 s later it is this far from it (px)", k.global_position.distance_to(tents.rigs[0].pad_top()))
 	await h.shot("on_tip_%s" % kid)
 	match kid:
 		"keeper1", "keeper2":
@@ -89,7 +93,14 @@ func _beside(r, seg: int, gap: float) -> Vector2:
 	return at + Vector2(side * (s.width * 0.5 + gap), 0.0)
 
 
-# Is the keeper on rig `r`'s pad (over its top, within its width)?
+# Is the keeper up at rig `r`'s rounded tip (level with its dome or above it,
+# within two tiles either side)?
+func _at_tip(k, r) -> bool:
+	var top: Vector2 = r.pad_top()
+	return k.global_position.y < top.y + 20.0 and absf(k.global_position.x - top.x) < 48.0
+
+
+# Is the keeper on rig `r`'s tip (over its top, within its width)?
 func _on_pad(k, r) -> bool:
 	var p: Vector2 = r.pad.global_transform.affine_inverse() * k.global_position
 	# Pad space: +x out of the tentacle (up), the top face at x = height.
@@ -146,40 +157,72 @@ func _fly(h, k) -> void:
 # ---------------------------------------------------------------- Infiltrator
 
 func _infiltrator(h, k) -> void:
-	# Standing on a vertical tip at every wake (`--only=hook` skips it).
-	for n in ([] if _Story.user_arg("only", "").begins_with("hook") else [0, 3, 5, 8, 10]):
+	# Wall jumps up a tentacle's side at 0, 5 and 10 chains (`--only=hook`
+	# skips them).
+	for n in ([] if _Story.user_arg("only", "").begins_with("hook") else [0, 5, 10]):
 		_set_chains(n)
-		for ri in tents.rigs.size():
-			var r = tents.rigs[ri]
-			await _put(h, k, r.pad_top_now() + Vector2(0, -12))
-			# Land: the pad moves, so put it back on until it stands.
-			for f in 30:
-				if k.is_on_floor() and _on_pad(k, r):
-					break
-				k.teleport(r.pad_top_now() + Vector2(0, -12))
-				await h.get_tree().physics_frame
-			var on: int = 0
-			var frames: int = 0
-			var tilt: float = 0.0
-			while frames < 60 * 6:
-				await h.get_tree().physics_frame
-				frames += 1
-				if _on_pad(k, r):
-					on += 1
-				tilt = maxf(tilt, rad_to_deg(r.pad_tilt()))
-			_cool(k)
-			h.note("keeper3 on tip %d at %d chains: %d/%d frames on the pad, pad tilt up to %.1f deg" % [ri, n, on, frames, tilt])
-			h.check("%d chains: the Infiltrator stands on tip %d (most of 6 s)" % [n, ri], on > frames * 0.9, [on, frames])
+		await h.wait(0.5)
+		var res: Dictionary = await _wall_jumps(h, k, tents.rigs[0])
+		h.note("keeper3 wall jumps at %d chains" % n, res)
+		h.check("%d chains: the Infiltrator wall-slides on the tentacle and wall-jumps up it (2+ slides, 2+ tiles up)" % n, res["slides"] >= 2 and res["rose px"] >= 48.0, res)
 		if n == 0 or n == 10:
-			await h.burst("keeper3_tip_%d" % n, 10, 6)
-	# Climbing with the hook.
+			await h.shot("keeper3_walljump_%d" % n)
+	# Climbing with the hook, up to the rounded tip.
 	for n in ([0] if _Story.user_arg("only", "") == "hook0" else [0, 5]):
 		_set_chains(n)
 		await h.wait(0.5)
 		var res: Dictionary = await _hook_climb(h, k, tents.rigs[0])
 		h.note("keeper3 hook climb at %d chains" % n, res)
-		h.check("%d chains: the Infiltrator climbs from low down onto the pad with the hook" % n, res["on_pad"], res)
+		h.check("%d chains: the Infiltrator climbs from low down up to the tip with the hook" % n, res["at_tip"], res)
 		await h.shot("keeper3_climbed_%d" % n)
+
+
+# Scripted player: beside the tentacle, push into it until it wall-slides,
+# then jump off it (the wall jump) and steer straight back in, again and
+# again. Counts the slides and how far up it got.
+func _wall_jumps(h, k, r) -> Dictionary:
+	await _put(h, k, _beside(r, r.count / 2, 20.0))
+	await h.wait(0.3)
+	var start_y: float = k.global_position.y
+	var best_y: float = start_y
+	var slides: int = 0
+	var jumps: int = 0
+	_lava_frames = 0
+	for attempt in 10:
+		_cool(k)
+		var cx: float = _centre_x(r, k.global_position.y)
+		var toward: String = "ui_left" if k.global_position.x > cx else "ui_right"
+		var away: String = "ui_right" if toward == "ui_left" else "ui_left"
+		# Into the tentacle: a wall slide.
+		h.down(toward)
+		var sliding: bool = false
+		for f in 30:
+			await _frames(h, k, 1)
+			if k.wallSlideActive:
+				sliding = true
+				break
+		if not sliding:
+			h.up(toward)
+			continue
+		slides += 1
+		# The wall jump (the jump as Keeper3InputProcessor hands it on: the
+		# harness's key events for keeper3_jump don't reach it unfocused).
+		k.justPressedUp = true
+		k.pressingUp = true
+		h.up(toward)
+		h.down(away)
+		await _frames(h, k, 6)
+		jumps += 1
+		h.up(away)
+		h.down(toward)
+		await _frames(h, k, 10)
+		k.pressingUp = false
+		best_y = minf(best_y, k.global_position.y)
+		h.up(toward)
+	h.up("ui_left")
+	h.up("ui_right")
+	_cool(k)
+	return {"slides": slides, "jumps": jumps, "rose px": snappedf(start_y - best_y, 1.0), "in lava s": snappedf(_lava_frames / 60.0, 0.1)}
 
 
 # Scripted player: jump (or chain-jump) away from the tentacle, throw the
@@ -195,12 +238,14 @@ func _hook_climb(h, k, r) -> Dictionary:
 	var hits: int = 0
 	_lava_frames = 0
 	var t0: float = h.now()
-	var on_pad: bool = false
-	var steps: Array = []   # per loop: keeper - pad top (x, y), hanging, on floor
+	var at_tip: bool = false
+	_tip_rig = r
+	_tip_hit = false
+	var steps: Array = []   # per loop: keeper - tip top (x, y), hanging, on floor
 	while h.now() - t0 < 50.0 and throws < 30:
 		_cool(k)
-		if _on_pad(k, r) and k.is_on_floor():
-			on_pad = true
+		if _at_tip(k, r):
+			at_tip = true
 			break
 		var cx: float = _centre_x(r, k.global_position.y)
 		var away: String = "ui_right" if k.global_position.x > cx else "ui_left"
@@ -251,8 +296,8 @@ func _hook_climb(h, k, r) -> Dictionary:
 		if throws <= 3:
 			h.note("jump before throw %d: y %d -> %d, hanging %s" % [throws + 1, int(y_before), int(k.global_position.y), k.chainHanging])
 		best_y = minf(best_y, k.global_position.y)
-		if _on_pad(k, r) and k.is_on_floor():
-			on_pad = true
+		if _at_tip(k, r):
+			at_tip = true
 			break
 		# Over the pad: steer onto it and let it land.
 		if k.global_position.y < r.pad_top().y - 4.0:
@@ -300,15 +345,18 @@ func _hook_climb(h, k, r) -> Dictionary:
 	if is_instance_valid(k.hook):
 		k.releaseHookInput()
 	await h.wait(1.0)
-	on_pad = on_pad or (_on_pad(k, r) and k.is_on_floor())
+	at_tip = at_tip or _tip_hit or _at_tip(k, r)
+	_tip_rig = null
 	h.note("climb steps [dx, dy to the pad top, hanging, on floor]", steps)
-	return {"on_pad": on_pad, "throws": throws, "hits on the tentacle": hits, "rose px": snappedf(start_y - best_y, 1.0), "seconds": snappedf(h.now() - t0, 0.1), "in lava s": snappedf(_lava_frames / 60.0, 0.1)}
+	return {"at_tip": at_tip, "throws": throws, "hits on the tentacle": hits, "rose px": snappedf(start_y - best_y, 1.0), "seconds": snappedf(h.now() - t0, 0.1), "in lava s": snappedf(_lava_frames / 60.0, 0.1)}
 
 
 func _frames(h, k, n: int) -> void:
 	for i in n:
 		await h.get_tree().physics_frame
 		_track_lava(k)
+		if _tip_rig != null and _at_tip(k, _tip_rig):
+			_tip_hit = true
 
 
 # The tentacle's middle at height `y` (its nearest segment's).
@@ -324,6 +372,14 @@ func _centre_x(r, y: float) -> float:
 
 func _claws_on(k, r) -> int:
 	var bodies: Array = r.bodies()
+	var n: int = 0
+	for t in k.get_node("Tentacles").tentacles:
+		if t.is_grounded() and is_instance_valid(t.attachedTile) and t.attachedTile in bodies:
+			n += 1
+	return n
+
+
+func _claws_on_any(k, bodies: Array) -> int:
 	var n: int = 0
 	for t in k.get_node("Tentacles").tentacles:
 		if t.is_grounded() and is_instance_valid(t.attachedTile) and t.attachedTile in bodies:
@@ -371,6 +427,10 @@ func _beastmaster(h, k) -> void:
 		var frames: int = 0
 		var gripped: int = 0
 		var worst_air: float = 0.0
+		var tip_bodies: Array = [r.pad, r.segments[r.count - 1], r.segments[r.count - 2]]
+		var tip_grab: int = 0
+		var climb_frames: int = -1
+		var climb_grip: int = 0
 		h.down("ui_up")
 		while frames < 60 * 25:
 			await h.get_tree().physics_frame
@@ -381,13 +441,20 @@ func _beastmaster(h, k) -> void:
 			if _claws_on(k, r) > 0:
 				gripped += 1
 			worst_air = maxf(worst_air, _claw_in_air(k, r))
-			if k.global_position.y < top + 6.0:
+			if _claws_on_any(k, tip_bodies) > 0:
+				tip_grab += 1
+			if k.global_position.y < top + 6.0 and climb_frames < 0:
+				# Up at the tip: the climb's grip share counts to here.
+				climb_frames = frames
+				climb_grip = gripped
+			if climb_frames >= 0 and tip_grab > 0:
 				reached = true
 				break
 		h.up("ui_up")
 		h.note("keeper4 at %d chains: climbed %.0f px in %.1f s, claws on the tentacle %d frames, %.1f s in lava" % [n, y0 - k.global_position.y, frames / 60.0, gripped, _lava_frames / 60.0])
 		h.check("%d chains: the Beastmaster climbs from low down to the tip with its claws" % n, reached, {"from": y0, "at": k.global_position.y, "pad top": top})
-		h.check("%d chains: ... holding the tentacle on the way (claws on it most of the climb)" % n, gripped > frames / 2, [gripped, frames])
+		h.check("%d chains: ... holding the tentacle on the way (claws on it most of the climb)" % n, climb_grip > climb_frames / 2, [climb_grip, climb_frames])
+		h.check("%d chains: a claw grabs the tip area (the rounded tip or the two segments under it)" % n, tip_grab > 0, tip_grab)
 		h.check("%d chains: no claw holds the air (every planted claw within 3 px of its body's outline)" % n, worst_air < 3.0, worst_air)
 		await h.burst("keeper4_top_%d" % n, 8, 6)
 		# Hang on near the top: claws keep their spot and the body rides along.

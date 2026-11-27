@@ -337,12 +337,16 @@ class Segment extends _Body:
 			draw_line(Vector2(-5, -2), Vector2(2, 3), v, 1.5)
 
 
-# The tip: a club with a flat top. Local +x points out of the tentacle; the
-# flat face is at x = height, `width` across.
+# The tip: a rounded knuckle, a little wider than the last segment, that ends
+# the tentacle in a blunt dome (#364 review: the flat club was an
+# overcorrection; the tentacles are for wall jumps and the Beastmaster's
+# claws, not for standing on). Local +x points out of the tentacle; the dome's
+# end is at x = height, `width` across at its widest. Kept as `Pad` (and
+# pad_top() etc.) so callers keep working: "pad top" is the dome's end.
 class Pad extends _Body:
 	var w_root: float = 16.0
-	var width: float = 36.0
-	var height: float = 12.0
+	var width: float = 28.0
+	var height: float = 18.0
 
 	func _ready() -> void:
 		sync_to_physics = true
@@ -364,31 +368,39 @@ class Pad extends _Body:
 		knuckle.shape = c
 		add_child(knuckle)
 
-	# Neck at the joint (x 0, as wide as the tip), flaring to the flat top.
+	# Neck at the joint (x 0, as wide as the last segment's tip), swelling to
+	# `width` and closing in a half circle whose end is at x = height.
 	func outline(inset: float) -> PackedVector2Array:
-		var hw: float = width * 0.5 - inset
-		var hn: float = w_root * 0.5 - inset
-		var h: float = height - inset
-		return PackedVector2Array([
-			Vector2(-2.0 + inset, -hn), Vector2(h * 0.45, -hw + 2.0), Vector2(h - 3.0, -hw),
-			Vector2(h, -hw + 3.0), Vector2(h, hw - 3.0), Vector2(h - 3.0, hw),
-			Vector2(h * 0.45, hw - 2.0), Vector2(-2.0 + inset, hn)])
+		var r: float = maxf(2.0, width * 0.5 - inset)
+		var hn: float = minf(r, w_root * 0.5 - inset)
+		var cx: float = maxf(0.0, height - inset - r)
+		var out := PackedVector2Array([Vector2(-2.0 + inset, -hn)])
+		var steps: int = 10
+		for i in steps + 1:
+			var a: float = -PI / 2.0 + PI * float(i) / float(steps)
+			out.append(Vector2(cx + cos(a) * r, sin(a) * r))
+		out.append(Vector2(-2.0 + inset, hn))
+		return out
 
 	func _draw() -> void:
 		var s: float = float(maxi(soak, 0)) / 6.0
 		var dark: Color = _mix(COL_DARK, COL_SOAK_DARK, s)
 		var body: Color = _mix(COL_BODY, COL_SOAK_BODY, s)
 		var light: Color = _mix(COL_LIGHT, COL_SOAK_LIGHT, s)
+		if s > 0.0:
+			var rim: Color = COL_SOAK_RIM
+			rim.a = s
+			draw_colored_polygon(outline(-1.5), rim)
 		draw_colored_polygon(outline(0.0), dark)
 		draw_circle(Vector2.ZERO, w_root * 0.5, dark)
 		draw_colored_polygon(outline(2.0), body)
 		draw_circle(Vector2.ZERO, w_root * 0.5 - 2.0, body)
-		# The flat top: a pale rim of suckers.
-		var h: float = height
-		var hw: float = width * 0.5 - 3.0
-		draw_rect(Rect2(Vector2(h - 4.0, -hw), Vector2(2.0, hw * 2.0)), light)
-		var n: int = 4
-		for i in n:
-			var y: float = lerpf(-hw + 4.0, hw - 4.0, float(i) / float(n - 1))
-			draw_circle(Vector2(h - 6.5, y), 2.2, _mix(COL_SUCKER, COL_SOAK_LIGHT, s))
-			draw_circle(Vector2(h - 6.5, y), 1.0, dark)
+		# A light sheen round the dome's upper side, suckers round its lower.
+		var r: float = width * 0.5 - 2.0
+		var cx: float = maxf(0.0, height - 2.0 - r)
+		draw_arc(Vector2(cx, 0.0), r - 1.5, -PI * 0.45, PI * 0.05, 8, light, 2.0)
+		for i in 3:
+			var a: float = PI * (0.18 + 0.16 * float(i))
+			var p := Vector2(cx + cos(a) * (r - 4.0), sin(a) * (r - 4.0))
+			draw_circle(p, 2.2, _mix(COL_SUCKER, COL_SOAK_LIGHT, s))
+			draw_circle(p, 1.0, dark)

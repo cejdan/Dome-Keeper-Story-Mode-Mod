@@ -28,12 +28,14 @@ const EASE_SPEED := 0.5
 const SEG_LEN := 26.0                  # px, about; fitted so the tip lands exactly
 const WIDTH_BASE := 46.0
 const WIDTH_TIP := 22.0
-# The tip is a club with a flat top (the Infiltrator stands on it; its floor
-# can tilt only 9 degrees before it slides). The pad tilts only a share of the
-# tip's own lean: 1 - TIP_LEVEL.
-const PAD_WIDTH := 42.0
-const PAD_HEIGHT := 14.0
-const TIP_LEVEL := 0.8
+# The tip is a rounded knuckle (map/tentacle_rig.gd Pad): a blunt dome a little
+# wider than the last segment, PAD_HEIGHT long. It follows the body's lean
+# (TIP_LEVEL 0). The flat club it replaced (#364's first pass, kept level so
+# the Infiltrator could stand on it) was an overcorrection: the tentacles are
+# for wall jumps and the Beastmaster's claws, not for standing on.
+const PAD_WIDTH := 28.0
+const PAD_HEIGHT := 18.0
+const TIP_LEVEL := 0.0
 # How far the tip swings each way at stage 4, in tiles, and the wave along the
 # body (radians of phase per segment: about one and a half waves on a
 # 28-segment tentacle).
