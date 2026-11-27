@@ -177,7 +177,10 @@ func _bones(h, p: Array) -> void:
 	await h.shot("bones_b%d" % (b + 1))
 	var dome = Level.getDome("team1")
 	var m0: int = int(h.inv("money"))
-	Level.map.destroyTile("team1", "", Level.map.getTile(Vector2(at)))
+	# The keeper's drill can get there first (the room is dug beside it).
+	var bt = Level.map.getTile(Vector2(at))
+	if bt != null:
+		Level.map.destroyTile("team1", "", bt)
 	await h.wait(0.5)
 	var drop = null
 	for d in Level.drops.find_children("*", "", true, false):
@@ -389,8 +392,9 @@ func run(h) -> void:
 
 	# ---- the whole story, once each
 	h.note("opened in order", opened)
-	# One death here: lava deaths 2 to 5 have their own run (t157_lava_deaths).
-	var want: Array = BeatData.BEATS.map(func(b): return b["id"]).filter(func(id): return not (id.begins_with("lava_death_") and id != "lava_death_1")) + LogData.LOGS.map(func(l): return l["id"])
+	# One death here: lava deaths 2 to 5 have their own run (t157_lava_deaths),
+	# and so do the gas deaths (#357, t357_gas_death_beat).
+	var want: Array = BeatData.BEATS.map(func(b): return b["id"]).filter(func(id): return not (id.begins_with("lava_death_") and id != "lava_death_1") and not id.begins_with("gas_death_")) + LogData.LOGS.map(func(l): return l["id"])
 	var wrong: Dictionary = {}
 	for id in want:
 		if opened.count(id) != 1:

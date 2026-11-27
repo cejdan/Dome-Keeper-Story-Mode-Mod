@@ -617,6 +617,14 @@ func _draw_glow() -> void:
 			_glow.draw_circle(c, 15.5, Color(SEAL, 0.10 + 0.08 * pulse + 0.3 * flare))
 			var f: float = fposmod(_t / BEACON_PERIOD + a["phase"] / TAU, 1.0)
 			_glow.draw_arc(c, RADIUS + 4.0 + 46.0 * f, 0.0, TAU, 40, Color(SEAL_LIGHT, 0.32 * (1.0 - f)), 2.0)
+			# The seal's pull: a glint running up the chain to the tentacle.
+			var pts: PackedVector2Array = a["line"].points
+			if pts.size() >= 2:
+				var u: float = fposmod(_t * 0.45 + a["phase"] / TAU, 1.0) * float(pts.size() - 1)
+				var i: int = mini(int(u), pts.size() - 2)
+				var p: Vector2 = pts[i].lerp(pts[i + 1], u - float(i))
+				_glow.draw_circle(p, 4.0, Color(SEAL, 0.35))
+				_glow.draw_circle(p, 2.0, Color(SEAL_LIGHT, 0.6))
 		elif a["snap_t"] >= 0.0 and a["snap_t"] < 0.6:
 			var u: float = a["snap_t"] / 0.6
 			_glow.draw_circle(c, 10.0 + 60.0 * u, Color(SPARK, 0.9 * (1.0 - u) * (1.0 - u)))

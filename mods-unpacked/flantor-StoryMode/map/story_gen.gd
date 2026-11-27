@@ -318,7 +318,8 @@ static func _fit_tentacle(x: int, top: int, bottom: int, tip_row: int, entries: 
 # tentacle, on the side AnchorData.SIDES[slot] (out toward the map's edge or in
 # toward the chamber's middle), as close to the tentacle as fits. A tile of it
 # is either open lava or air outside both tentacles' swing reach (which
-# already keeps a tile of margin), or the ocean's own rock wall, floor or
+# already keeps a tile of margin) and the space over their tips, or the
+# ocean's own rock wall, floor or
 # ceiling (an anchor set into the wall), with at least MIN_OPEN tiles open so
 # it shows. It stays off the chamber's entry columns near the bottom, GAP
 # tiles from any other anchor and nearer its own tentacle than the other, and
@@ -348,12 +349,16 @@ static func place_anchors(map_data) -> Array:
 		if c.y > ceiling and c.y < top:
 			return c.x >= ox0 and c.x <= ox1
 		return rows.has(c.y) and c.x >= int(rows[c.y][0]) and c.x <= int(rows[c.y][1])
-	# Every open cell either tentacle's swing can reach.
+	# Every open cell either tentacle's swing can reach, and the rows over
+	# its tip's swing up to the ceiling (room to get over the top).
 	var blocked: Dictionary = {}
 	for p: Dictionary in tents:
 		var fit: Dictionary = _fit_tentacle(int(p["x"]), top, bottom, int(p["tip_row"]), [], in_ocean)
 		for c: Vector2i in fit.get("reach", []):
 			blocked[c] = true
+			if c.y == int(p["tip_row"]):
+				for up in range(1, int(p["tip_row"]) - ceiling + 1):
+					blocked[c + Vector2i(0, -up)] = true
 	# 1: open, 2: wall rock, 0: neither.
 	var kind := func(c: Vector2i) -> int:
 		if blocked.has(c):
@@ -375,6 +380,7 @@ static func place_anchors(map_data) -> Array:
 		var length: float = float(base_row - tip_row) * T + 8.0 - TentData.PAD_HEIGHT
 		var seg_len: float = length / float(n)
 		ctx["x"] = x
+		ctx["ti"] = ti
 		var others: Array = []
 		for q: Dictionary in tents:
 			if int(q["x"]) != x:
@@ -387,18 +393,22 @@ static func place_anchors(map_data) -> Array:
 			var side: int = int(AnchorData.SIDES[slot]) * out_sign
 			var best: Vector2i = Vector2i.ZERO
 			var best_score: float = INF
-			# Steps: each band on this side, then on the other, then the widest
-			# band on either without the support rule.
+			# Steps: each band on this side, then on the other; then a wider
+			# band on either; then without the same-side spacing (kept apart
+			# as far as it goes); last, without the support rule.
+			# [band, side, support, spacing]
 			var steps: Array = []
+			var wide: int = int(AnchorData.BANDS[-1])
 			for band in AnchorData.BANDS:
-				steps.append([int(band), side, true])
+				steps.append([int(band), side, true, true])
 			for band in AnchorData.BANDS:
-				steps.append([int(band), -side, true])
-			steps.append([int(AnchorData.BANDS[-1]), side, false])
-			steps.append([int(AnchorData.BANDS[-1]), -side, false])
+				steps.append([int(band), -side, true, true])
+			var widest: int = int(AnchorData.BAND_LAST)
+			steps.append_array([[widest, side, true, true], [widest, -side, true, true], [wide, side, true, false], [wide, -side, true, false], [wide, side, false, false], [wide, -side, false, false]])
 			ctx["want"] = want
 			for st: Array in steps:
 				ctx["support"] = st[2]
+				ctx["spacing"] = st[3]
 				for y in range(int(round(want)) - int(st[0]), int(round(want)) + int(st[0]) + 1):
 					for d in range(1, AnchorData.MAX_OUT + 1):
 						# The block's columns: d tiles out on that side (its near edge).
@@ -460,10 +470,19 @@ static func _anchor_score(map_data, at: Vector2i, ctx: Dictionary) -> float:
 		if absf(mid.x - float(ox)) <= absf(mid.x - float(x)):
 			return INF
 	var gap: int = AnchorData.GAP + AnchorData.SIZE
+	var crowd: float = 0.0
 	for a: Dictionary in ctx["placed"]:
 		var o: Vector2i = a["cell"]
 		if absi(o.x - at.x) < gap and absi(o.y - at.y) < gap:
 			return INF
+		# On the same side of the same tentacle, a few rows apart, so no
+		# chain runs behind another anchor; where nothing else fits, as far
+		# apart as it can.
+		var dy: int = absi(o.y - at.y)
+		if int(a["tentacle"]) == int(ctx["ti"]) and signf(float(o.x - x)) == signf(float(at.x - x)) and dy < AnchorData.SAME_SIDE_ROWS:
+			if bool(ctx["spacing"]):
+				return INF
+			crowd += 6.0 * float(AnchorData.SAME_SIDE_ROWS - dy)
 	# Rock (not ocean) within SUPPORT_TILES, or the tentacle at rest in claw reach.
 	var near_rock: bool = opens < AnchorData.SIZE * AnchorData.SIZE
 	var r: int = AnchorData.SUPPORT_TILES
@@ -480,7 +499,7 @@ static func _anchor_score(map_data, at: Vector2i, ctx: Dictionary) -> float:
 		return INF
 	# Nearer the tentacle and its row is better; a stone more out in the
 	# open reads better than one sunk in the wall.
-	return absf(mid.x - float(x)) + 1.5 * absf(mid.y - float(ctx["want"])) + float(AnchorData.SIZE * AnchorData.SIZE - opens)
+	return absf(mid.x - float(x)) + 1.5 * absf(mid.y - float(ctx["want"])) + float(AnchorData.SIZE * AnchorData.SIZE - opens) + crowd
 
 
 # The chamber's living stone (#361): its walls and floor (`wall` tiles thick)

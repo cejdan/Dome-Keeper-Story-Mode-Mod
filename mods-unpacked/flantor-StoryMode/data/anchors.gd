@@ -28,6 +28,8 @@ const SIZE := 2
 # Rows above and below the wanted row an anchor may sit, first strictly, then
 # looser.
 const BANDS := [2, 4, 7]
+# Before giving up on rock in reach, a last, wider band.
+const BAND_LAST := 12
 # Farthest an anchor may sit from its tentacle's column, in tiles.
 const MAX_OUT := 24
 # Open tiles kept between two anchors.
@@ -35,6 +37,9 @@ const GAP := 2
 # An anchor may sit half in the ocean's rock wall, floor or ceiling, set into
 # it; at least this many of its four tiles are open, so it shows.
 const MIN_OPEN := 2
+# Two anchors on the same side of one tentacle are at least this many rows
+# apart, so no chain runs behind another anchor.
+const SAME_SIDE_ROWS := 5
 # The Beastmaster climbs rock and grabs within its claws' reach (keeper4
 # Tentacles.REACH, 65 px): an anchor is "supported" when rock is within this
 # many tiles of it, or the tentacle at rest is within CLAW_REACH px.

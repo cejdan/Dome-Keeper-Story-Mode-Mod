@@ -225,15 +225,21 @@ func run(h) -> void:
 	for a in anchors.anchors.filter(func(x): return x["tentacle"] == 1):
 		mid0 += a["centre"] / 5.0
 	await look_at(h, mid0)
-	var on: float = await _frame_ms(h, 180)
-	anchors.visible = false
-	anchors.set_process(false)
-	var off: float = await _frame_ms(h, 180)
-	anchors.visible = true
-	anchors.set_process(true)
-	var on2: float = await _frame_ms(h, 180)
-	h.note("frame ms by tentacle 1's anchors", {"on": on, "off": off, "on again": on2, "process us per frame": float(anchors.process_us) / maxf(1, anchors.frames), "chains drawn": anchors.draw_count})
-	h.check("anchors cost under 0.5 ms a frame on screen", minf(on, on2) <= off + 0.5, [on, off, on2])
+	await h.wait(1.0)
+	# On and off in turn, three times each, after a settle.
+	var ons: Array = []
+	var offs: Array = []
+	for i in 3:
+		ons.append(await _frame_ms(h, 150))
+		anchors.visible = false
+		anchors.set_process(false)
+		offs.append(await _frame_ms(h, 150))
+		anchors.visible = true
+		anchors.set_process(true)
+	var on: float = (ons[0] + ons[1] + ons[2]) / 3.0
+	var off: float = (offs[0] + offs[1] + offs[2]) / 3.0
+	h.note("frame ms by tentacle 1's anchors", {"on": ons, "off": offs, "mean on": on, "mean off": off, "process us per frame": float(anchors.process_us) / maxf(1, anchors.frames), "chains drawn": anchors.draw_count})
+	h.check("anchors cost under 0.5 ms a frame on screen (mean of 3)", on <= off + 0.5, [on, off])
 	h.check("their own process time is small (under 0.15 ms a frame)", float(anchors.process_us) / maxf(1, anchors.frames) < 150.0, float(anchors.process_us) / maxf(1, anchors.frames))
 	await SaveGame.saveGame("singleplayer", SLOT, true)
 	await h.wait(1.0)
