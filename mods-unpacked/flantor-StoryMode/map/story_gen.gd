@@ -12,6 +12,9 @@ static var _MapConfig = MapConfig  # calls go through this: lazy_preload makes c
 const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
+const TentData = preload("res://mods-unpacked/flantor-StoryMode/data/tentacles.gd")
+const TentacleRig = preload("res://mods-unpacked/flantor-StoryMode/map/tentacle_rig.gd")
+static var _TentacleRig = TentacleRig  # calls go through this: lazy_preload makes const-preload calls slow
 
 # Special tiles a gate never swallows: gadget, relic, relic switch, power core.
 const KEEP_IDS: Array = [3, 4, 6, 7]  # Data.TILE_GADGET, TILE_RELIC, TILE_RELIC_SWITCH, TILE_SUPPLEMENT
@@ -42,6 +45,8 @@ static func after_resources(gen, map_data, rand: RandomNumberGenerator) -> void:
 	place_bones(map_data, _sub_rand(rand, "bones"))
 	place_gate_gold(map_data, _sub_rand(rand, "gategold"))
 	place_ocean(map_data, rand)
+	# The ocean's two climbable tentacles (#364): no randomness of their own.
+	place_tentacles(map_data)
 	# Gas caverns (#201) go in last, with their own generator: nothing above moves.
 	place_gas_caverns(map_data, _sub_rand(rand, "gascaverns"))
 
@@ -230,6 +235,120 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 	map_data.set_meta("story_ocean", info)
 	map_data.set_meta("story_boss_chamber", Rect2i(ch_x0, ch_y0, ch_w, ch_h))
 	return info
+
+
+# The lava ocean's two climbable tentacles (#364): where each rises out of the
+# ocean's floor, as meta "story_tentacles", an Array of {x, base_row (the rock
+# row it stands on), tip_row (the row its pad's top lines up with),
+# segments, side (-1 left, 1 right)}; map/ocean_tentacles.gd builds them.
+# Each wants to stand TentData.SPREAD of the ocean's half width out from the
+# boss chamber's middle; the nearest column that fits wins, on each side on its
+# own (the funnel's sides have their own shapes). A column fits when it is open
+# lava or air from the ocean's top down to its base, the tentacle is at least
+# MIN_TILES tall, its base keeps ENTRY_GAP columns from every chamber entry,
+# and every row it passes has open cells for its full swing at wake 4 (the
+# rig's own envelope, map/tentacle_rig.gd) plus its half width and
+# MARGIN_TILES, so a swing never pushes a keeper into rock. Unobtainium inside
+# that reach is cleared. No randomness: the ocean's shape decides.
+static func place_tentacles(map_data) -> Array:
+	var ocean: Dictionary = map_data.get_meta("story_ocean", {})
+	var ch: Rect2i = map_data.get_meta("story_boss_chamber", Rect2i())
+	if ocean.is_empty() or ch.size == Vector2i.ZERO:
+		return []
+	var rows: Dictionary = ocean["rows"]
+	var top: int = int(ocean["top"])
+	var bottom: int = int(ocean["bottom"])
+	var ceiling: int = int(ocean["ceiling"])
+	var ox0: int = int(ocean["x0"])
+	var ox1: int = int(ocean["x1"])
+	var tip_row: int = ceiling + 1 + TentData.TIP_CLEAR_ROWS
+	var cx: float = float(ch.position.x) + float(ch.size.x - 1) * 0.5
+	var spread: float = TentData.SPREAD * float(ox1 - ox0 + 1) * 0.5
+	var entries: Array = []
+	for col in LavaData.BOSS_CHAMBER_ENTRY:
+		entries.append(ch.position.x + int(col))
+	var open := func(c: Vector2i) -> bool:
+		if c.y > ceiling and c.y < top:
+			return c.x >= ox0 and c.x <= ox1
+		return rows.has(c.y) and c.x >= int(rows[c.y][0]) and c.x <= int(rows[c.y][1])
+	var out: Array = []
+	for side in [-1, 1]:
+		var want: float = cx + float(side) * spread
+		var xs: Array = []
+		for x in range(ox0, ox1 + 1):
+			if (float(x) - cx) * float(side) > 0.0:
+				xs.append(x)
+		# Nearest the wanted column first; on a tie, the one farther out.
+		xs.sort_custom(func(a, b):
+			var da: float = absf(float(a) - want)
+			var db: float = absf(float(b) - want)
+			if absf(da - db) > 0.01:
+				return da < db
+			return absf(float(a) - cx) > absf(float(b) - cx))
+		for x: int in xs:
+			var p: Dictionary = _fit_tentacle(x, top, bottom, tip_row, entries, open)
+			if p.is_empty():
+				continue
+			p["side"] = side
+			out.append(p)
+			break
+	var unob: int = int(Minerals.TABLE["unobtainium"]["tile_id"])
+	var cleared: int = 0
+	for p: Dictionary in out:
+		for c: Vector2i in p["reach"]:
+			if map_data.get_resourcev(c) == unob:
+				map_data.set_resourcev(c, Data.TILE_EMPTY)
+				cleared += 1
+		p.erase("reach")
+	if cleared > 0:
+		ocean["unobtainium"] = int(ocean.get("unobtainium", 0)) - cleared
+		map_data.set_meta("story_ocean", ocean)
+	map_data.set_meta("story_tentacles", out)
+	return out
+
+
+# One column's tentacle, or {} when it doesn't fit (see place_tentacles).
+# "reach" lists every cell its swing can touch.
+static func _fit_tentacle(x: int, top: int, bottom: int, tip_row: int, entries: Array, open: Callable) -> Dictionary:
+	for e: int in entries:
+		if absi(x - e) <= TentData.ENTRY_GAP:
+			return {}
+	# The base: the first rock under the column's open run from the top.
+	var base_row: int = top
+	while base_row <= bottom and open.call(Vector2i(x, base_row)):
+		base_row += 1
+	if base_row - tip_row < TentData.MIN_TILES:
+		return {}
+	for y in range(tip_row - TentData.TIP_CLEAR_ROWS, top):
+		if not open.call(Vector2i(x, y)):
+			return {}
+	# As map/ocean_tentacles.gd builds it: the base 8 px into its tile, the
+	# pad's top on the tip row's top edge.
+	var T: float = 24.0
+	var length: float = float(base_row - tip_row) * T + 8.0 - TentData.PAD_HEIGHT
+	var n: int = maxi(4, roundi(length / TentData.SEG_LEN))
+	var seg_len: float = length / float(n)
+	var env: PackedFloat32Array = _TentacleRig.envelope(n, seg_len, TentData.SWEEP_TILES * T, TentData.WAVE_K)
+	var reach: Array = []
+	for y in range(tip_row, base_row):
+		# Heights above the base this row spans.
+		var h_hi: float = float(base_row - y) * T + 8.0
+		var h_lo: float = h_hi - T
+		var j0: int = clampi(int(floor(h_lo / seg_len)), 0, n)
+		var j1: int = clampi(int(ceil(h_hi / seg_len)), 0, n)
+		var swing: float = 0.0
+		for j in range(j0, j1 + 1):
+			swing = maxf(swing, env[j])
+		var half_w: float = lerpf(TentData.WIDTH_BASE, TentData.WIDTH_TIP, clampf(h_lo / length, 0.0, 1.0)) * 0.5
+		if h_hi > length:
+			half_w = maxf(half_w, TentData.PAD_WIDTH * 0.5)
+		var m: int = ceili((swing * 1.1 + half_w) / T) + TentData.MARGIN_TILES
+		for dx in range(-m, m + 1):
+			var c := Vector2i(x + dx, y)
+			if not open.call(c):
+				return {}
+			reach.append(c)
+	return {"x": x, "base_row": base_row, "tip_row": tip_row, "segments": n, "reach": reach}
 
 
 # The chamber's living stone (#361): its walls and floor (`wall` tiles thick)

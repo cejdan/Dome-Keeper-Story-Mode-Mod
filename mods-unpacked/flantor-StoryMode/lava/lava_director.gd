@@ -49,6 +49,12 @@ func _process(_delta: float) -> void:
 		chains.setup(map)
 		map.add_child(chains)
 		ModLoaderLog.info("Chains added: %d" % chains.chains.size(), "flantor-StoryMode")
+		# The ocean's two climbable tentacles (#364).
+		var tents = load(_Story.MOD_DIR + "map/ocean_tentacles.gd").new()
+		if tents.setup(map):
+			map.add_child(tents)
+		else:
+			tents.free()
 		# Velle's chamber in living stone (#361).
 		var stone = load(_Story.MOD_DIR + "boss/chamber_stone.gd").new()
 		if stone.setup(map):
