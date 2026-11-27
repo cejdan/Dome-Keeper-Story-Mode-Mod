@@ -23,7 +23,8 @@ func run(h) -> void:
 	for dir in ["ui_left", "ui_right"]:
 		var fx: float = k.global_position.x
 		h.down(dir)
-		await h.frames(60)
+		for f in 60:
+			await h.get_tree().physics_frame
 		h.up(dir)
 		await h.frames(2)
 		h.note("floor %s: moved %.1f, on_floor %s" % [dir, k.global_position.x - fx, k.is_on_floor()])
@@ -39,7 +40,7 @@ func run(h) -> void:
 			var xs: Array = []
 			h.down(dir)
 			for f in 60:
-				await h.frames(1)
+				await h.get_tree().physics_frame
 				xs.append(snappedf(k.global_position.x, 0.1))
 			h.up(dir)
 			await h.frames(2)

@@ -552,6 +552,24 @@ func _chamber_reached() -> void:
 		load("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd").wake()
 
 
+# --- the ocean's tentacles (#364) ---------------------------------------------
+# The host's wave clocks, swings and speeds (map/ocean_tentacles.gd
+# clock_state), a few times a second; a lost one is replaced by the next.
+
+static func tentacle_clock(data: PackedFloat32Array) -> void:
+	if _inst != null and not Network.is_offline_mode():
+		Network.rpc_if_state(_inst._tentacle_clock.bind(data), Network.ConnectionState.LEVEL_STAGE_SYNC)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _tentacle_clock(data: PackedFloat32Array) -> void:
+	if Level.map == null or not is_instance_valid(Level.map):
+		return
+	var f = Level.map.get_node_or_null("StoryOceanTentacles")
+	if f != null:
+		f.net_apply(data)
+
+
 # --- gas (#228) ----------------------------------------------------------------
 # As the lava: the host's GasField streams, a client's draws.
 

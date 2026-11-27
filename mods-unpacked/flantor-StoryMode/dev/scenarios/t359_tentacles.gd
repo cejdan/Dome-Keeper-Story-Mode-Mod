@@ -36,7 +36,7 @@ func run(h) -> void:
 	h.check("the keeper (%s) is in the room" % kid, test.room.has_point(kt), {"tile": kt, "room": test.room})
 	var plat = test.rigs[0]
 	var wall = test.rigs[1]
-	h.check("the platform tentacle has 10 segments, the wall 12", plat.segments.size() == 10 and wall.segments.size() == 12)
+	h.check("the platform tentacle has 10 segments, the wall 11, each with a tip pad", plat.segments.size() == 10 and wall.segments.size() == 11 and plat.pad != null and wall.pad != null)
 	h.note("where things are", {"keeper": k.global_position, "plat base": plat.segments[0].global_position, "plat tip": plat.segments.back().global_position,
 		"wall base": wall.segments[0].global_position, "wall tip": wall.segments.back().global_position, "seg visible": plat.segments[0].is_visible_in_tree()})
 	await h.wait(3.0)
@@ -83,7 +83,8 @@ func _tip_swing(h, rig, sec: float) -> float:
 		var p: Vector2 = tip.global_position
 		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
 		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
-		await h.frames(1)
+		# Physics frames, not drawn ones: an unfocused window draws faster.
+		await h.get_tree().physics_frame
 		t += h.get_physics_process_delta_time()
 	return (hi - lo).length()
 
@@ -102,7 +103,7 @@ func _ride(h, test, plat) -> void:
 	var frames: int = 0
 	var start: Vector2 = k.global_position
 	while frames < 180:
-		await h.frames(1)
+		await h.get_tree().physics_frame
 		frames += 1
 		var s = plat.segments[4]
 		var rel: Vector2 = s.global_transform.affine_inverse() * k.global_position
@@ -145,7 +146,7 @@ func _grip(h, test, plat) -> void:
 	var kpos: Array = []
 	var last: Dictionary = {}
 	for f in 180:
-		await h.frames(1)
+		await h.get_tree().physics_frame
 		kpos.append(k.global_position)
 		for t in tents.tentacles:
 			if not t.is_grounded() or not is_instance_valid(t.attachedTile) or not segs.has(t.attachedTile):
@@ -202,7 +203,7 @@ func _hook(h, test, plat) -> void:
 	var last: Vector2 = target.global_transform.affine_inverse() * k.hook.global_position
 	var n: int = 0
 	for f in 90:
-		await h.frames(1)
+		await h.get_tree().physics_frame
 		if k.hook == null or not is_instance_valid(k.hook) or k.hook.attached_target != target:
 			break
 		var local: Vector2 = target.global_transform.affine_inverse() * k.hook.global_position
