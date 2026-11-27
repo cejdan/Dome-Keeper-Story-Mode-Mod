@@ -167,10 +167,19 @@ func run(h) -> void:
 	h.check("end-screen titles and subtitles match", bad.is_empty(), bad)
 	all_lines.append_array(Endings.DOOM_CARDS + Endings.DOOM_LAST_WORDS + Endings.SAVED_CARDS + titles.values())
 
-	# No placeholder text anywhere in the story data.
+	# The ship's lines (#368): drafts until the user writes them.
+	var ship_md: Dictionary = s.get("Ship", {})
+	h.check("the ship's prompt matches ship_board", ship_md.get("ship_board", {}).get("lines", []) == [Endings.SHIP_BOARD], [ship_md.get("ship_board", {}), Endings.SHIP_BOARD])
+	h.check("the ship's locked line matches ship_locked", ship_md.get("ship_locked", {}).get("lines", []) == [Endings.SHIP_LOCKED], [ship_md.get("ship_locked", {}), Endings.SHIP_LOCKED])
+	all_lines.append_array([Endings.SHIP_BOARD, Endings.SHIP_LOCKED])
+
+	# No placeholder text anywhere in the story data. A line marked "[DRAFT] "
+	# (#368) is a builder's stand-in the user is to replace: listed, not failed.
 	var re: RegEx = RegEx.create_from_string(PLACEHOLDER)
-	var odd: Array = all_lines.filter(func(l): return re.search(str(l)) != null or str(l).strip_edges() == "")
-	h.check("no placeholder text in %d story lines" % all_lines.size(), odd.is_empty(), odd)
+	var drafts: Array = all_lines.filter(func(l): return str(l).begins_with("[DRAFT] "))
+	h.note("draft lines waiting for the user", drafts)
+	var odd: Array = all_lines.filter(func(l): return (re.search(str(l).trim_prefix("[DRAFT] ")) != null) or str(l).strip_edges() == "")
+	h.check("no placeholder text in %d story lines (%d marked drafts)" % [all_lines.size(), drafts.size()], odd.is_empty(), odd)
 	# The parser itself found the whole script (guards against a check that
 	# passes because it read nothing).
 	h.check("the script parse found 14 story beats, 3 doom sections, 4 plea stages, 10 logs (8 miners', the keeper's welcome and the evacuation refusal)", beats_md.size() == 14 and doom_md.size() == 3 and pleas_md.size() == 4 and logs_md.size() == 10, {"beats": beats_md.size(), "doom": doom_md.keys(), "pleas": pleas_md.keys(), "logs": logs_md.size()})

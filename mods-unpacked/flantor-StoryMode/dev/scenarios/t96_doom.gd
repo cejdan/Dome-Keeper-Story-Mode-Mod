@@ -1,7 +1,9 @@
 extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
-# Ticket 96: the doom ending. Buys Retire Rich with the shop open, as a player
-# does, and captures every step: the horror's thanks (each page), the monsters'
+# Ticket 96: the doom ending. Since #368 it is the ship's escape: every chain
+# broken quietly (`free`), the ship at the dome, the keeper boards it
+# (Storymode.board_ship; the hatch's real input is t368_reload's), the
+# lift-off plays, then every step is captured: the horror's thanks (each page), the monsters'
 # last words over the dome at the translation stage (0 here; t96_doom_stage3
 # runs it at 3), each narration card, and the end screen "The Planet Is Lost".
 # The run is a win.
@@ -14,7 +16,7 @@ static var _PleaData = PleaData  # calls go through this: lazy_preload makes con
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345, "beats": true}
+	return {"seed": 12345, "beats": true, "free": true}
 
 
 func stage() -> int:
@@ -28,16 +30,13 @@ func run(h) -> void:
 	_Runes.set_stage(stage())
 	var ed = Level.mode.get_node_or_null("StoryEndings")
 	h.check("the ending director is in the run", ed != null)
-	h.set_inv("money", 1000000)
-	# A player buys it from inside the shop, so the shop is open (and its input
-	# processor live) when the ending starts.
-	Level.stage.startUpgradesInput(h.keeper())
-	await h.wait(1.5)
-	await h.shot("shop_open_stage%d" % stage())
-	var ok: bool = await h.buy("storyretirerich")
-	h.check("Retire Rich bought", ok)
-	# The horror's thanks: one beat, three pages.
-	var id: String = await h.read_beat("thanks", 8.0)
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	await h.until(func(): return Ship.is_landed(), 10.0)
+	h.check("the ship stands at the dome", Ship.is_landed() and Ship.board_kind() == "doom", Ship.phase())
+	var ok: bool = Level.mode.board_ship(h.keeper().playerId)
+	h.check("the keeper boards the ship (the escape)", ok)
+	# The lift-off, then the horror's thanks: one beat, three pages.
+	var id: String = await h.read_beat("thanks", 16.0)
 	h.check("the horror thanks the keeper (doom_thanks)", id == "doom_thanks", id)
 	# The monsters' last words, one at a time over the dome.
 	await h.until(func(): return ed.last_step == "last_words", 5.0)

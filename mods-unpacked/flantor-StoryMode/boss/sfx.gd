@@ -32,6 +32,13 @@ const SOUNDS := {
 	"seal_shatter": ["res://content/sounds/assignments/glasscrack.wav"],
 	"seal_settle": ["res://content/sounds/dome4/Tesla_Disarm.wav"],
 	"seal_pass": ["res://content/sounds/Biomes/TeleportTouch.wav"],
+	# The ship (#368, endgame/ship.gd).
+	"ship_door_open": ["res://content/sounds/Locations/StationExtention/DoorOpen.wav"],
+	"ship_door_close": ["res://content/sounds/Locations/StationExtention/DoorClose.wav"],
+	"ship_liftoff": ["res://content/sounds/Events/Rocket/rocketLiftoff.wav"],
+	"ship_land": ["res://content/sounds/landing/crash.wav"],
+	"ship_denied": ["res://content/sounds/UI/Cancel.wav"],
+	"ship_ready": ["res://content/sounds/UI/Confirm.wav"],
 }
 
 static var played: Dictionary = {}   # name -> times played (for playtests)

@@ -433,11 +433,33 @@ func _client_won() -> void:
 	music.stop()
 
 
+# The final battle is won (#368): the saved ending waits for a keeper to board
+# the ship by the dome (endgame/ship.gd; boarding goes through
+# Storymode.board_ship). The ship's hatch opens with the state "won" on every
+# peer. A run without a ship plays the saved ending at once, as before.
 func _finish_won() -> void:
 	music.stop()
 	await get_tree().create_timer(1.0, false).timeout
+	var ship = load(Story.MOD_DIR + "endgame/ship.gd").find()
+	if ship != null:
+		if ship.mode != "dome":
+			ship.place_at_dome(true)
+		ModLoaderLog.info("Boss: won; the ship waits by the dome", Story.LOG)
+		return
 	if Level.mode != null and Level.mode.has_method("horror_defeated"):
 		Level.mode.horror_defeated()
+
+
+# A keeper left on the ship (#368) while a teammate was still in the fight:
+# Velle stops, the music too (the doom ending plays over it).
+func ship_left() -> void:
+	music.stop()
+	if velle != null and is_instance_valid(velle):
+		velle.attack_enabled = false
+		velle.spawn_bombs = false
+		velle.orbs.clear()
+		velle.attacks.clear()
+		_net_velle_now()
 
 
 func _keeper_died(cause: String) -> void:

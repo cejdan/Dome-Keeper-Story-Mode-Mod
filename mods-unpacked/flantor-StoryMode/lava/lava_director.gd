@@ -70,6 +70,20 @@ func _process(_delta: float) -> void:
 			map.add_child(seal)
 		else:
 			seal.free()
+		# The ship (#368): held in the ocean by a third tentacle, set down by
+		# the dome at the last chain, boarded there. At the anchors' and the
+		# tentacles' z (7, over the lava and its glow) but before them in the
+		# tree, so they stay in front of it.
+		var ship = load(_Story.MOD_DIR + "endgame/ship.gd").new()
+		if ship.setup(map):
+			map.add_child(ship)
+			var front = map.get_node_or_null("StoryChainAnchors")
+			if front == null:
+				front = map.get_node_or_null("StoryOceanTentacles")
+			if front != null:
+				map.move_child(ship, front.get_index())
+		else:
+			ship.free()
 
 
 func _wants_lava() -> bool:

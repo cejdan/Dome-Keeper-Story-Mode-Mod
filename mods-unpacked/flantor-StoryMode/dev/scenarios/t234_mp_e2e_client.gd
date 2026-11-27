@@ -285,11 +285,12 @@ func run(h) -> void:
 		st1.useHit(h.keeper())
 	await h.wait(1.0)
 
-	# ---- 9. Retire Rich.
+	# ---- 9. The ship (#368): this keeper boards it.
 	await shared(h, "rich", 60.0)
-	await h.until(func(): return _Host.money() >= 1000000, 10.0)
-	var ok: bool = await h.buy("storyretirerich")
-	h.check("the client buys Retire Rich", ok)
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	var ok: bool = await h.until(func(): return Ship.is_landed(), 15.0)
+	h.check("the ship stands at the dome here", ok, Ship.phase())
+	Ship.find().request_board(h.keeper().playerId)
 	var panel_up: bool = await _Host.to_end_screen(h, 180.0)
 	h.check("end screen on the client, the doom ending's", panel_up and GameWorld.won and Level.stage.endingPanel.titleLabel.text == Endings.DOOM_TITLE, [GameWorld.won, Level.stage.endingPanel.titleLabel.text if panel_up else null])
 	await h.wait(2.0)
