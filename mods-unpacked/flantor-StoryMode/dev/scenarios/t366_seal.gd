@@ -1,27 +1,14 @@
+extends "res://mods-unpacked/flantor-StoryMode/dev/scenarios/t365_anchors.gd"
 
-
-# --- shared with t366_open, t366_reload, t366_mp_* -----------------------------------
-
-# Drills down through crust cell `c0` from the lava over it by real input
-# (the Engineer's drill), into the lair. Returns whether the keeper got in.
-func drill_in(h, k, c0: Vector2i, label: String = "passing_in") -> bool:
-	_start_track(h, k)
-	await h.teleport_tile(c0 + Vector2i(0, -1), k)
-	cool(h)
-	await h.wait(0.3)
-	var t0: float = h.now()
-	var shot_done := false
-	h.down("ui_down")
-	while h.now() - t0 < 20.0 and _inside == 0:
-		await h.wait(0.05)
-		cool(h)
-		if not shot_done and Level.map.tileData.get_resourcev(c0) == Data.TILE_EMPTY:
-			shot_done = true
-			await h.burst(label, 10, 2)
-	h.up("ui_down")
-	await h.wait(0.3)
-	return _inside > 0
-ld boss
+# #366: the lair seal before the last chain (huge map, seed 12345). The keeper
+# (`-Extra "--keeper=keeper2|3|4"`; the Beastmaster only through this dev
+# harness) tries to get through the blue seal over an entry its own way from
+# the lava above, by real input (the Engineer and the Beastmaster push and
+# drill or punch into it, the Assessor shoots spheres, the Infiltrator throws
+# kunai, then hooks the seal and pulls): the crust stays, the keeper never
+# gets into the roof row, the seal crackles and throws it back.
+# The Engineer's run (the default) also checks the other ways in: big
+# explosions, the dev cheat's freeTiles, Map.destroyTile itself; the old boss
 # routes (Awakening.wake(), EndGame.record_lair_entered, a keeper teleported
 # into the chamber: no fight, no awakening); the crust gone (an old save
 # drilled open): the seal's body still stops the keeper and a dropped
@@ -129,6 +116,18 @@ func run(h) -> void:
 		else:
 			await Keeper2Run.dig(h, k, "ui_down", 2.0)
 		cool(h)
+	if kid == "keeper2" or kid == "keeper3":
+		# From farther up, out of the seal's reach: spheres or kunai at the crust.
+		var r0: int = seal.hits_refused
+		for i in 3:
+			await h.teleport_tile(c0 + Vector2i(0, -4))
+			cool(h)
+			await h.wait(0.2)
+			await Keeper2Run.dig(h, k, "ui_down", 2.0)
+		h.note("%s from above" % kid, {"hits_refused": seal.hits_refused - r0})
+		h.check("%s: the crust stands" % kid, standing(cells) == 4)
+		if kid == "keeper3":
+			h.check("%s: its kunai at the crust are refused" % kid, seal.hits_refused > r0, seal.hits_refused - r0)
 	if kid == "keeper3":
 		# The hook into the seal, then pulling down on the rope.
 		await h.teleport_tile(c0 + Vector2i(0, -3))
@@ -224,3 +223,29 @@ func run(h) -> void:
 	seal.visible = true
 	h.note("frame cost", {"seal_us_per_frame": snappedf(per_frame, 0.1), "process_ms": cost})
 	h.check("the seal's own work is under 0.15 ms a frame", per_frame < 150.0, per_frame)
+
+
+
+
+# --- shared with t366_open, t366_reload, t366_mp_* -----------------------------------
+
+# Drills down through crust cell `c0` from the lava over it by real input
+# (the Engineer's drill), into the lair. Returns whether the keeper got in.
+func drill_in(h, k, c0: Vector2i, label: String = "passing_in") -> bool:
+	_start_track(h, k)
+	await h.teleport_tile(c0 + Vector2i(0, -1), k)
+	cool(h)
+	await h.wait(0.3)
+	var t0: float = h.now()
+	var shot_done := false
+	h.down("ui_down")
+	while h.now() - t0 < 20.0 and _inside == 0:
+		await h.wait(0.05)
+		cool(h)
+		# A burst as the keeper reaches the membrane (the chamber's top edge).
+		if not shot_done and Level.map.tileData.get_resourcev(c0) == Data.TILE_EMPTY and seal.to_local(k.global_position).y > -14.0:
+			shot_done = true
+			await h.burst(label, 10, 2)
+	h.up("ui_down")
+	await h.wait(0.3)
+	return _inside > 0

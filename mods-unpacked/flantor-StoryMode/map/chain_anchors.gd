@@ -407,11 +407,23 @@ func _settle() -> void:
 func dev_free_all() -> void:
 	if Network.is_client():
 		return
+	var gone: Array = []
 	for a in anchors:
 		if not a["broken"]:
 			a["broken"] = true
-			_clear_tiles(a)
+			gone.append(a)
 	_EndGame.dev_free()
+	_clear_later(gone)
+
+
+# The stones' tiles go once the view is real: right at a run's start an
+# off-screen harness window reports a negative view rect, and vanilla's tile
+# break particles then log "Rect2 size is negative" for every tile.
+func _clear_later(list: Array) -> void:
+	while is_inside_tree() and get_viewport().get_visible_rect().size.y <= 0.0:
+		await get_tree().process_frame
+	for a in list:
+		_clear_tiles(a)
 
 
 # Breaks anchor `id` as a keeper would (host; dev and playtests): its tiles

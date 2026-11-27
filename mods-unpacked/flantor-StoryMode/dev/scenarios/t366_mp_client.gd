@@ -73,7 +73,6 @@ func run(h) -> void:
 		base.cool(h)
 	h.check("client: the crust is whole here", base.standing(cells) == 4)
 	h.check("client: its keeper never got in, and was thrown back", base._deepest < -Base.T + 4.0 and base._inside == 0 and seal.touches > 0, {"deepest": base._deepest, "inside": base._inside, "touches": seal.touches, "refused": seal.hits_refused})
-	share("tried", true)
 	await shared(h, "free", 120.0)
 	var live: bool = await h.until(func(): return _LairSeal.events.any(func(e): return e["what"] == "free_live"), 10.0)
 	h.check("client: the last chain reached the seal live, and it let keepers through", live and not seal.blocking, [_LairSeal.events, seal.state()])

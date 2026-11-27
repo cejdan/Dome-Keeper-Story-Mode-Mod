@@ -61,6 +61,7 @@ const TILE_LAYERS := 32787       # vanilla's Tile.tscn collision_layer: everythi
 const QUAD_PAD := 8.0            # px of the plug's rect beyond the hole, each side
 const QUAD_TOP := 6.0            # px over the dome's top
 const QUAD_BOTTOM := 6.0         # px under the lip
+const RIP_NAMES: Array[StringName] = [&"u_rip0", &"u_rip1", &"u_rip2", &"u_rip3"]
 
 signal opened(live: bool)        # the look reached purple (live: the opening played)
 
@@ -425,21 +426,23 @@ func _physics_process(delta: float) -> void:
 			else:
 				_data_wait = 0.0
 		"pending":
-			# Live, but nobody is looking yet: it plays when a view first shows it.
-			if seen and _seal_on_view(80.0):
+			# Live, but nobody is looking yet (or play is frozen, a cutscene,
+			# #367): it plays when a view first shows it.
+			if seen and not GameWorld.paused and _seal_on_view(80.0):
 				mode = "opening"
 		"opening":
-			_opening_step(delta)
+			if not GameWorld.paused:
+				_opening_step(delta)
 	if not GameWorld.paused:
 		_keepers(delta, open_now)
 	process_us += Time.get_ticks_usec() - us0
-	process_frames += 1
 
 
 func _process(delta: float) -> void:
 	if _map == null or not is_instance_valid(_map) or not seen:
 		return
 	var us0: int = Time.get_ticks_usec()
+	process_frames += 1
 	if not GameWorld.paused:
 		_time += delta
 		_step_fx(delta)
@@ -456,20 +459,27 @@ func _process(delta: float) -> void:
 			agitate = maxf(agitate, minf(1.0, _bump))
 		elif mode == "open" and fight:
 			agitate = 0.35
-		mat.set_shader_parameter("u_time", _time)
-		mat.set_shader_parameter("u_phase", _vis["phase"])
-		mat.set_shader_parameter("u_tint", _vis["tint"])
-		mat.set_shader_parameter("u_crack", _vis["crack"])
-		mat.set_shader_parameter("u_flash", _vis["flash"])
-		mat.set_shader_parameter("u_agitate", agitate)
+		mat.set_shader_parameter(&"u_time", _time)
+		# The rest only when it changed: most frames nothing but the time does.
+		var key := Vector4(float(_vis["phase"]), float(_vis["tint"]), float(_vis["crack"]) + 2.0 * float(_vis["flash"]), agitate)
+		if key != e.get("last_key", Vector4(-1, -1, -1, -1)):
+			e["last_key"] = key
+			mat.set_shader_parameter(&"u_phase", key.x)
+			mat.set_shader_parameter(&"u_tint", key.y)
+			mat.set_shader_parameter(&"u_crack", _vis["crack"])
+			mat.set_shader_parameter(&"u_flash", _vis["flash"])
+			mat.set_shader_parameter(&"u_agitate", agitate)
 		var rips: Array = e["rips"]
-		for i in 4:
-			var r: Vector4 = Vector4.ZERO
-			if i < rips.size():
-				var q: Dictionary = rips[i]
-				var quad: Rect2 = e["quad"]
-				r = Vector4(q["p"].x - quad.position.x, q["p"].y - quad.position.y, q["t"], q["s"])
-			mat.set_shader_parameter("u_rip%d" % i, r)
+		var n_rips: int = rips.size()
+		if n_rips > 0 or int(e.get("last_rips", 0)) > 0:
+			var quad: Rect2 = e["quad"]
+			for i in maxi(n_rips, int(e.get("last_rips", 0))):
+				var r: Vector4 = Vector4.ZERO
+				if i < n_rips:
+					var q: Dictionary = rips[i]
+					r = Vector4(q["p"].x - quad.position.x, q["p"].y - quad.position.y, q["t"], q["s"])
+				mat.set_shader_parameter(RIP_NAMES[i], r)
+			e["last_rips"] = n_rips
 	queue_redraw()
 	_fx.queue_redraw()
 	_glow.queue_redraw()
@@ -490,9 +500,14 @@ func _centre_global() -> Vector2:
 
 
 func _seal_on_view(grow: float) -> bool:
+	var rects: Array = _Story.view_rects(grow)
+	if rects.is_empty():
+		return true
 	for e in entries:
-		if _Story.on_any_view(to_global(Vector2((e["x0"] + e["x1"]) * 0.5, -TILE * 0.5)), grow):
-			return true
+		var p: Vector2 = to_global(Vector2((e["x0"] + e["x1"]) * 0.5, -TILE * 0.5))
+		for r: Rect2 in rects:
+			if r.has_point(p):
+				return true
 	return false
 
 
@@ -793,18 +808,24 @@ func _draw() -> void:
 	var x_to: float = (chamber.size.x + SealData.CIRCUIT_TILES) * TILE
 	var y: float = -TILE - 1.0
 	var dim: float = lerpf(1.0, 0.35, float(_vis["tint"]))
+	# The line, in runs between the entries, a tile at a time (each its own
+	# shade of the slow pulse, and its colour during the opening's wave).
 	var x: float = x_from
 	while x < x_to:
-		var inside := false
+		var x1: float = minf(x + TILE, x_to)
 		for e in entries:
-			if x >= e["x0"] - SealData.OVERHANG_PX and x < e["x1"] + SealData.OVERHANG_PX:
-				inside = true
+			var a0: float = e["x0"] - SealData.OVERHANG_PX
+			var a1: float = e["x1"] + SealData.OVERHANG_PX
+			if x < a0 and x1 > a0:
+				x1 = a0
+			elif x >= a0 and x < a1:
+				x1 = -1.0
+				x = a1
 				break
-		if not inside:
-			var c: Color = _circuit_colour(x)
+		if x1 > x:
 			var pulse: float = 0.55 + 0.25 * sin(_time * 2.4 - x * 0.05)
-			draw_rect(Rect2(Vector2(x, y), Vector2(2, 1)), Color(c, pulse * dim))
-		x += 2.0
+			draw_rect(Rect2(Vector2(x, y), Vector2(x1 - x, 1)), Color(_circuit_colour(x + (x1 - x) * 0.5), pulse * dim))
+			x = x1
 	# Runes every few tiles.
 	var step: float = SealData.CIRCUIT_RUNE_EVERY * TILE
 	var rx: float = x_from + TILE * 0.5
@@ -877,9 +898,9 @@ func _draw_glow() -> void:
 		var cx: float = (e["x0"] + e["x1"]) * 0.5
 		var c := Vector2(cx, lerpf(-TILE * 0.6, 0.0, ph))
 		var col: Color = SealData.BLUE.lerp(SealData.PURPLE, tint)
-		var rx: float = lerpf(64.0, 40.0, ph)
-		var ry: float = lerpf(48.0, 22.0, ph)
-		var a: float = lerpf(0.42, 0.32, ph) * pulse + 0.3 * minf(1.0, _bump)
+		var rx: float = lerpf(64.0, 46.0, ph)
+		var ry: float = lerpf(48.0, 26.0, ph)
+		var a: float = lerpf(0.42, 0.55, ph) * pulse + 0.3 * minf(1.0, _bump)
 		_glow.draw_texture_rect(_glow_tex, Rect2(c - Vector2(rx, ry), Vector2(rx, ry) * 2.0), false, Color(col, a))
 		_glow.draw_texture_rect(_glow_tex, Rect2(c - Vector2(rx, ry) * 0.5, Vector2(rx, ry)), false, Color(SealData.BLUE_LIGHT.lerp(SealData.PURPLE_LIGHT, tint), a * 0.6))
 		if flash > 0.0:

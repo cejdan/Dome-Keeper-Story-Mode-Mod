@@ -26,6 +26,7 @@ func run(h) -> void:
 	var whats: Array = _LairSeal.events.map(func(e): return e["what"])
 	h.check("... and no live moment (shown open, not played)", whats == ["open"] and _LairSeal.events[0]["live"] == false, _LairSeal.events)
 	h.check("the last chain did not fire again", _EndGame.events.filter(func(e): return e.get("live", false)).is_empty(), _EndGame.events)
+	await reveal_ocean(h)
 	var cells: Array = crust_cells()
 	var c_right: Vector2i = cells[2]
 	await h.teleport_tile(c_right + Vector2i(2, -1))
