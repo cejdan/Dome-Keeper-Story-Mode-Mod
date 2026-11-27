@@ -19,7 +19,10 @@ extends Node
 # the real break: snap, flinch, record), F6 previews one wake step calmer
 # (the tentacles only: the next break puts them back in step with the
 # anchors), F8 by the other tentacle's tip (host only; `--chains=N` breaks
-# the first N anchors at the start).
+# the first N anchors at the start). The lair seal (#366): F5 puts the
+# keeper on the seal over the left entry, Shift+F7 breaks every chain left,
+# live (the seal's opening plays; `--free` starts with them all broken
+# quietly, the seal already purple).
 #
 # The grip fix (claws and hook follow the segment they hold, the Beastmaster
 # rides with its claws) is in the script extensions (extensions/content/
@@ -107,7 +110,7 @@ func _process(delta: float) -> void:
 		_wave_timer = 5.0
 		_stop_waves()
 	if ocean_mode:
-		_label.text = "Ocean tentacles (#364) · %d/%d chains broken (wake as %d) · F6 preview calmer · F7 break the next anchor · F8 the other tip" % [_EndGame.chains_broken(), TentData.CHAINS, _Ocean.chains_broken()]
+		_label.text = "Ocean tentacles (#364) · %d/%d chains broken (wake as %d) · F6 preview calmer · F7 break the next anchor (Shift: all) · F8 the other tip · F5 on the lair seal" % [_EndGame.chains_broken(), TentData.CHAINS, _Ocean.chains_broken()]
 	else:
 		_label.text = "Tentacle test (#359) · wake %d/4 · F6 calmer · F7 wilder · F8 back to the room" % wake
 
@@ -126,8 +129,11 @@ func _input(event: InputEvent) -> void:
 				if anchors != null:
 					for a in anchors.anchors:
 						if not a["broken"]:
-							anchors.dev_break(a["id"])
-							break
+							anchors.dev_break(a["id"], not event.shift_pressed)
+							if not event.shift_pressed:
+								break
+			KEY_F5:
+				put_keepers_on_seal()
 			KEY_F8:
 				_tip_i = (_tip_i + 1) % maxi(1, ocean.rigs.size())
 				put_keepers_on_tip(_tip_i)
@@ -349,3 +355,22 @@ func put_keepers_in_room() -> void:
 func _stop_waves() -> void:
 	for mm in Level.monstersByTeamId.values():
 		mm.disabled = true
+
+
+# The keepers on the lair seal over the left entry (#366), the chamber round
+# it revealed.
+func put_keepers_on_seal() -> void:
+	var td = Level.map.tileData
+	var ch: Rect2i = td.get_meta("story_boss_chamber", Rect2i())
+	if ch.size == Vector2i.ZERO:
+		return
+	var cells: Array = []
+	for y in range(ch.position.y - 4, ch.position.y + 3):
+		for x in range(ch.position.x - 3, ch.end.x + 3):
+			cells.append(Vector2(x, y))
+	Level.map.tileCoordsToReveal.append_array(cells)
+	Level.map.floodRevealTiles()
+	var col: int = int(load(_Story.MOD_DIR + "data/lava.gd").BOSS_CHAMBER_ENTRY[0])
+	var at: Vector2 = Level.map.getTilePos(Vector2(ch.position.x + col, ch.position.y - 2)) + Vector2(12, 0)
+	for k in _Story.local_keepers():
+		k.teleport(at)

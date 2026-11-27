@@ -4,7 +4,7 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # and roof undrillable, the roof's four entry tiles left as drillable crust),
 # that the stone node is built and stays hidden until the chamber is seen,
 # that drilling and explosions don't break the stone while an entry tile does
-# break, and that charges never spawn inside a stalactite. Shots of the chamber
+# break (once the last chain is broken: before it the lair seal keeps it, #366), and that charges never spawn inside a stalactite. Shots of the chamber
 # before and during the fight, and a burst of the tentacles moving.
 
 const Director = preload("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd")
@@ -100,7 +100,13 @@ func run(h) -> void:
 	var soft := Vector2i(ch.position.x + _LavaData.BOSS_CHAMBER_ENTRY[1], ch.position.y - 1)
 	Level.map.damageTileCircleArea(Level.map.getTilePos(Vector2(soft)), 0.5, 9999.0, "team1")
 	await h.wait(0.5)
-	h.check("the same explosion on an entry tile breaks it", Level.map.is_tile_empty(soft), soft)
+	# #366: before the last chain the blue lair seal keeps the entry's crust.
+	h.check("before the last chain the lair seal keeps the entry tile", not Level.map.is_tile_empty(soft), soft)
+	load("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd").find().dev_free_all()
+	await h.wait(0.3)
+	Level.map.damageTileCircleArea(Level.map.getTilePos(Vector2(soft)), 0.5, 9999.0, "team1")
+	await h.wait(0.5)
+	h.check("after it, the same explosion on an entry tile breaks it", Level.map.is_tile_empty(soft), soft)
 	_far_shut(h, "after the explosions")
 
 	# ---- an entry tile drills from below

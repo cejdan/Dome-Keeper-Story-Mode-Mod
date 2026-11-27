@@ -2,9 +2,11 @@ extends Node
 
 # The boss sequence (#160-#163), run by the Story Mode game mode node:
 #
-#   ""       nothing yet. Starts when the horror is awake (the keeper broke
-#            into the boss chamber), its awakening beat has been read, and the
-#            keeper is in the chamber.
+#   ""       nothing yet. Starts when the horror is awake (a keeper went
+#            through the opened lair seal into the chamber, #366:
+#            endgame/lair_seal.gd -> EndGame.record_lair_entered ->
+#            Awakening.wake, the one path in real play), its awakening beat
+#            has been read, and a keeper is in the chamber.
 #   fight    Velle in the chamber (boss/velle.gd). The chamber is sealed.
 #   chase    Velle's body is dead; its tentacles hunt the keeper back to the
 #            dome (boss/chase.gd).
@@ -713,7 +715,8 @@ func _reveal_chamber() -> void:
 
 
 # Dev command (editor only): `-- --story --boss` drops the keeper into Velle's
-# chamber; `--boss=chase` starts at the chase (Velle already dead),
+# chamber past the lair seal (#366: it breaks every chain quietly and wakes
+# the horror directly, the one bypass of the seal); `--boss=chase` starts at the chase (Velle already dead),
 # `--boss=finale` at the surface battle. The first two drill a winding shaft
 # from the chamber up to the dome, the keeper's way home in the chase. All three start with the gear a keeper has by then
 # (dev/boss_dev.gd): Heat Shielding IV, the Suit Blaster, all of the drill and
@@ -740,6 +743,15 @@ func _dev_boss(what: String) -> void:
 			cells.append(Vector2i(x, y))
 	Level.map.tileCoordsToReveal.append_array(cells)
 	Level.map.floodRevealTiles()
+	# The dev route bypasses the lair seal (#366): the keeper is put inside,
+	# every chain broken quietly first (so the end-game state matches a run
+	# that got here) and the horror set awake directly (Awakening.wake()
+	# wants the keeper to have come through the seal).
+	var anchors = load(Story.MOD_DIR + "map/chain_anchors.gd").find()
+	if anchors != null:
+		anchors.dev_free_all()
+	else:
+		load(Story.MOD_DIR + "endgame/end_game.gd").dev_free()
 	var played: Array = Array(str(Data.ofOr("team1.story.beatsplayed", "")).split(",", false))
 	if not played.has("boss_chamber"):
 		played.append("boss_chamber")

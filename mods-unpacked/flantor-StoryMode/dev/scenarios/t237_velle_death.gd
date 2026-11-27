@@ -17,7 +17,8 @@ var _cause: String = ""
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	# The last chain already broken (#366): the lair seal lets the keeper in.
+	return {"seed": 12345, "free": true}
 
 
 # Error lines in this run's godot.log since the scenario began (the engine

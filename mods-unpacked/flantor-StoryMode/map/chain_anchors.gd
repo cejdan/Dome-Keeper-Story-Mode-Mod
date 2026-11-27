@@ -396,6 +396,34 @@ func _settle() -> void:
 		for a in anchors:
 			if not a["broken"] and anchors.filter(func(x): return x["broken"]).size() < _dev_chains:
 				dev_break(a["id"], false)
+	# `--free` (dev, boot key `free`): the run as a save made after the last chain.
+	if _Story.has_user_arg("free"):
+		dev_free_all()
+
+
+# Dev and playtests (host): every anchor broken quietly, its stone gone and a
+# stub left, no snap, no live moment (EndGame.dev_free): the lair seal (#366)
+# just shows open. `--free` at a run's start; `--boss` before the fight.
+func dev_free_all() -> void:
+	if Network.is_client():
+		return
+	var gone: Array = []
+	for a in anchors:
+		if not a["broken"]:
+			a["broken"] = true
+			gone.append(a)
+	_EndGame.dev_free()
+	_clear_later(gone)
+
+
+# The stones' tiles go once the view is real: right at a run's start an
+# off-screen harness window reports a negative view rect, and vanilla's tile
+# break particles then log "Rect2 size is negative" for every tile.
+func _clear_later(list: Array) -> void:
+	while is_inside_tree() and get_viewport().get_visible_rect().size.y <= 0.0:
+		await get_tree().process_frame
+	for a in list:
+		_clear_tiles(a)
 
 
 # Breaks anchor `id` as a keeper would (host; dev and playtests): its tiles

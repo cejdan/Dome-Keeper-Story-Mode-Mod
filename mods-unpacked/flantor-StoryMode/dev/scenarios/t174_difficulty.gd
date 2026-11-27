@@ -28,7 +28,8 @@ func difficulty() -> int:
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345, "difficulty": difficulty()}
+	# The last chain already broken (#366): the lair seal lets the keeper in.
+	return {"seed": 12345, "difficulty": difficulty(), "free": true}
 
 
 func _rays(velle) -> int:

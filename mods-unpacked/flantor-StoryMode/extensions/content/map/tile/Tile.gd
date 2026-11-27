@@ -12,6 +12,8 @@ static var _Bones = Bones  # calls go through this: lazy_preload makes const-pre
 const AnchorData = preload("res://mods-unpacked/flantor-StoryMode/data/anchors.gd")
 const ChainAnchors = preload("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd")
 static var _ChainAnchors = ChainAnchors  # calls go through this: lazy_preload makes const-preload calls slow
+const LairSeal = preload("res://mods-unpacked/flantor-StoryMode/endgame/lair_seal.gd")
+static var _LairSeal = LairSeal  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func setType(type: String):
@@ -87,6 +89,8 @@ func _metal_refuses() -> bool:
 
 
 func hit(dir: Vector2, dmg: float, teamId: String = "", keeperTechId: String = ""):
+	if _seal_refuses(dir, true):
+		return
 	if _metal_refuses():
 		_clank()
 		return
@@ -97,12 +101,25 @@ func hit(dir: Vector2, dmg: float, teamId: String = "", keeperTechId: String = "
 
 
 func remote_hit(dir: Vector2, dmg: float, teamId: String, keeperTechId: String = ""):
+	if _seal_refuses(dir, false):
+		return
 	if _metal_refuses():
 		return
 	var before: float = health
 	super(dir, dmg, teamId, keeperTechId)
 	if type == AnchorData.TYPE:
 		_anchor_share(dir, before - health, teamId, keeperTechId)
+
+
+# The lair seal (#366): before the last chain the blue energy over the boss
+# chamber's entries takes every blow on their crust (drill, sphere, kunai,
+# claw, cat, bomb, blast, gadget): no damage, the seal's crackle instead.
+func _seal_refuses(dir: Vector2, local: bool) -> bool:
+	if health <= 0 or not _LairSeal.refuses(Vector2i(coord)):
+		return false
+	exploded = false
+	_LairSeal.crust_hit(Vector2i(coord), dir, local)
+	return true
 
 
 # A chain anchor (#365): its four tiles share every hit, so the stone breaks

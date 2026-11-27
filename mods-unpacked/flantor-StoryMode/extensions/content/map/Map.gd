@@ -19,6 +19,8 @@ static var _Bones = Bones  # calls go through this: lazy_preload makes const-pre
 const AnchorData = preload("res://mods-unpacked/flantor-StoryMode/data/anchors.gd")
 const ChainAnchors = preload("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd")
 static var _ChainAnchors = ChainAnchors  # calls go through this: lazy_preload makes const-preload calls slow
+const LairSeal = preload("res://mods-unpacked/flantor-StoryMode/endgame/lair_seal.gd")
+static var _LairSeal = LairSeal  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 # --- the flood reveal, spread over frames (#159) -----------------------------------
@@ -326,6 +328,11 @@ func setTileData(tileDataInstance):
 
 
 func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
+	# The lair seal's crust (#366) stays while the seal is blue, whatever
+	# called for it to go (the hits are refused in Tile.gd already).
+	if _LairSeal.refuses(Vector2i(tile.coord)):
+		tile.health = tile.max_health
+		return
 	var type: String = tile.type
 	var richness: float = tile.richness
 	# Vanilla counts iron per biome at map start and assumes every iron tile was

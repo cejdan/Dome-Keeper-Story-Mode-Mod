@@ -11,7 +11,8 @@ const TIMEOUT := 240
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	# The last chain already broken (#366): the lair seal lets the keeper in.
+	return {"seed": 12345, "free": true}
 
 
 func _aim(h, cam, at: Vector2, zoom: Vector2) -> void:

@@ -64,6 +64,12 @@ func _process(_delta: float) -> void:
 			ModLoaderLog.info("Chamber stone added: %d bodies" % stone.bodies.size(), "flantor-StoryMode")
 		else:
 			stone.free()
+		# The lair seal over its entries (#366): blue until the last chain.
+		var seal = load(_Story.MOD_DIR + "endgame/lair_seal.gd").new()
+		if seal.setup(map):
+			map.add_child(seal)
+		else:
+			seal.free()
 
 
 func _wants_lava() -> bool:
