@@ -54,7 +54,7 @@ func run(h) -> void:
 	await h.wait(1.6)
 	await h.shot("phase1_stalks")
 	h.check("phase 1 has %d eye stalks" % Boss.STALKS[0], velle.alive_stalks() == Boss.STALKS[0], velle.alive_stalks())
-	h.check("the keeper starts with %d hearts" % Boss.HEARTS, health.hearts() == Boss.HEARTS, health.hearts())
+	h.check("the keeper starts with %d hearts" % Boss.max_hearts(), health.hearts() == Boss.max_hearts(), health.hearts())
 	h.check("the waves have stopped", Level.monstersByTeamId.values().all(func(mm): return mm.disabled))
 
 	# ---- sealed in
@@ -71,10 +71,10 @@ func run(h) -> void:
 	h.keeper().global_position = velle.to_global(s0["pos"])
 	await h.wait(0.25)
 	await h.burst("hit", 6, 3)
-	h.check("touching an eye stalk costs one heart", health.hearts() == Boss.HEARTS - 1, health.hearts())
+	h.check("touching an eye stalk costs one heart", health.hearts() == Boss.max_hearts() - 1, health.hearts())
 	h.keeper().global_position = velle.to_global(s0["pos"])
 	await h.wait(0.3)
-	h.check("no second hit while the keeper is blinking", health.hearts() == Boss.HEARTS - 1, health.hearts())
+	h.check("no second hit while the keeper is blinking", health.hearts() == Boss.max_hearts() - 1, health.hearts())
 	await h.teleport_tile(ch.position + Vector2i(10, 4))
 	await h.wait(1.5)
 

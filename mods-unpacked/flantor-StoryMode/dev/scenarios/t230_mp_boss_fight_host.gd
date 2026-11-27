@@ -80,7 +80,7 @@ func run(h) -> void:
 	await h.until(func(): return velle.state == "fight", 8.0)
 	await h.shot("host_far_away")
 	h.check("the host's keeper, at the dome, is not pulled into the chamber", h.keeper_tile().distance_to(home) < 3, [home, h.keeper_tile()])
-	var hurt: bool = await h.until(func(): return health.hearts() < Boss.HEARTS, 60.0)
+	var hurt: bool = await h.until(func(): return health.hearts() < Boss.max_hearts(), 60.0)
 	h.check("Velle hits the client's keeper: the team loses a heart", hurt, {"hearts": health.hearts(), "hits": health.hits, "velle": velle.stats})
 	h.check("the client's keeper is safe for a moment; the host's was not hit", health.safe_left(ck) > 0.0 and health.invulnerable == 0.0, [health.safe_left(ck), health.invulnerable])
 	h.check("the client's keeper is held in the chamber", ch.has_point(Level.map.getTileCoord(ck.global_position)), keeper_rows(h))

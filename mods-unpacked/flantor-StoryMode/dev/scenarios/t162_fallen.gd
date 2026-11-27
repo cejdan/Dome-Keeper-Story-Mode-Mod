@@ -31,12 +31,12 @@ func run(h) -> void:
 	await h.until(func(): return velle.state == "fight", 8.0)
 	await h.wait(1.5)
 	# Sit on Velle until the hearts run out.
-	for i in Boss.HEARTS + 2:
+	for i in Boss.max_hearts() + 2:
 		if health.dead:
 			break
 		h.keeper().global_position = velle.to_global(velle.base + Vector2(0, -30))
 		await h.wait(Boss.HURT_INVULNERABLE + 0.3)
-		if i == Boss.HEARTS - 2:
+		if i == Boss.max_hearts() - 2:
 			await h.shot("last_heart")
 	h.check("five hits and the keeper is dead", health.dead and health.hearts() == 0, health.hearts())
 	h.check("the boss sequence is lost", _Director.current() == "lost", _Director.current())

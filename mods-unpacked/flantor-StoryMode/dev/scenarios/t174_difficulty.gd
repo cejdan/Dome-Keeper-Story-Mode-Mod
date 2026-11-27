@@ -123,7 +123,7 @@ func run(h) -> void:
 	velle._damage_core(9999.0)
 	var chased: bool = await h.until(func(): return _Director.current() == "chase", 15.0)
 	await h.frames(5)
-	var want: int = mini(Boss.HEARTS, 1 + _Boss.hearts_after_velle())
+	var want: int = mini(Boss.max_hearts(), 1 + _Boss.hearts_after_velle())
 	await h.shot("hearts_after_velle")
 	h.check("Velle's death hands back %d hearts on %s (1 -> %d)" % [_Boss.hearts_after_velle(), Boss.TIER_NAMES[tier], want], chased and health.hearts() == want, health.hearts())
 	h.check("still no text in the chase", _Story.boss_active() and not beats._can_show() and pleas.say("arrive") == "")

@@ -85,7 +85,7 @@ func run(h) -> void:
 	for i in 12:
 		await h.frames(1)
 		thrown = maxf(thrown, h.keeper().global_position.distance_to(p0))
-	var lower: bool = await h.until(func(): return health.hearts() < Boss.HEARTS, 1.0)
+	var lower: bool = await h.until(func(): return health.hearts() < Boss.max_hearts(), 1.0)
 	h.check("the team's hearts read lower on the client", lower, health.hearts())
 	await h.shot("client_hit")
 	h.check("the hit throws the client's keeper", thrown > 4.0, thrown)

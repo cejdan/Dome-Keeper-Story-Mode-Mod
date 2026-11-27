@@ -849,8 +849,12 @@ func _drop_heart() -> void:
 	if not Boss.HEART_ON_PHASE:
 		return
 	var side: float = -1.0 if _kp().x < base.x else 1.0
-	pickups.append({"p": eye_pos() + Vector2(0, -20), "v": Vector2(side * 70.0, -150.0), "t": 0.0})
-	stats["hearts_dropped"] += 1
+	var n: int = Boss.HEARTS_PER_PHASE
+	for k in n:
+		# Fanned out toward the keeper's side, so they don't overlap.
+		var spread: float = (float(k) - (n - 1) * 0.5) * 70.0
+		pickups.append({"p": eye_pos() + Vector2(0, -20), "v": Vector2(side * 70.0 + spread, -150.0 - 20.0 * k), "t": 0.0})
+		stats["hearts_dropped"] += 1
 
 
 func _update_pickups(delta: float, kp: Vector2) -> void:

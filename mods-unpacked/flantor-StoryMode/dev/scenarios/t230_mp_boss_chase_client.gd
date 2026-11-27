@@ -66,7 +66,7 @@ func run(h) -> void:
 	h.check("the grab reaches the client's keeper (it blinks, thrown)", seen_hit and thrown > 4.0, {"safe": health.invulnerable, "thrown": thrown})
 	await h.shot("client_grabbed")
 	var g = await shared(h, "grabbed", 20.0)
-	var lower: bool = await h.until(func(): return health.hearts() < Boss.HEARTS, 3.0)
+	var lower: bool = await h.until(func(): return health.hearts() < Boss.max_hearts(), 3.0)
 	h.check("the team's hearts read lower on the client", lower and g != null and health.hearts() == int(g["hearts"]), [health.hearts(), g])
 	h.check("the tentacles' grab sounds on the client", int(Sfx.played.get("whip", 0)) > 0, Sfx.played)
 	await h.wait(1.5)

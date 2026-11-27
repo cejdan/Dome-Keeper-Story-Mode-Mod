@@ -21,7 +21,7 @@ func run(h) -> void:
 	h.check("the chase resumed", boss.chase != null and is_instance_valid(boss.chase))
 	if boss.chase == null:
 		return
-	h.check("the keeper's hearts survived the reload", boss.health.hearts() >= 1 and boss.health.hearts() <= Boss.HEARTS, boss.health.hearts())
+	h.check("the keeper's hearts survived the reload", boss.health.hearts() >= 1 and boss.health.hearts() <= Boss.max_hearts(), boss.health.hearts())
 	h.note("hearts", boss.health.hearts())
 	h.check("the waves stay stopped", Level.monstersByTeamId.values().all(func(mm): return mm.disabled))
 	h.snap_camera()
