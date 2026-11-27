@@ -45,6 +45,8 @@ static var _Pix = Pix  # calls go through this: lazy_preload makes const-preload
 const Sfx = preload("res://mods-unpacked/flantor-StoryMode/boss/sfx.gd")
 static var _Sfx = Sfx  # calls go through this: lazy_preload makes const-preload calls slow
 const DropNet = preload("res://mods-unpacked/flantor-StoryMode/util/drop_net.gd")
+const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
+static var _LavaData = LavaData  # calls go through this: lazy_preload makes const-preload calls slow
 static var _DropNet = DropNet  # calls go through this: lazy_preload makes const-preload calls slow
 
 signal defeated
@@ -897,15 +899,29 @@ func _update_bombs(delta: float) -> void:
 	spawn_bomb(Vector2(_bomb_x(), arena.position.y + 16.0))
 
 
-# Where the next charge falls: clear of Velle's body, and over floor that is
-# still there when it can be.
+# Where the next charge falls: clear of Velle's body, never inside a
+# stalactite (#361), and over floor that is still there when it can be.
 func _bomb_x() -> float:
-	var x: float = base.x + 120.0
-	for tries in 12:
-		x = _rng.randf_range(arena.position.x + 16.0, arena.end.x - 16.0)
-		if absf(x - base.x) > 78.0 and (tries >= 8 or floor_at(x)):
-			break
-	return x
+	for tries in 16:
+		var x: float = _rng.randf_range(arena.position.x + 16.0, arena.end.x - 16.0)
+		if absf(x - base.x) > 78.0 and not _in_stone(x) and (tries >= 8 or floor_at(x)):
+			return x
+	# Under one of the roof's entry tiles: always open.
+	var col: int = _LavaData.BOSS_CHAMBER_ENTRY[0 if _rng.randf() < 0.5 else -1]
+	return arena.position.x + (col + 0.5) * 24.0
+
+
+# Would a charge spawned at x under the roof start inside a stalactite?
+func _in_stone(x: float) -> bool:
+	var stone = Level.map.get_node_or_null("StoryChamberStone") if Level.map != null else null
+	if stone == null:
+		return false
+	var y: float = arena.position.y + 16.0
+	for dx in [-7.0, 0.0, 7.0]:
+		for dy in [-7.0, 0.0, 7.0]:
+			if stone.is_solid(to_global(Vector2(x + dx, y + dy))):
+				return true
+	return false
 
 
 # Is the chamber floor still there under x?
@@ -1209,7 +1225,8 @@ func _draw() -> void:
 
 
 # Eyes in the chamber walls: more of them open with every phase.
-const WALL_EYES: Array = [Vector2(0.0, 0.3), Vector2(1.0, 0.3), Vector2(0.25, 0.0), Vector2(0.75, 0.0),
+# The two roof eyes sit just clear of the roof's entry tiles (#361).
+const WALL_EYES: Array = [Vector2(0.0, 0.3), Vector2(1.0, 0.3), Vector2(0.29, 0.0), Vector2(0.71, 0.0),
 	Vector2(0.0, 0.62), Vector2(1.0, 0.62), Vector2(0.1, 0.0), Vector2(0.9, 0.0),
 	Vector2(0.0, 0.12), Vector2(1.0, 0.12), Vector2(0.42, 0.0), Vector2(0.58, 0.0)]
 
