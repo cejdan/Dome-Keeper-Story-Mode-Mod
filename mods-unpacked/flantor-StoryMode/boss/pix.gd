@@ -212,10 +212,24 @@ static func _blink(t: float, seed: float) -> float:
 
 # An eye at c that watches `to`. `scale` 1.0 is a body eye, 0.5 a small one
 # (on walls and along tentacles). `seed` varies the look between eyes.
-static func look_eye(ci: CanvasItem, c: Vector2, to: Vector2, t: float, seed: float, scale: float = 1.0, mod: Color = Color.WHITE) -> void:
-	match eye_style():
+# `role` picks a style per part of the boss under `--eyes=mix` (the user's
+# combination, 2026-11-27): great-eye minis on the chamber's tentacle tips,
+# the red cave eye in the walls (the laser eyes), no small eyes on the body.
+const MIX := {"tip": "velle", "wall": "cave", "body": "none", "tag": "velle"}
+
+
+static func role_style(role: String) -> String:
+	if eye_style() == "mix":
+		return MIX.get(role, "swirl")
+	return eye_style()
+
+
+static func look_eye(ci: CanvasItem, c: Vector2, to: Vector2, t: float, seed: float, scale: float = 1.0, mod: Color = Color.WHITE, role: String = "") -> void:
+	match role_style(role):
+		"none":
+			pass
 		"cave":
-			if scale >= 0.75:
+			if scale >= 0.5:
 				_cave_eye(ci, c, to, t, seed, mod)
 			else:
 				_socket_eye(ci, c, to, t, seed, scale, mod)

@@ -1245,11 +1245,12 @@ func _draw_wall_eyes(kp: Vector2) -> void:
 			open = clampf(1.0 - state_t * 0.6 + i * 0.05, 0.0, 1.0)
 		if open <= 0.05:
 			continue
-		_Pix.disc(self, p, 6.0, Pix.EDGE)
+		if _Pix.role_style("wall") != "cave":  # the cave eye brings its own socket
+			_Pix.disc(self, p, 6.0, Pix.EDGE)
 		if open < 0.6:
 			draw_rect(Rect2((p + Vector2(-4, 0)).round(), Vector2(8, 1)), Pix.FLESH_LIGHT)
 		else:
-			_Pix.look_eye(self, p, kp, time, i * 0.53, 0.5)
+			_Pix.look_eye(self, p, kp, time, i * 0.53, 0.5, Color.WHITE, "wall")
 
 
 func _draw_pickups() -> void:
@@ -1293,8 +1294,9 @@ func _draw_body(kp: Vector2) -> void:
 	_Pix.ellipse(self, o + Vector2(40, -20 * r), 16, 9 * r, mid, -1.0, 0.1)
 	if r < 0.6:
 		return
-	# The crowd of small eyes.
-	for i in BODY_EYES.size():
+	# The crowd of small eyes (none in the --eyes=mix prototype, #382).
+	var crowd: bool = _Pix.role_style("body") != "none"
+	for i in (BODY_EYES.size() if crowd else 0):
 		var p: Vector2 = o + Vector2(BODY_EYES[i].x, BODY_EYES[i].y * r)
 		if dead:
 			draw_rect(Rect2((p + Vector2(-4, 0)).round(), Vector2(8, 1)), Pix.EDGE)
@@ -1380,8 +1382,9 @@ func _draw_stalks(kp: Vector2) -> void:
 			var c: float = 1.0 - s["charge"] / 0.7
 			_Pix.disc(self, tip, 9.0 + c * 4.0, Color(Pix.VIOLET, 0.35 + 0.3 * c))
 			mod = Color(1.0 + c, 1.0 + c * 0.6, 1.0 + c)
-		_Pix.disc(self, tip, 9.0, Pix.EDGE)
-		_Pix.look_eye(self, tip, kp, time, s["seed"], 1.0, mod)
+		if _Pix.role_style("tip") != "velle":  # the little great eye has its own outline
+			_Pix.disc(self, tip, 9.0, Pix.EDGE)
+		_Pix.look_eye(self, tip, kp, time, s["seed"], 1.0, mod, "tip")
 
 
 func _draw_orbs() -> void:
@@ -1449,7 +1452,7 @@ func _draw_strikes() -> void:
 		var pts: PackedVector2Array = _Pix.tentacle_points(a["a"], a["b"], time * 1.5, 3.0, a["seed"], e)
 		var tip: Vector2 = _Pix.tentacle(self, pts, a["w"], 2.5, Pix.FLESH_MID)
 		if a.get("spike", false) and e > 0.9:
-			_Pix.look_eye(self, tip + Vector2(0, 4), _kp(), time, a["seed"], 1.0)
+			_Pix.look_eye(self, tip + Vector2(0, 4), _kp(), time, a["seed"], 1.0, Color.WHITE, "tip")
 
 
 func _draw_beams() -> void:
@@ -1475,9 +1478,10 @@ func _draw_beams() -> void:
 		if a["wall_eye"]:
 			# The eye in the wall it comes from.
 			var grow: float = clampf(t / 0.3, 0.0, 1.0)
-			_Pix.disc(self, from, 7.0 * grow, Pix.EDGE)
+			if _Pix.role_style("wall") != "cave":
+				_Pix.disc(self, from, 7.0 * grow, Pix.EDGE)
 			if grow >= 1.0:
-				_Pix.look_eye(self, from, to, time, 0.2, 0.5, Color(1.6, 1.2, 1.2))
+				_Pix.look_eye(self, from, to, time, 0.2, 0.5, Color(1.6, 1.2, 1.2), "wall")
 		if t < a["tele"]:
 			_dashes(from, to, Color(Pix.WARN, 0.5 + 0.5 * sin(t * 30.0)), 1.0)
 			draw_line(from, to, Color(Pix.WARN, 0.08), w * 2.0)
@@ -1507,4 +1511,4 @@ func _draw_health_bar() -> void:
 		draw_rect(Rect2(p + Vector2(x, -1), Vector2(1, 6)), Color(0.03, 0.02, 0.06, 1.0))
 	# An eye for a name tag.
 	_Pix.disc(self, p + Vector2(-12, 2), 8.0, Color(0.03, 0.02, 0.06, 0.85))
-	_Pix.look_eye(self, p + Vector2(-12, 2), p + Vector2(-12, 40), time, 0.7, 0.5)
+	_Pix.look_eye(self, p + Vector2(-12, 2), p + Vector2(-12, 40), time, 0.7, 0.75, Color.WHITE, "tag")
