@@ -1810,8 +1810,8 @@ func _draw_puffs() -> void:
 # --- the boss chamber's energy barrier (#82) ------------------------------------
 # Lava never enters the boss chamber. Where the crust over it is broken, a
 # violet-blue membrane across the chamber's top edge shows what holds the lava
-# back. It only stops lava; the keeper passes through. Violet-blue, so it reads
-# apart from the bright purple unobtainium in the ocean above.
+# back. It only stops lava; the keeper passes through. Violet-blue, the seal's
+# colour, like the runes on the chain anchors in the ocean above (#365).
 const COL_BARRIER_DEEP := Color("2e1f8f")
 const COL_BARRIER_MID := Color("6b5cff")
 const COL_BARRIER_LIGHT := Color("b8b0ff")

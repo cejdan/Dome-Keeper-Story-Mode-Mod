@@ -26,20 +26,16 @@ K = (5, 3)  # near-black outline cell (#12121a), constant in every vanilla palet
 SHAPES = {
     "square": ["MMMMMMMM", "MKKKKKKM", "MKLLCCKM", "MKLCCCKM", "MKCCCDKM", "MKDDDDKM", "MKKKKKKM", "MMMMMMMM"],
     "star": ["....M....", "...MLM...", "...MLM...", ".MMLLDMM.", "MLLLLDDDM", ".MMLDDMM.", "...MDM...", "...MDM...", "....M...."],
-    # unobtainium: a leaning crystal shard, unlike the metal squares and gem stars
-    "shard": [".....MM..", "....MLLM.", "...MLLCM.", "..MLLCDM.", ".MLLCDDM.", ".MLCDDM..", "MLCDDM...", "MCDDM....", ".MM......"],
 }
 
 # Tile-frame motifs: (shape rows) using L light, C mid, D dark.
 BIG = {
     "square": ["DDDDDDD", "DLLLCCD", "DLLCCCD", "DLCCCCD", "DCCCCDD", "DCCCDDD", "DDDDDDD"],
     "star": ["...C...", "...L...", "..CLC..", "CLLLDDC", "..CDC..", "...D...", "...C..."],
-    "shard": ["....CC.", "...CLC.", "..CLLD.", ".CLLDD.", ".CLDD..", "CLDD...", "CDD...."],
 }
 SMALL = {
     "square": [["CC", "CD"], ["LCD", "CCD", "DDD"], ["LC", "CD"], ["C"]],
     "star": [[".C.", "CLC", ".D."], ["C"], [".L.", "CLD", ".D."], ["LC"]],
-    "shard": [[".C", "CL", "D."], ["C"], ["..C", ".LD", "CD."], ["L", "D"]],
 }
 
 
@@ -131,8 +127,8 @@ def sheet(m, shape, pal):
 def main():
     os.makedirs(OUT, exist_ok=True)
     shapes = {"bronze": "square", "iron": "square", "gold": "square", "mythril": "square",
-              "sapphire": "star", "emerald": "star", "ruby": "star", "diamond": "star", "unobtainium": "shard"}
-    names = [m for m in ["bronze", "iron", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond", "unobtainium"] if m in CELLS]
+              "sapphire": "star", "emerald": "star", "ruby": "star", "diamond": "star"}
+    names = [m for m in ["bronze", "iron", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond"] if m in CELLS]
     preview = Image.new("RGBA", (len(names) * 150, 150), (0x1a, 0x16, 0x22, 255))
     for i, m in enumerate(names):
         shape = shapes[m]

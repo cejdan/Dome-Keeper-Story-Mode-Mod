@@ -7,7 +7,7 @@ A game mode for Dome Keeper, played alone or in co-op (online or splitscreen). T
 ### What the keeper mines
 
 **Mineral**:
-Something mined that turns into dollars when it is delivered to the dome: bronze, iron, gold, sapphire, emerald, ruby, mythril, diamond and unobtainium.
+Something mined that turns into dollars when it is delivered to the dome: bronze, iron, gold, sapphire, emerald, ruby, mythril and diamond. (Unobtainium was removed in #365: it broke the economy.)
 _Avoid_: Resource, ore (for these)
 
 **Resource**:
@@ -53,7 +53,7 @@ An enclosed cavern, B5 and deeper, already full of standing lava.
 _Avoid_: Lava lake
 
 **Lava ocean**:
-The funnel of lava below B8, the only place unobtainium is found. It is full width at the top, so digging down from anywhere breaks into it, and narrows down to the boss chamber.
+The funnel of lava below B8, where the two ocean tentacles stand chained to their chain anchors. It is full width at the top, so digging down from anywhere breaks into it, and narrows down to the boss chamber.
 _Avoid_: Lava lake, lava floor
 
 **Gas pocket**:
@@ -76,9 +76,17 @@ _Avoid_: Water chamber, power core chamber, relic chamber
 The sealed room under the narrow end of the lava ocean, centred on the map, where the horror sleeps.
 _Avoid_: Boss room, arena
 
+**Chain anchor**:
+One of the ten round stones in the lava ocean, five round each ocean tentacle, each holding one chain to its tentacle (#365). Breaking an anchor snaps its chain and wakes the tentacles a little more.
+_Avoid_: Seal stone, deposit
+
 **Chains**:
-The chains that bind every unobtainium deposit in the lava ocean to the boss chamber's roof. Mining a deposit breaks its chain.
+The ten chains from the chain anchors to the two ocean tentacles. The number broken (0..10) is the wake of the tentacles; breaking the tenth is the last chain.
 _Avoid_: Roots, tethers
+
+**The last chain**:
+The moment the tenth chain breaks: the horror is unbound. It happens once per run and is what the lair seal, the ship, the cutscene and the rising lava wait for (End game 2.0, #363; `endgame/end_game.gd`).
+_Avoid_: Final seal, release
 
 ### The keeper's dangers
 
@@ -161,7 +169,7 @@ The suit log an earlier keeper left with their bones, opened when the bones are 
 _Avoid_: Note, diary, lore entry
 
 **Awakening**:
-The horror's slow rise from sleep: each unobtainium taken from the lava ocean weakens its seal, and breaking into the boss chamber wakes it fully.
+The horror's slow rise from sleep: each chain broken in the lava ocean weakens its seal, and breaking into the boss chamber wakes it fully.
 _Avoid_: Summoning, release
 
 ### The boss

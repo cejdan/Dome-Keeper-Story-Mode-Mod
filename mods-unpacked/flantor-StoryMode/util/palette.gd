@@ -17,7 +17,6 @@ const CELLS: Dictionary = {
 	"ruby": [3, 29, "#5e0a1e", "#d0213f", "#ff9aa8"],
 	"diamond": [4, 18, "#6f8796", "#cfe9f5", "#ffffff"],
 	"mythril": [4, 21, "#1c5a6a", "#49c6cf", "#d9fffb"],
-	"unobtainium": [4, 24, "#3d0b6e", "#b440ff", "#f6d2ff"],
 	"metal": [4, 27, "#2b3038", "#5d6673", "#a9b4c2"],
 	# Story items (#93, #94): translator stone, its rune-eye, miner bones, data log.
 	"translator": [0, 16, "#4a3a34", "#a8957c", "#e6dcc4"],

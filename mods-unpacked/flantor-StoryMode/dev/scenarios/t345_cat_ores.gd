@@ -4,19 +4,18 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 # way they mine iron. A dug-out hole in a room whose floor holds bronze, gold,
 # sapphire, emerald, a diamond and an iron tile (the control); the cats have
 # the Dig upgrade. Each mineral tile must give up its pieces of its own type
-# and turn to dirt; the diamond gives exactly one (#186). An unobtainium tile
-# mined this way weakens the seal like a broken one (#95, beats/awakening.gd).
+# and turn to dirt; the diamond gives exactly one (#186). (An unobtainium
+# tile was checked here too until #365 removed Unobtainium.)
 
 const TIMEOUT := 200
 const Minerals = preload("res://mods-unpacked/flantor-StoryMode/data/minerals.gd")
 const Keeper2Run = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t297_keeper2.gd")
-const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
 
 const ROOM := [Vector2i(-4, 7), Vector2i(4, 9)]
 const HOLE := Vector2i(0, 9)
 const FLOOR_Y := 10
 const PLANT := {
-	-3: "bronze", -2: "iron", -1: "gold", 1: "sapphire", 2: "emerald", 3: "diamond", 4: "unobtainium",
+	-3: "bronze", -2: "iron", -1: "gold", 1: "sapphire", 2: "emerald", 3: "diamond",
 }
 
 var spawned: Dictionary = {}  # drop UID -> type, every drop seen near the room
@@ -75,7 +74,6 @@ func run(h) -> void:
 	# Cats with the Dig upgrade, and a dug-out hole in the room.
 	Data.apply(pid + ".keeper4.catgoblincount", 6)
 	Data.apply(pid + ".keeper4.catgoblinminingspeed", 4.0)
-	var unob0: int = Awakening.mined()
 	var goblins = Level.getDome(k.teamId).goblins
 	var hole = goblins.spawn_hole(pid, Level.map.getTilePos(HOLE))
 	for i in Keeper4GameplaySettings.HOLE_TOTAL_PUNCHES:
@@ -110,6 +108,5 @@ func run(h) -> void:
 		h.check("the cats mined the %s tile to dirt" % m, state[m]["now"] != m, state[m])
 		h.check("it gave %s pieces" % m, state[m]["pieces"] >= 1, state[m])
 	h.check("the diamond gave exactly one diamond (#186)", _count("diamond") == 1, _count("diamond"))
-	h.check("the cat-mined unobtainium counts against the seal", Awakening.mined() == unob0 + 1 and Awakening.freed(_floor(4)), [unob0, Awakening.mined()])
 	h.snap("end", [])
 

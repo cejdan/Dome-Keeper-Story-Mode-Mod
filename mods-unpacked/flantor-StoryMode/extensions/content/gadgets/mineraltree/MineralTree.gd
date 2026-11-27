@@ -1,7 +1,7 @@
 extends "res://content/gadgets/mineraltree/MineralTree.gd"
 
 # Story Mode's Mineral Tree (#328): a tree grows what it is planted on. A tree
-# planted on one of the mod's minerals (bronze through unobtainium) grows that
+# planted on one of the mod's minerals (bronze through diamond) grows that
 # mineral where vanilla grows iron, and its roots reach for mineral tiles as
 # vanilla's reach for iron; each root on a mineral counts as that mineral. A
 # tree planted on anything else (iron, water, cobalt, plain rock) runs

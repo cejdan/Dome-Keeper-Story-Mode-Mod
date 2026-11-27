@@ -1,9 +1,10 @@
 extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
-# Ticket 95: the awakening. The keeper mines ten unobtainium tiles in the lava
-# ocean; the log shows the seal weakening with each. The unobtainium beats were
-# cut in the user's script pass (#285), so mining plays nothing. Breaking into
-# the boss chamber wakes it fully and plays the awakening beat.
+# Ticket 95: the awakening. The keeper breaks the ten chain anchors in the lava
+# ocean (#365; it mined ten unobtainium tiles before Unobtainium went); the
+# log shows the seal weakening with each. The seal beats were cut in the
+# user's script pass (#285), so a break plays nothing. Breaking into the boss
+# chamber wakes it fully and plays the awakening beat.
 # Saves to slot 14 for t95_reload.
 
 const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
@@ -11,7 +12,8 @@ static var _Awakening = Awakening  # calls go through this: lazy_preload makes c
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
 static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 
-const UNOB_ID := 47
+const Anchors = preload("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd")
+static var _Anchors = Anchors  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func boot() -> Dictionary:
@@ -23,41 +25,35 @@ func run(h) -> void:
 	await h.wait(1.0)
 	h.disable_waves()
 	Data.apply("team1.story.beatsplayed", "biome_b2,biome_b3,biome_b4,biome_b5,biome_b6,biome_b7,biome_b8,lava_ocean,first_gem,gate_broken,lava_death_1,lava_death_2,lava_death_3,lava_death_4")
+	load("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd").give_gear()
 	h.set_inv("money", 10000000)
 	for n in range(1, 5):
 		await h.buy("storyheatshield%d" % n)
 	h.set_inv("money", 0)
 	var field = Level.map.get_node_or_null("StoryLavaField")
 	var td = Level.map.tileData
-	var cells: Array = td.get_resource_cells_by_id(UNOB_ID)
-	cells.sort_custom(func(a, b): return absi(a.x) + a.y < absi(b.x) + b.y)
-	h.check("the ocean holds at least 10 unobtainium tiles", cells.size() >= 10, cells.size())
+	var anchors = _Anchors.find()
+	h.check("the ocean has its ten chain anchors", anchors != null and anchors.anchors.size() == 10, anchors.anchors.size() if anchors else 0)
 	h.check("asleep at the start", _Awakening.level() == 0.0 and not _Awakening.is_awake())
 	var levels: Array = []
-	var expect_beat: Dictionary = {}
 	for i in 10:
-		var c: Vector2i = cells[i]
-		await h.reveal([c])
-		await h.teleport_tile(c + Vector2i(0, -1))
+		var a: Dictionary = anchors.anchors[i]
+		await h.teleport_tile(a["cell"] + Vector2i(0, -2))
 		if field != null:
 			field.heat = 0.0
-		Level.map.destroyTile("team1", "", Level.map.getTile(Vector2(c)))
+		anchors.dev_break(a["id"])
+		await h.until(func(): return a["broken"], 3.0)
 		await h.frames(3)
 		var n: int = i + 1
 		levels.append(snappedf(_Awakening.level(), 0.01))
-		h.note("unobtainium %d mined" % n, {"cell": c, "mined": _Awakening.mined(), "level": _Awakening.level()})
-		if expect_beat.has(n):
-			var id: String = await h.read_beat("unob%02d" % n, 6.0)
-			h.check("after the %s unobtainium: %s plays" % [["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"][n], expect_beat[n]], id == expect_beat[n], id)
-		else:
-			await h.wait(1.0)
-			h.check("after unobtainium %d: no beat" % n, not _StoryBeats.is_open())
+		h.note("chain %d broken" % n, {"anchor": a["id"], "chains": _Awakening.chains(), "level": _Awakening.level()})
+		await h.wait(1.0)
+		h.check("after chain %d: no beat" % n, not _StoryBeats.is_open())
 	h.note("awakening levels", levels)
 	var rising: bool = true
 	for i in range(1, levels.size()):
-		rising = rising and levels[i] > levels[i - 1]
-	h.check("the seal weakens with every piece", rising and _Awakening.mined() == 10, levels)
-	h.check("the mined deposits are recorded per cell", _Awakening.freed(cells[0]) and _Awakening.freed(cells[9]) and not _Awakening.freed(cells[10] if cells.size() > 10 else Vector2i(9999, 9999)))
+		rising = rising and levels[i] >= levels[i - 1]
+	h.check("the seal weakens with every chain (to its cap)", rising and levels[0] > 0.0 and _Awakening.chains() == 10, levels)
 
 	# Into the boss chamber. The fight that follows has its own scenarios (#160).
 	load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").enabled = false
@@ -73,4 +69,4 @@ func run(h) -> void:
 	h.check("re-entering plays nothing", not _StoryBeats.is_open())
 	await SaveGame.saveGame("singleplayer", 14, true)
 	await h.wait(1.0)
-	h.note("saved slot 14", {"mined": _Awakening.mined(), "awake": _Awakening.is_awake(), "first cell": cells[0]})
+	h.note("saved slot 14", {"chains": _Awakening.chains(), "awake": _Awakening.is_awake()})

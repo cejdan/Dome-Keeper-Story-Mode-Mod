@@ -16,8 +16,9 @@ const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_be
 static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
 static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
-const Awakening = preload("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd")
-static var _Awakening = Awakening  # calls go through this: lazy_preload makes const-preload calls slow
+const AnchorData = preload("res://mods-unpacked/flantor-StoryMode/data/anchors.gd")
+const ChainAnchors = preload("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd")
+static var _ChainAnchors = ChainAnchors  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 # --- the flood reveal, spread over frames (#159) -----------------------------------
@@ -314,6 +315,16 @@ func _reveal_visually(coord: Vector2) -> void:
 		revealTileVisually(coord)
 
 
+# A Story Mode save from before End game 2.0 (#365) gets its ocean brought up
+# to date before the map is built: no Unobtainium, and tentacles and chain
+# anchors (gamemode/legacy_saves.gd). Only the host's map: a client's comes
+# from it. A new map has them already, so nothing changes.
+func setTileData(tileDataInstance):
+	super(tileDataInstance)
+	if tileData != null and tileData.has_meta("story_ocean") and not Network.is_client():
+		load(_Story.MOD_DIR + "gamemode/legacy_saves.gd").migrate_map(tileData)
+
+
 func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 	var type: String = tile.type
 	var richness: float = tile.richness
@@ -324,6 +335,11 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 	super(teamId, keeperTechId, tile)
 	if type == Metal.GATE_TYPE and _Story.is_story() and is_server():
 		_StoryBeats.trigger("gate_broken")
+	if type == AnchorData.TYPE and _Story.is_story():
+		# A chain anchor (#365): every peer shows its chain snap; the host
+		# records the break (endgame/end_game.gd).
+		_ChainAnchors.tile_broken(Vector2i(tile.coord))
+		return
 	_mineral_mined(type, tile.coord)
 	if type == Bones.TYPE and is_inside_tree() and is_server():
 		# Cats that took the bones out first (#345) already dropped them.
@@ -367,16 +383,13 @@ func destroyTile(teamId: String, keeperTechId: String, tile: Tile):
 		spawnDrop(tile, teamId)
 
 
-# Story beats (#26) and the seal (#95) when a mineral tile is mined out, broken
-# or (the Beastmaster's cats, #345) extracted down to dirt.
+# Story beats (#26) when a mineral tile is mined out, broken or (the
+# Beastmaster's cats, #345) extracted down to dirt.
 func _mineral_mined(type: String, coord: Vector2) -> void:
 	if not _Story.is_story() or not is_server():
 		return
 	if Minerals.TABLE.has(type) and Minerals.TABLE[type]["shape"] == "star":
 		_StoryBeats.trigger("first_gem")
-	if type == "unobtainium":
-		# Each piece mined weakens the horror's seal (#95).
-		_Awakening.unobtainium_mined(Vector2i(coord))
 
 
 # The Beastmaster's cats (#345) turn a tile they have extracted every piece

@@ -9,6 +9,9 @@ const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 static var _Metal = Metal  # calls go through this: lazy_preload makes const-preload calls slow
 const Bones = preload("res://mods-unpacked/flantor-StoryMode/data/bones.gd")
 static var _Bones = Bones  # calls go through this: lazy_preload makes const-preload calls slow
+const AnchorData = preload("res://mods-unpacked/flantor-StoryMode/data/anchors.gd")
+const ChainAnchors = preload("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd")
+static var _ChainAnchors = ChainAnchors  # calls go through this: lazy_preload makes const-preload calls slow
 
 
 func setType(type: String):
@@ -25,6 +28,9 @@ func setType(type: String):
 		return
 	if type == Bones.TYPE:
 		_set_bones(fresh)
+		return
+	if type == AnchorData.TYPE:
+		_set_anchor(fresh)
 		return
 	var sheet: Texture2D = _Minerals.sheet_for_type(type)
 	if sheet == null:
@@ -84,13 +90,51 @@ func hit(dir: Vector2, dmg: float, teamId: String = "", keeperTechId: String = "
 	if _metal_refuses():
 		_clank()
 		return
+	var before: float = health
 	super(dir, dmg, teamId, keeperTechId)
+	if type == AnchorData.TYPE:
+		_anchor_share(dir, before - health, teamId, keeperTechId)
 
 
 func remote_hit(dir: Vector2, dmg: float, teamId: String, keeperTechId: String = ""):
 	if _metal_refuses():
 		return
+	var before: float = health
 	super(dir, dmg, teamId, keeperTechId)
+	if type == AnchorData.TYPE:
+		_anchor_share(dir, before - health, teamId, keeperTechId)
+
+
+# A chain anchor (#365): its four tiles share every hit, so the stone breaks
+# as one whichever tile is struck. Each peer applies the shared damage itself
+# (vanilla sends every peer the struck tile's hit), so no extra message.
+static var _sharing := false
+
+
+func _anchor_share(dir: Vector2, done: float, teamId: String, keeperTechId: String) -> void:
+	if _sharing or done <= 0.0:
+		return
+	_sharing = true
+	_ChainAnchors.tile_hit(Vector2i(coord), done, relativeHealth())
+	for c: Vector2i in _ChainAnchors.siblings(Vector2i(coord)):
+		var t = Level.map.tiles.get(Vector2(c)) if Level.map != null else null
+		# A blow that would finish a sibling leaves it to the anchor's break,
+		# which clears the stone's other tiles (map/chain_anchors.gd).
+		if t != null and is_instance_valid(t) and t.health > done:
+			t.remote_hit(dir, done, teamId, keeperTechId)
+	_sharing = false
+
+
+# A chain anchor's tile (#365): drillable rock, tougher than plain rock at
+# its depth; map/chain_anchors.gd draws the round stone over it.
+func _set_anchor(fresh: bool) -> void:
+	set_meta("destructable", true)
+	if res_sprite:
+		res_sprite.hide()
+	var baseHealth: float = Data.of("map.tileBaseHealth") + AnchorData.EXTRA_HEALTH
+	var mult: float = hardnessMultiplier * pow(Data.of("map.tileHealthMultiplierPerLayer"), layer)
+	max_health = max(1, round(mult * baseHealth))
+	health = max_health if fresh else min(health, max_health)
 
 
 # A drill on metal: a brief flash on the plate, no damage.

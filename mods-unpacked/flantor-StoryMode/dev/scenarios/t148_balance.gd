@@ -44,7 +44,7 @@ func run(h) -> void:
 			tiles[b] += 1
 			var r: int = td.get_resourcev(c)
 			var m: String = _Minerals.by_tile_id(r) if (r >= 40 or r == Data.TILE_IRON) else ""
-			if m == "" or m == "unobtainium":
+			if m == "":
 				continue
 			var v: float = 2.0 * _Minerals.value_of(m)
 			dollars[b] += v

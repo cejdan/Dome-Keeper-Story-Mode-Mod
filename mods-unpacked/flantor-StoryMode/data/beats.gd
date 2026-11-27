@@ -12,9 +12,11 @@ extends RefCounted
 #              first_gem, gate_broken, lava_death:1 .. lava_death:5,
 #              gas_death:1 .. gas_death:5 (#357),
 #              translator:1 .. translator:3,
-#              unobtainium:<n> (every piece mined), ending:doom
+#              chain:1 .. chain:10 (each chain broken in the lava ocean,
+#              #365; they replaced unobtainium:<n> when Unobtainium went),
+#              ending:doom
 #            The user cut the biome:B4, first_gem and unobtainium beats in
-#            their script pass (#285), and lava_death:2 .. :5 in the second. The code still fires those triggers;
+#            their script pass (#285), and lava_death:2 .. :5 in the second. The code still fires those triggers (chain:<n> for the old unobtainium ones);
 #            with no beat on them nothing plays, so a beat added back here
 #            with one of them plays again without code changes.
 #   tier     style tier (beats/BeatBox.gd, #24): 1 calm, 2 warm violet wave,
