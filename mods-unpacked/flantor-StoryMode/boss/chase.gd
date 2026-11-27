@@ -346,10 +346,9 @@ func _draw() -> void:
 		# Eyes along the tentacle, and one at its tip.
 		for j in range(n - 14, 0, -16):
 			if j < pts.size():
-				_Pix.look_eye(self, pts[j], kp, time, j * 0.21 + i, 0.5)
-		_Pix.disc(self, tip, 9.0, Pix.EDGE)
+				_Pix.small_eye(self, pts[j], kp, time, j * 0.21 + i)
 		var mod: Color = Color.WHITE if recoil <= 0.0 else Color(1.6, 1.2, 1.6)
-		_Pix.look_eye(self, tip, kp, time, float(seeds[i]), 1.0, mod)
+		_Pix.cave_eye(self, tip, kp, time, float(seeds[i]), mod)
 	_draw_warning()
 
 
@@ -404,4 +403,4 @@ func _draw_warning_on(ci: CanvasItem, k) -> void:
 	var near: float = clampf(1.0 - gap_for(k) / 500.0, 0.2, 1.0)
 	var blink: float = 0.5 + 0.5 * sin(time * (6.0 + 10.0 * near))
 	_Pix.disc(ci, p, 7.0 + 2.0 * blink, Color(Pix.VIOLET, 0.25 + 0.4 * near))
-	_Pix.look_eye(ci, p, lead, time, 0.5, 0.5, Color(1, 1, 1, 0.6 + 0.4 * blink))
+	_Pix.cave_eye(ci, p, lead, time, 0.5, Color(1, 1, 1, 0.6 + 0.4 * blink))
