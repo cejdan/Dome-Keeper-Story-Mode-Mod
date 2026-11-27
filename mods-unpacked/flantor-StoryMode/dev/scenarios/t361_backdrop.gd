@@ -59,4 +59,4 @@ func run(h) -> void:
 		"keeper_screen": [(ct * k.global_position).x, (ct * k.global_position).y],
 	})
 	await h.shot("chamber")
-	await h.burst("chamber_anim", 16, 4)
+	await h.burst("chamber_anim", int(_Story.user_arg("frames", "16")), int(_Story.user_arg("every", "4")))
