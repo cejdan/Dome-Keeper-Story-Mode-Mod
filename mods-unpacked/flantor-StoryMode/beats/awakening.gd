@@ -6,11 +6,12 @@ extends RefCounted
 # (endgame/end_game.gd), saved with the run in Data:
 #   Awakening.chains()     chains broken so far, 0..10
 #   Awakening.level()      0.0 asleep .. 1.0 awake
-#   Awakening.is_awake()   the boss chamber has been entered
+#   Awakening.is_awake()   a keeper has entered the lair (through the opened seal, #366)
 # Beats: "chain:<n>" as each chain breaks (fired by EndGame.record_break;
 # data/beats.gd has no beat on them today, as the user cut the old
 # "unobtainium:<n>" seal beats in #285), then "boss_chamber" on entering the
-# chamber; when it closes the fight starts (boss/boss_director.gd, #160).
+# lair through the opened seal (#366); when it closes the fight starts
+# (boss/boss_director.gd, #160).
 # Before #365 the seal counted unobtainium pieces mined (Data
 # team1.story.unobmined / unobcells); those keys are dropped on load.
 
@@ -39,9 +40,16 @@ static func level() -> float:
 	return minf(SEAL_MAX, chains() * PER_CHAIN)
 
 
-# The keeper broke into the boss chamber.
+# A keeper went through the opened lair seal (#366: endgame/lair_seal.gd ->
+# EndGame.record_lair_entered, the one path in real play). Refused before the
+# last chain: the seal is shut then, so nothing can get here honestly. Dev
+# routes that want the fight without the seal (`--boss`, playtests) set AWAKE
+# themselves.
 static func wake() -> void:
 	if is_awake():
+		return
+	if not _EndGame.is_free():
+		ModLoaderLog.info("Awakening: refused, the last chain still holds", "flantor-StoryMode")
 		return
 	Data.apply(AWAKE, true)
 	ModLoaderLog.info("Awakening: the horror is awake", "flantor-StoryMode")

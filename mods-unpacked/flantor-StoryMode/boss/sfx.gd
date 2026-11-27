@@ -25,6 +25,13 @@ const SOUNDS := {
 	"seal": ["res://content/sounds/relic-pulse.wav"],
 	"heart": ["res://content/sounds/UI/autoheal.wav"],
 	"keeper_down": ["res://content/sounds/carryline-break.wav"],
+	# The lair seal (#366, endgame/lair_seal.gd).
+	"seal_zap": ["res://content/sounds/Locations/DomeShield/Shield_reflect_01.wav", "res://content/sounds/Locations/DomeShield/Shield_reflect_02.wav"],
+	"seal_strain": ["res://content/sounds/Locations/Probe/probecharge.wav"],
+	"seal_break": ["res://content/sounds/Locations/Orchard/OrchardShield_die.wav"],
+	"seal_shatter": ["res://content/sounds/assignments/glasscrack.wav"],
+	"seal_settle": ["res://content/sounds/dome4/Tesla_Disarm.wav"],
+	"seal_pass": ["res://content/sounds/Biomes/TeleportTouch.wav"],
 }
 
 static var played: Dictionary = {}   # name -> times played (for playtests)

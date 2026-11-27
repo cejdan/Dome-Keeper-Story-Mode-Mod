@@ -13,7 +13,8 @@ const WANT := {-2: 8, -1: 7, 0: 6, 2: 5}
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345}
+	# The last chain already broken (#366): the lair seal lets the keeper in.
+	return {"seed": 12345, "free": true}
 
 
 func run(h) -> void:

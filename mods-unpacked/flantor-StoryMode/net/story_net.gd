@@ -540,16 +540,50 @@ func _lava_died(player_id: String, cause: String) -> void:
 	f.team_death(k, "gas" if cause == "gas" else "lava")
 
 
-# Client -> host: my keeper broke into the boss chamber (#95 wakes the horror).
-static func chamber_reached() -> void:
-	if _inst != null:
-		_inst.rpc_id(1, "_chamber_reached")
+# --- the lair seal (#366, endgame/lair_seal.gd) ---------------------------------
+# Client -> host: my keeper `pid` went through the opened seal into the lair.
+# The host records it (EndGame.record_lair_entered: it ignores one before the
+# last chain), which wakes the horror (#95) and tells every peer.
+static func lair_entered(pid: String) -> void:
+	if _inst != null and Network.is_client():
+		_inst.rpc_id(1, "_lair_entered", pid)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _chamber_reached() -> void:
-	if not Network.is_client() and _Story.is_story():
-		load("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd").wake()
+func _lair_entered(pid: String) -> void:
+	if Network.is_client() or not _Story.is_story():
+		return
+	var k = Keepers.getKeeper(pid) if Keepers.hasKeeper(pid) else null
+	if k == null or k.peerId != multiplayer.get_remote_sender_id():
+		return
+	load("res://mods-unpacked/flantor-StoryMode/endgame/end_game.gd").record_lair_entered(pid)
+
+
+# A keeper touched the blue seal at `at` (the seal's space) on its own
+# instance: the crackle on every other peer (the throw stays on its own). A
+# client sends it to the host, which plays it and passes it on.
+static func seal_touch(entry: int, at: Vector2) -> void:
+	if _inst == null or Network.is_offline_mode():
+		return
+	if Network.is_client():
+		_inst.rpc_id(1, "_seal_touch", entry, at)
+	else:
+		_inst._seal_touch_out(entry, at, 0)
+
+
+func _seal_touch_out(entry: int, at: Vector2, skip_peer: int) -> void:
+	for c in Network.clients:
+		if c.connection_state == Network.ConnectionState.LEVEL_STAGE_SYNC and c.peer_id != skip_peer:
+			rpc_id(c.peer_id, "_seal_touch", entry, at)
+
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _seal_touch(entry: int, at: Vector2) -> void:
+	var seal = load("res://mods-unpacked/flantor-StoryMode/endgame/lair_seal.gd").find()
+	if seal != null:
+		seal.remote_touch(entry, at)
+	if not Network.is_client():
+		_seal_touch_out(entry, at, multiplayer.get_remote_sender_id())
 
 
 # --- the ocean's tentacles (#364) ---------------------------------------------

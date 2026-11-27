@@ -374,7 +374,7 @@ func _fill_hydrostatic(cells: Array, top: int) -> void:
 # The lava ocean the generator added (#43): every open cell in its rows, brim-full
 # and hydrostatic like the pools, so it sits settled under its rock ceiling.
 var ocean_cells := 0
-var boss_chamber_reached := false
+var boss_chamber_reached := false   # saved by older runs; the lair seal (#366) decides now
 var _ocean: Dictionary = {}       # the generator's "story_ocean" meta (rows, columns, ceiling)
 var _chamber: Rect2i = Rect2i()   # the boss chamber; lava never enters it
 
@@ -963,16 +963,8 @@ func _update_keeper_heat(keeper, delta: float) -> void:
 	heats[pid] = h
 	if h >= HEAT_MAX and overheat(keeper):
 		heats[pid] = HEAT_MAX * OVERHEAT_AFTER
-	if not boss_chamber_reached and _chamber.size != Vector2i.ZERO:
-		if _chamber.has_point(map.getTileCoord(keeper.global_position)):
-			boss_chamber_reached = true
-			ModLoaderLog.info("boss chamber reached", "flantor-StoryMode")
-			# Breaking into the chamber wakes the horror (#95); the host's to do.
-			if _Story.is_story():
-				if net_client:
-					_StoryNet.chamber_reached()
-				else:
-					load("res://mods-unpacked/flantor-StoryMode/beats/awakening.gd").wake()
+	# Entering the boss chamber is the lair seal's to see now (#366,
+	# endgame/lair_seal.gd): through the opened seal, it wakes the horror.
 
 
 # A full heat or toxin bar: a recall, the suit's death. Velle jams the recall
@@ -1598,7 +1590,7 @@ func _draw_body() -> void:
 		var o := _cell_origin(e[0])
 		draw_rect(Rect2(o - Vector2(3, 6 + (1.0 - a) * 10.0), Vector2(TILE + 6, TILE + 6)), Color(0.92, 0.92, 0.95, 0.45 * a))
 	_draw_puffs()
-	_draw_barrier()
+	# The chamber barrier is the lair seal's now (#366, endgame/lair_seal.gd).
 	_draw_heat_bar()
 	if debug_boxes:
 		var k = _Story.local_keeper()
@@ -1808,10 +1800,10 @@ func _draw_puffs() -> void:
 
 
 # --- the boss chamber's energy barrier (#82) ------------------------------------
-# Lava never enters the boss chamber. Where the crust over it is broken, a
-# violet-blue membrane across the chamber's top edge shows what holds the lava
-# back. It only stops lava; the keeper passes through. Violet-blue, the seal's
-# colour, like the runes on the chain anchors in the ocean above (#365).
+# Lava never enters the boss chamber. The energy over its entries is the lair
+# seal's to draw since #366 (endgame/lair_seal.gd: blue and impassable before
+# the last chain, the purple membrane after). These colours and
+# barrier_columns() stay for t347_draw_same's copy of the old drawing.
 const COL_BARRIER_DEEP := Color("2e1f8f")
 const COL_BARRIER_MID := Color("6b5cff")
 const COL_BARRIER_LIGHT := Color("b8b0ff")
@@ -1836,29 +1828,6 @@ func barrier_columns() -> Array:
 	_barrier_cols = out
 	_barrier_key = _tile_events
 	return out
-
-
-func _draw_barrier() -> void:
-	for x in barrier_columns():
-		var cell := Vector2i(x, _chamber.position.y)
-		if not (_FieldUtil.seen(map, cell) or _FieldUtil.seen(map, cell + Vector2i.UP)):
-			continue
-		var o := _cell_origin(cell)
-		var pulse: float = 0.75 + 0.25 * sin(_time * 3.2 + x * 0.6)
-		# Haze above and below the membrane.
-		draw_rect(Rect2(o + Vector2(0, -6), Vector2(TILE, 14)), Color(COL_BARRIER_MID, 0.16 * pulse))
-		draw_rect(Rect2(o + Vector2(0, -4), Vector2(TILE, 10)), Color(COL_BARRIER_MID, 0.16 * pulse))
-		# The membrane: a deep band with a bright core line.
-		draw_rect(Rect2(o + Vector2(0, -3), Vector2(TILE, 6)), Color(COL_BARRIER_DEEP, 0.92))
-		draw_rect(Rect2(o + Vector2(0, -2), Vector2(TILE, 3)), Color(COL_BARRIER_MID, pulse))
-		# A light ripple running along it, and sparks drifting across.
-		for px in range(0, int(TILE), 2):
-			var w: float = sin(_time * 5.0 + (x * TILE + px) * 0.45)
-			if w > 0.55:
-				draw_rect(Rect2(o + Vector2(px, -1 + round(w)), Vector2(2, 1)), Color(COL_BARRIER_LIGHT, pulse))
-		for i in 2:
-			var sx: float = fposmod(_time * (9.0 + 5.0 * _noise(cell, i)) + _noise(cell, i + 7) * TILE, TILE)
-			draw_rect(Rect2(o + Vector2(floor(sx), -1), Vector2(1, 1)), COL_BARRIER_SPARK)
 
 
 func _draw_heat_bar() -> void:
@@ -1896,14 +1865,6 @@ func _draw_glow_body() -> void:
 			var center := b0 + Vector2(c.x * TILE, c.y * TILE)
 			var pulse: float = 0.5 + 0.5 * sin(_time * 3.0 + c.x * 1.7 + c.y * 0.9)
 			_glow.draw_texture_rect(_glow_tex, Rect2(center - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 1, 1, 0.10 + 0.14 * pulse))
-	# The chamber barrier's violet glow.
-	for x in barrier_columns():
-		var cell := Vector2i(x, _chamber.position.y)
-		if not (_FieldUtil.seen(map, cell) or _FieldUtil.seen(map, cell + Vector2i.UP)):
-			continue
-		var p := _cell_origin(cell) + Vector2(TILE * 0.5, 0)
-		var pulse: float = 0.75 + 0.25 * sin(_time * 3.2 + x * 0.6)
-		_glow.draw_texture_rect(_barrier_glow_tex, Rect2(p - Vector2(30, 24), Vector2(60, 48)), false, Color(1, 1, 1, 0.55 * pulse))
 
 
 func stats() -> Dictionary:
