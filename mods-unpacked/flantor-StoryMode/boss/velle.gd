@@ -59,6 +59,7 @@ const STALK_HOMES := {
 	4: [Vector2(0.14, 0.55), Vector2(0.34, 0.2), Vector2(0.66, 0.2), Vector2(0.86, 0.55)],
 	5: [Vector2(0.12, 0.6), Vector2(0.28, 0.25), Vector2(0.5, 0.16), Vector2(0.72, 0.25), Vector2(0.88, 0.6)],
 }
+const BODY_FEW: Array = [Vector2(-31, -37), Vector2(31, -39), Vector2(-43, -11), Vector2(44, -13)]  # #382 prototype
 const TIP_GLOW := Color("ffb347")  # the soft glow behind each tentacle tip that can be hurt (#381)
 const BODY_EYES: Array = [Vector2(-40, -12), Vector2(-27, -34), Vector2(-52, -2), Vector2(27, -36), Vector2(42, -14),
 	Vector2(54, -3), Vector2(-14, -52), Vector2(15, -53), Vector2(-24, -8), Vector2(25, -9)]
@@ -1295,16 +1296,19 @@ func _draw_body(kp: Vector2) -> void:
 	if r < 0.6:
 		return
 	# The crowd of small eyes (none in the --eyes=mix prototype, #382).
-	var crowd: bool = _Pix.role_style("body") != "none"
-	for i in (BODY_EYES.size() if crowd else 0):
-		var p: Vector2 = o + Vector2(BODY_EYES[i].x, BODY_EYES[i].y * r)
+	# Under --eyes=mix the body has none, or a few (BODY_FEW) with --body=.
+	var eyes: Array = BODY_EYES
+	if _Pix.eye_style() == "mix":
+		eyes = [] if _Pix.role_style("body") == "none" else BODY_FEW
+	for i in eyes.size():
+		var p: Vector2 = o + Vector2(eyes[i].x, eyes[i].y * r)
 		if dead:
 			draw_rect(Rect2((p + Vector2(-4, 0)).round(), Vector2(8, 1)), Pix.EDGE)
 			continue
 		if state == "dying" and state_t > 0.3 * (i + 1):
 			draw_rect(Rect2((p + Vector2(-3, -1)).round(), Vector2(6, 3)), Pix.IRIS_DEEP)
 			continue
-		_Pix.look_eye(self, p, kp, time, i * 0.37, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
+		_Pix.look_eye(self, p, kp, time, i * 0.37, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3), "body")
 	_draw_great_eye(o + Vector2(0, -36.0 * r), kp, dead)
 
 

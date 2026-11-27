@@ -54,9 +54,13 @@ func run(h) -> void:
 	var centre: Vector2 = Level.map.getTilePos(Vector2(ch.position) + Vector2(ch.size) * 0.5) - Vector2(12, 12)
 	var body: Vector2 = velle.to_global(velle.base + Vector2(0, -30))
 	var styles: PackedStringArray = _Story.user_arg("styles", "swirl,cave,socket,velle,mix").split(",")
-	for st in styles:
+	for spec in styles:
+		# "mix:velle" = the mix with a few eyes of that style on the body.
+		var st: String = spec.get_slice(":", 0)
 		_Pix.set_eye_style(st)
-		h.check("style " + st, _Pix.eye_style() == st, _Pix.eye_style())
+		_Pix.set_mix_body(spec.get_slice(":", 1) if spec.contains(":") else "none")
+		st = spec.replace(":", "_")
+		h.check("style " + spec, _Pix.eye_style() == spec.get_slice(":", 0), _Pix.eye_style())
 		await _aim(h, cam, centre, z0)
 		await h.shot(st + "_chamber")
 		# Two wall lasers, clear of the keeper: the eyes they come from.

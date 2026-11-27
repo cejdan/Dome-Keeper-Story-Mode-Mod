@@ -218,8 +218,24 @@ static func _blink(t: float, seed: float) -> float:
 const MIX := {"tip": "velle", "wall": "cave", "body": "none", "tag": "velle"}
 
 
+# Under mix, `--body=velle|cave` puts a few eyes of that style on the body
+# instead of none (2026-11-27 follow-up).
+static var _mix_body: String = ""
+
+
+static func set_mix_body(s: String) -> void:
+	_mix_body = s
+
+
 static func role_style(role: String) -> String:
 	if eye_style() == "mix":
+		if role == "body":
+			if _mix_body == "":
+				_mix_body = "none"
+				for a: String in OS.get_cmdline_user_args():
+					if a.begins_with("--body="):
+						_mix_body = a.substr(7)
+			return _mix_body
 		return MIX.get(role, "swirl")
 	return eye_style()
 
