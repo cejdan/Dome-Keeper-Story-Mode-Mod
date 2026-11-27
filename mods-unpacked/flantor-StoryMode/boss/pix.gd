@@ -36,6 +36,31 @@ static func disc(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void:
 	ci.draw_rect(Rect2(cx - a, cy - a, a * 2.0, a * 2.0), col)
 
 
+# A soft round glow of radius GLOW_R centred on c: rings that brighten in
+# whole-pixel steps toward the middle (a radial gradient with constant bands,
+# one draw). `strength` 1.0 is about 0.45 alpha at the core.
+const GLOW_R := 20
+static var _glow_tex: Texture2D = null
+
+
+static func glow(ci: CanvasItem, c: Vector2, col: Color, strength: float = 1.0) -> void:
+	if _glow_tex == null:
+		var g := Gradient.new()
+		g.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
+		g.offsets = PackedFloat32Array([0.0, 0.3, 0.5, 0.68, 0.84, 0.97])
+		g.colors = PackedColorArray([Color(1, 1, 1, 0.45), Color(1, 1, 1, 0.34), Color(1, 1, 1, 0.24),
+			Color(1, 1, 1, 0.15), Color(1, 1, 1, 0.07), Color(1, 1, 1, 0.0)])
+		var t := GradientTexture2D.new()
+		t.gradient = g
+		t.fill = GradientTexture2D.FILL_RADIAL
+		t.fill_from = Vector2(0.5, 0.5)
+		t.fill_to = Vector2(1.0, 0.5)
+		t.width = GLOW_R * 2
+		t.height = GLOW_R * 2
+		_glow_tex = t
+	ci.draw_texture(_glow_tex, c.round() - Vector2(GLOW_R, GLOW_R), Color(col, clampf(strength, 0.0, 2.0)))
+
+
 # A filled ellipse, one rectangle per pixel row. `cut` keeps only the rows from
 # -ry up to ry * cut (1.0 = whole), for lids and domes.
 static func ellipse(ci: CanvasItem, c: Vector2, rx: float, ry: float, col: Color, y_from: float = -1.0, y_to: float = 1.0) -> void:
