@@ -60,8 +60,8 @@ const STALK_HOMES := {
 	5: [Vector2(0.12, 0.6), Vector2(0.28, 0.25), Vector2(0.5, 0.16), Vector2(0.72, 0.25), Vector2(0.88, 0.6)],
 }
 const TIP_GLOW := Color("ffb347")  # the soft glow behind each tentacle tip that can be hurt (#381)
-const BODY_EYES: Array = [Vector2(-40, -12), Vector2(-27, -34), Vector2(-52, -2), Vector2(27, -36), Vector2(42, -14),
-	Vector2(54, -3), Vector2(-14, -52), Vector2(15, -53), Vector2(-24, -8), Vector2(25, -9)]
+# Red cave eyes on the body (#382): two beside the great eye, one on each lobe.
+const BODY_EYES: Array = [Vector2(-31, -37), Vector2(31, -39), Vector2(-43, -11), Vector2(44, -13)]
 
 var arena: Rect2
 var base: Vector2            # the mound's foot: centre of the chamber floor
@@ -1245,11 +1245,10 @@ func _draw_wall_eyes(kp: Vector2) -> void:
 			open = clampf(1.0 - state_t * 0.6 + i * 0.05, 0.0, 1.0)
 		if open <= 0.05:
 			continue
-		_Pix.disc(self, p, 6.0, Pix.EDGE)
 		if open < 0.6:
 			draw_rect(Rect2((p + Vector2(-4, 0)).round(), Vector2(8, 1)), Pix.FLESH_LIGHT)
 		else:
-			_Pix.eye(self, p, _Pix.eye_frame_toward(p, kp, time, i * 0.53), 0.5)
+			_Pix.cave_eye(self, p, kp, time, i * 0.53)
 
 
 func _draw_pickups() -> void:
@@ -1293,7 +1292,7 @@ func _draw_body(kp: Vector2) -> void:
 	_Pix.ellipse(self, o + Vector2(40, -20 * r), 16, 9 * r, mid, -1.0, 0.1)
 	if r < 0.6:
 		return
-	# The crowd of small eyes.
+	# The red cave eyes.
 	for i in BODY_EYES.size():
 		var p: Vector2 = o + Vector2(BODY_EYES[i].x, BODY_EYES[i].y * r)
 		if dead:
@@ -1302,8 +1301,7 @@ func _draw_body(kp: Vector2) -> void:
 		if state == "dying" and state_t > 0.3 * (i + 1):
 			draw_rect(Rect2((p + Vector2(-3, -1)).round(), Vector2(6, 3)), Pix.IRIS_DEEP)
 			continue
-		var f: int = _Pix.eye_frame_toward(p, kp, time, i * 0.37)
-		_Pix.eye(self, p, f, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
+		_Pix.cave_eye(self, p, kp, time, i * 0.37, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
 	_draw_great_eye(o + Vector2(0, -36.0 * r), kp, dead)
 
 
@@ -1381,8 +1379,8 @@ func _draw_stalks(kp: Vector2) -> void:
 			var c: float = 1.0 - s["charge"] / 0.7
 			_Pix.disc(self, tip, 9.0 + c * 4.0, Color(Pix.VIOLET, 0.35 + 0.3 * c))
 			mod = Color(1.0 + c, 1.0 + c * 0.6, 1.0 + c)
-		_Pix.disc(self, tip, 9.0, Pix.EDGE)
-		_Pix.eye(self, tip, _Pix.eye_frame_toward(tip, kp, time, s["seed"]), 1.0, mod)
+		# A little great eye: what the keeper can hurt looks like Velle (#382).
+		_Pix.great_mini(self, tip, kp, time, s["seed"], 1.0, mod)
 
 
 func _draw_orbs() -> void:
@@ -1450,7 +1448,7 @@ func _draw_strikes() -> void:
 		var pts: PackedVector2Array = _Pix.tentacle_points(a["a"], a["b"], time * 1.5, 3.0, a["seed"], e)
 		var tip: Vector2 = _Pix.tentacle(self, pts, a["w"], 2.5, Pix.FLESH_MID)
 		if a.get("spike", false) and e > 0.9:
-			_Pix.eye(self, tip + Vector2(0, 4), int(time * 8.0) % 4, 1.0)
+			_Pix.great_mini(self, tip + Vector2(0, 4), _kp(), time, a["seed"])
 
 
 func _draw_beams() -> void:
@@ -1476,9 +1474,8 @@ func _draw_beams() -> void:
 		if a["wall_eye"]:
 			# The eye in the wall it comes from.
 			var grow: float = clampf(t / 0.3, 0.0, 1.0)
-			_Pix.disc(self, from, 7.0 * grow, Pix.EDGE)
 			if grow >= 1.0:
-				_Pix.eye(self, from, int(time * 10.0) % 4, 0.5, Color(1.6, 1.2, 1.2))
+				_Pix.cave_eye(self, from, to, time, 0.2, Color(1.6, 1.2, 1.2))
 		if t < a["tele"]:
 			_dashes(from, to, Color(Pix.WARN, 0.5 + 0.5 * sin(t * 30.0)), 1.0)
 			draw_line(from, to, Color(Pix.WARN, 0.08), w * 2.0)
@@ -1508,4 +1505,4 @@ func _draw_health_bar() -> void:
 		draw_rect(Rect2(p + Vector2(x, -1), Vector2(1, 6)), Color(0.03, 0.02, 0.06, 1.0))
 	# An eye for a name tag.
 	_Pix.disc(self, p + Vector2(-12, 2), 8.0, Color(0.03, 0.02, 0.06, 0.85))
-	_Pix.eye(self, p + Vector2(-12, 2), int(time * 4.0) % 4 if is_open() else 4 + int(time * 1.5) % 4, 0.5)
+	_Pix.great_mini(self, p + Vector2(-12, 2), p + Vector2(-12, 40), time, 0.7, 0.75)

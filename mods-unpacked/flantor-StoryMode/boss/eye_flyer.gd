@@ -202,13 +202,12 @@ func _draw() -> void:
 	if charge >= 0.0:
 		var c: float = charge / CHARGE
 		_Pix.disc(self, o, 11.0 + c * 5.0, Color(Pix.VIOLET, 0.3 + 0.4 * c))
-	_Pix.disc(self, o, 10.0, Color(Pix.EDGE, a))
 	var dome = Level.getDome(teamId)
 	var look: Vector2 = to_local(dome.global_position) if dome != null else Vector2.DOWN * 50.0
 	var mod: Color = Color(3, 3, 3, a) if flash > 0.0 else Color(1, 1, 1, a)
 	if dead:
 		mod = Color(0.45, 0.4, 0.5, a)
-	_Pix.eye(self, o, _Pix.eye_frame_toward(o, look, time, seed_f), 1.0, mod)
+	_Pix.great_mini(self, o, look, time, seed_f, 1.1, mod)
 	for b: Dictionary in bolts:
 		var p: Vector2 = to_local(b["p"])
 		var back: Vector2 = (b["p"] - b["to"]).normalized()

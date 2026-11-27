@@ -470,8 +470,8 @@ func _draw_body() -> void:
 			if fposmod(time * 12.0, 1.0) < 0.5:
 				mod = Color(2.2, 2.2, 2.2)
 			_Pix.disc(self, c, r + 2.0, Color(Pix.VIOLET_LIGHT, 0.5 * f))
-		_Pix.disc(self, c, r, Pix.EDGE)
-		_Pix.eye(self, c, _Pix.eye_frame_toward(c, look, time, seed_f + k * 0.37), 1.0, mod)
+		# Little great eyes (#382): they tear free as the flyers the dome shoots.
+		_Pix.great_mini(self, c, look, time, seed_f + k * 0.37, r / 8.0, mod)
 	# The slam's warning: the tip glows red while it rears back.
 	if slam_t >= 0.0 and slam_t < SLAM_TELE:
 		var f2: float = slam_t / SLAM_TELE
