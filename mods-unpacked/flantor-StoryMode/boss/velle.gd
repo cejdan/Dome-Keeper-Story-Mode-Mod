@@ -59,6 +59,7 @@ const STALK_HOMES := {
 	4: [Vector2(0.14, 0.55), Vector2(0.34, 0.2), Vector2(0.66, 0.2), Vector2(0.86, 0.55)],
 	5: [Vector2(0.12, 0.6), Vector2(0.28, 0.25), Vector2(0.5, 0.16), Vector2(0.72, 0.25), Vector2(0.88, 0.6)],
 }
+const TIP_GLOW := Color("ffb347")  # the soft glow behind each tentacle tip that can be hurt (#381)
 const BODY_EYES: Array = [Vector2(-40, -12), Vector2(-27, -34), Vector2(-52, -2), Vector2(27, -36), Vector2(42, -14),
 	Vector2(54, -3), Vector2(-14, -52), Vector2(15, -53), Vector2(-24, -8), Vector2(25, -9)]
 
@@ -1364,6 +1365,11 @@ func _draw_stalks(kp: Vector2) -> void:
 				continue
 		var bend: float = 18.0 * sin(s["seed"])
 		var pts: PackedVector2Array = _Pix.tentacle_points(s["anchor"], s["pos"], time, 6.0, s["seed"], ext, bend)
+		if s["alive"]:
+			# "Hit me" (#381): a soft warm glow behind every tip that can be hurt,
+			# the same orange as the open great eye's rings.
+			var pulse: float = 0.5 + 0.5 * sin(time * 3.0 + s["seed"])
+			_Pix.glow(self, pts[pts.size() - 1], TIP_GLOW, (0.8 + 0.45 * pulse) * s["grow"])
 		var tip: Vector2 = _Pix.tentacle(self, pts, 5.0, 3.0, Pix.FLESH_MID, alpha)
 		if not s["alive"]:
 			continue
