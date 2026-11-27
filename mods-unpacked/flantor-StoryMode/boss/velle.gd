@@ -1249,7 +1249,7 @@ func _draw_wall_eyes(kp: Vector2) -> void:
 		if open < 0.6:
 			draw_rect(Rect2((p + Vector2(-4, 0)).round(), Vector2(8, 1)), Pix.FLESH_LIGHT)
 		else:
-			_Pix.eye(self, p, _Pix.eye_frame_toward(p, kp, time, i * 0.53), 0.5)
+			_Pix.look_eye(self, p, kp, time, i * 0.53, 0.5)
 
 
 func _draw_pickups() -> void:
@@ -1302,8 +1302,7 @@ func _draw_body(kp: Vector2) -> void:
 		if state == "dying" and state_t > 0.3 * (i + 1):
 			draw_rect(Rect2((p + Vector2(-3, -1)).round(), Vector2(6, 3)), Pix.IRIS_DEEP)
 			continue
-		var f: int = _Pix.eye_frame_toward(p, kp, time, i * 0.37)
-		_Pix.eye(self, p, f, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
+		_Pix.look_eye(self, p, kp, time, i * 0.37, 1.0, Color.WHITE if _hit_flash <= 0.0 else Color(3, 3, 3))
 	_draw_great_eye(o + Vector2(0, -36.0 * r), kp, dead)
 
 
@@ -1382,7 +1381,7 @@ func _draw_stalks(kp: Vector2) -> void:
 			_Pix.disc(self, tip, 9.0 + c * 4.0, Color(Pix.VIOLET, 0.35 + 0.3 * c))
 			mod = Color(1.0 + c, 1.0 + c * 0.6, 1.0 + c)
 		_Pix.disc(self, tip, 9.0, Pix.EDGE)
-		_Pix.eye(self, tip, _Pix.eye_frame_toward(tip, kp, time, s["seed"]), 1.0, mod)
+		_Pix.look_eye(self, tip, kp, time, s["seed"], 1.0, mod)
 
 
 func _draw_orbs() -> void:
@@ -1450,7 +1449,7 @@ func _draw_strikes() -> void:
 		var pts: PackedVector2Array = _Pix.tentacle_points(a["a"], a["b"], time * 1.5, 3.0, a["seed"], e)
 		var tip: Vector2 = _Pix.tentacle(self, pts, a["w"], 2.5, Pix.FLESH_MID)
 		if a.get("spike", false) and e > 0.9:
-			_Pix.eye(self, tip + Vector2(0, 4), int(time * 8.0) % 4, 1.0)
+			_Pix.look_eye(self, tip + Vector2(0, 4), _kp(), time, a["seed"], 1.0)
 
 
 func _draw_beams() -> void:
@@ -1478,7 +1477,7 @@ func _draw_beams() -> void:
 			var grow: float = clampf(t / 0.3, 0.0, 1.0)
 			_Pix.disc(self, from, 7.0 * grow, Pix.EDGE)
 			if grow >= 1.0:
-				_Pix.eye(self, from, int(time * 10.0) % 4, 0.5, Color(1.6, 1.2, 1.2))
+				_Pix.look_eye(self, from, to, time, 0.2, 0.5, Color(1.6, 1.2, 1.2))
 		if t < a["tele"]:
 			_dashes(from, to, Color(Pix.WARN, 0.5 + 0.5 * sin(t * 30.0)), 1.0)
 			draw_line(from, to, Color(Pix.WARN, 0.08), w * 2.0)
@@ -1508,4 +1507,4 @@ func _draw_health_bar() -> void:
 		draw_rect(Rect2(p + Vector2(x, -1), Vector2(1, 6)), Color(0.03, 0.02, 0.06, 1.0))
 	# An eye for a name tag.
 	_Pix.disc(self, p + Vector2(-12, 2), 8.0, Color(0.03, 0.02, 0.06, 0.85))
-	_Pix.eye(self, p + Vector2(-12, 2), int(time * 4.0) % 4 if is_open() else 4 + int(time * 1.5) % 4, 0.5)
+	_Pix.look_eye(self, p + Vector2(-12, 2), p + Vector2(-12, 40), time, 0.7, 0.5)

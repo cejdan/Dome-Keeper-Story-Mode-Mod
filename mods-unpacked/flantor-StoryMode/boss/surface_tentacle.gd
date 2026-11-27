@@ -471,7 +471,7 @@ func _draw_body() -> void:
 				mod = Color(2.2, 2.2, 2.2)
 			_Pix.disc(self, c, r + 2.0, Color(Pix.VIOLET_LIGHT, 0.5 * f))
 		_Pix.disc(self, c, r, Pix.EDGE)
-		_Pix.eye(self, c, _Pix.eye_frame_toward(c, look, time, seed_f + k * 0.37), 1.0, mod)
+		_Pix.look_eye(self, c, look, time, seed_f + k * 0.37, 1.0, mod)
 	# The slam's warning: the tip glows red while it rears back.
 	if slam_t >= 0.0 and slam_t < SLAM_TELE:
 		var f2: float = slam_t / SLAM_TELE

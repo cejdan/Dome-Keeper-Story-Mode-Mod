@@ -424,7 +424,7 @@ func _draw_stalk() -> void:
 	if not dead:
 		var look: Vector2 = Vector2(0, RY + 40.0)
 		for j in range(8, pts.size() - 5, 9):
-			_Pix.eye(stalk, pts[j], _Pix.eye_frame_toward(pts[j], look, time, j * 0.3 + seed_f), 0.5)
+			_Pix.look_eye(stalk, pts[j], look, time, j * 0.3 + seed_f, 0.5)
 
 
 func _draw() -> void:
