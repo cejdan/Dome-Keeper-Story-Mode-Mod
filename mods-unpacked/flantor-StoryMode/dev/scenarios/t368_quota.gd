@@ -33,16 +33,15 @@ func run(h) -> void:
 	Level.stage.startUpgradesInput(h.keeper())
 	await h.wait(1.5)
 	var focused: String = ""
-	for i in 8:
-		var tree = _tech_tree(h)
-		focused = str(tree.focussedTechPanel.techId) if tree != null and tree.focussedTechPanel != null else ""
-		if focused.ends_with("storyretirerich"):
-			break
-		await h.press("ui_up" if i < 4 else "ui_right")
-		await h.wait(0.25)
+	var panels: Array = h.get_tree().root.find_children("*", "", true, false).filter(func(n): return n is Control and "techId" in n and str(n.techId).ends_with("storyretirerich"))
+	if not panels.is_empty():
+		InputSystem.grabFocus(panels[0])
+		await h.wait(1.2)
+	var tree = _tech_tree(h)
+	focused = str(tree.focussedTechPanel.techId) if tree != null and tree.focussedTechPanel != null else ""
 	await h.wait(0.6)
 	await h.shot("shop_fill_quota")
-	h.check("it is in the shop's Leave the Planet section", focused.ends_with("storyretirerich") or GameWorld.upgrades.has("team1.storyretirerich"), focused)
+	h.check("it is in the shop (a panel), focused", not panels.is_empty() and focused.ends_with("storyretirerich"), [panels.size(), focused])
 	h.check("out of reach: the panel can't be bought", not GameWorld.canAfford(entry.get("cost", {}), "team1"), h.inv("money"))
 	# What the maps are worth.
 	var worth: Dictionary = {}
