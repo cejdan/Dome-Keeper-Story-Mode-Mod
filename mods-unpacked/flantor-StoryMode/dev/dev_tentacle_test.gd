@@ -9,15 +9,17 @@ extends Node
 # (map/tentacle_rig.gd):
 #   - a platform tentacle: out of the left wall, waving up and down;
 #   - a wall tentacle: up from the floor, swaying side to side, with the
-#     ocean tentacles' flat, levelled tip.
+#     ocean tentacles' rounded tip.
 # Keys: F6 calmer / F7 wilder (wake stage 0..4, `--wake=N` to start at one),
 # F8 back into the room.
 #
 # `--tentacles=ocean` (#364): the real ones in the lava ocean. Gives the gear,
 # stops the waves, reveals the ocean round the tentacles and puts the keeper
-# on the left tentacle's tip. Keys: F6 / F7 one chain fewer / more broken
-# (0..10, host only; `--chains=N` to start at a count), F8 onto the other
-# tentacle's tip.
+# by the left tentacle's tip. Keys: F7 breaks the next chain anchor (#365,
+# the real break: snap, flinch, record), F6 previews one wake step calmer
+# (the tentacles only: the next break puts them back in step with the
+# anchors), F8 by the other tentacle's tip (host only; `--chains=N` breaks
+# the first N anchors at the start).
 #
 # The grip fix (claws and hook follow the segment they hold, the Beastmaster
 # rides with its claws) is in the script extensions (extensions/content/
@@ -32,6 +34,8 @@ static var _Rig = Rig  # calls go through this: lazy_preload makes const-preload
 const Ocean = preload("res://mods-unpacked/flantor-StoryMode/map/ocean_tentacles.gd")
 static var _Ocean = Ocean  # calls go through this: lazy_preload makes const-preload calls slow
 const TentData = preload("res://mods-unpacked/flantor-StoryMode/data/tentacles.gd")
+const EndGame = preload("res://mods-unpacked/flantor-StoryMode/endgame/end_game.gd")
+static var _EndGame = EndGame  # calls go through this: lazy_preload makes const-preload calls slow
 
 const T := 24.0                 # tile size, px
 const ROOM_W := 30              # tiles: about one screen
@@ -103,7 +107,7 @@ func _process(delta: float) -> void:
 		_wave_timer = 5.0
 		_stop_waves()
 	if ocean_mode:
-		_label.text = "Ocean tentacles (#364) · %d/%d chains broken · F6 fewer · F7 more · F8 the other tip" % [_Ocean.chains_broken(), TentData.CHAINS]
+		_label.text = "Ocean tentacles (#364) · %d/%d chains broken (wake as %d) · F6 preview calmer · F7 break the next anchor · F8 the other tip" % [_EndGame.chains_broken(), TentData.CHAINS, _Ocean.chains_broken()]
 	else:
 		_label.text = "Tentacle test (#359) · wake %d/4 · F6 calmer · F7 wilder · F8 back to the room" % wake
 
@@ -118,7 +122,12 @@ func _input(event: InputEvent) -> void:
 			KEY_F6:
 				_Ocean.set_chains_broken(_Ocean.chains_broken() - 1)
 			KEY_F7:
-				_Ocean.set_chains_broken(_Ocean.chains_broken() + 1)
+				var anchors = load(_Story.MOD_DIR + "map/chain_anchors.gd").find()
+				if anchors != null:
+					for a in anchors.anchors:
+						if not a["broken"]:
+							anchors.dev_break(a["id"])
+							break
 			KEY_F8:
 				_tip_i = (_tip_i + 1) % maxi(1, ocean.rigs.size())
 				put_keepers_on_tip(_tip_i)

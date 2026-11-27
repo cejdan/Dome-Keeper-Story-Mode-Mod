@@ -113,6 +113,10 @@ func _ready():
 	var net = load("res://mods-unpacked/flantor-StoryMode/net/story_net.gd").new()
 	net.name = "StoryNet"
 	add_child(net)
+	# End game 2.0 (#365): the run's end-game state, its signals and RPCs.
+	var end_game = load("res://mods-unpacked/flantor-StoryMode/endgame/end_game.gd").new()
+	end_game.name = "StoryEndGame"
+	add_child(end_game)
 	# Dev-only: F10 jumps the keeper to the next gas pocket; needs `-- --gas`.
 	var gas_finder = load("res://mods-unpacked/flantor-StoryMode/gas/dev_gas_finder.gd").new()
 	gas_finder.name = "DevGasFinder"
@@ -188,6 +192,8 @@ func modInit():
 	_Metal.register()
 	# Miner bones (#94): a tile id and a carried, sellable drop.
 	load(Story.MOD_DIR + "data/bones.gd").register()
+	# The chain anchors in the lava ocean (#365): a tile id.
+	load(Story.MOD_DIR + "data/anchors.gd").register()
 	# The translator (#93): carried home like a relic, into the relic socket.
 	load(Story.MOD_DIR + "drops/delivery.gd").register("translator", load(Story.MOD_DIR + "drops/translator_drop.tscn"), "relic")
 	# The mod's own shop entries (data/upgrades.yaml), through vanilla's parser.

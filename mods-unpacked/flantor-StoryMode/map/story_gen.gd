@@ -13,6 +13,7 @@ const Metal = preload("res://mods-unpacked/flantor-StoryMode/data/metal.gd")
 const LavaData = preload("res://mods-unpacked/flantor-StoryMode/data/lava.gd")
 const GasData = preload("res://mods-unpacked/flantor-StoryMode/data/gas.gd")
 const TentData = preload("res://mods-unpacked/flantor-StoryMode/data/tentacles.gd")
+const AnchorData = preload("res://mods-unpacked/flantor-StoryMode/data/anchors.gd")
 const TentacleRig = preload("res://mods-unpacked/flantor-StoryMode/map/tentacle_rig.gd")
 static var _TentacleRig = TentacleRig  # calls go through this: lazy_preload makes const-preload calls slow
 
@@ -47,6 +48,8 @@ static func after_resources(gen, map_data, rand: RandomNumberGenerator) -> void:
 	place_ocean(map_data, rand)
 	# The ocean's two climbable tentacles (#364): no randomness of their own.
 	place_tentacles(map_data)
+	# Their ten chain anchors (#365): no randomness either.
+	place_anchors(map_data)
 	# Gas caverns (#201) go in last, with their own generator: nothing above moves.
 	place_gas_caverns(map_data, _sub_rand(rand, "gascaverns"))
 
@@ -115,8 +118,8 @@ static func fill_bottom(map_data, rand: RandomNumberGenerator, rows: int = MapCo
 # (#149), both as wide as the map's bottom row, so digging down from anywhere
 # down there breaks in, and no ocean lies under the border; then OCEAN_ROWS open rows in a rough funnel (#184): full width at
 # the top, its two sides sloping down, each with its own curve and bumps, to
-# just over the boss chamber at the bottom (the lava field fills them), with
-# unobtainium clumps inside and on its floor and slopes; OCEAN_FLOOR_ROWS of
+# just over the boss chamber at the bottom (the lava field fills them);
+# OCEAN_FLOOR_ROWS of
 # rock under the funnel's narrow end (just one, and soft, over the chamber);
 # and a sealed BOSS_CHAMBER inside rock walls, the map's deepest part. Cells
 # beside the funnel are left off the map, so vanilla's border pass, which runs
@@ -140,7 +143,6 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 	# No wider than the map's bottom row: the unbroken run of map cells in the
 	# deepest row around the middle (#184 review), so every cell over the
 	# ocean's top row is mineable rock, never a side arm's overhang or void.
-	var map_w: int = x1 - x0 + 1   # sets the unobtainium total, below
 	var bottom_row: Dictionary = {}
 	for c: Vector2i in cells:
 		if c.y == yb and map_data.get_biomev(c) >= 0:
@@ -195,43 +197,7 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 			map_data.set_resourcev(Vector2i(x, y), Data.TILE_EMPTY)
 			map_data.set_hardnessv(Vector2i(x, y), Data.HARDNESS_MEDIUM)
 	seal_chamber(map_data, Rect2i(ch_x0, ch_y0, ch_w, ch_h), wall)
-	# Unobtainium: clumps in the ocean, some resting on its floor or slopes
-	# (the lowest funnel row of a column). The total is set by the map's full
-	# width: what the first, full-size ocean held (#43, #175).
-	var unob: int = int(Minerals.TABLE["unobtainium"]["tile_id"])
-	var want: int = int(round(map_w * LavaData.OCEAN_ROWS / LavaData.OCEAN_UNOB_CELLS_PER_TILE))
-	var low: Dictionary = {}   # x -> the funnel's lowest row in that column
-	var inside: Array = []     # where a clump may start (off the walls, below the top two rows)
-	for y in range(top, bottom + 1):
-		for x in range(int(rows[y][0]), int(rows[y][1]) + 1):
-			low[x] = y
-			if y >= top + 2 and x > int(rows[y][0]) and x < int(rows[y][1]):
-				inside.append(Vector2i(x, y))
-	var floor_cells: Array = []   # each column's lowest funnel cell, where it may hold unobtainium
-	for x: int in low:
-		var fc := Vector2i(x, int(low[x]))
-		if fc.y >= top + 2:
-			floor_cells.append(fc)
-	var ok := func(c: Vector2i) -> bool:
-		if not rows.has(c.y) or c.y < top + 2 or c.x < int(rows[c.y][0]) or c.x > int(rows[c.y][1]):
-			return false
-		return map_data.get_resourcev(c) == Data.TILE_EMPTY
-	var placed: int = 0
-	var guard: int = 0
-	while placed < want and guard < want * 20 and not inside.is_empty() and not floor_cells.is_empty():
-		guard += 1
-		var c: Vector2i = inside[rand.randi() % inside.size()]
-		if rand.randf() < 0.25:
-			# On the floor or a slope, any column alike, so they don't all pile
-			# on the narrow floor over the chamber.
-			c = floor_cells[rand.randi() % floor_cells.size()]
-		var n: int = rand.randi_range(int(LavaData.OCEAN_UNOB_CLUMP[0]), int(LavaData.OCEAN_UNOB_CLUMP[1]))
-		for i in n:
-			if ok.call(c):
-				map_data.set_resourcev(c, unob)
-				placed += 1
-			c += [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)][rand.randi() % 3]
-	var info: Dictionary = {"top": top, "bottom": bottom, "x0": x0, "x1": x1, "rows": rows, "ceiling": ceiling, "unobtainium": placed}
+	var info: Dictionary = {"top": top, "bottom": bottom, "x0": x0, "x1": x1, "rows": rows, "ceiling": ceiling}
 	map_data.set_meta("story_ocean", info)
 	map_data.set_meta("story_boss_chamber", Rect2i(ch_x0, ch_y0, ch_w, ch_h))
 	return info
@@ -248,8 +214,8 @@ static func place_ocean(map_data, rand: RandomNumberGenerator) -> Dictionary:
 # MIN_TILES tall, its base keeps ENTRY_GAP columns from every chamber entry,
 # and every row it passes has open cells for its full swing at wake 4 (the
 # rig's own envelope, map/tentacle_rig.gd) plus its half width and
-# MARGIN_TILES, so a swing never pushes a keeper into rock. Unobtainium inside
-# that reach is cleared. No randomness: the ocean's shape decides.
+# MARGIN_TILES, so a swing never pushes a keeper into rock. No randomness: the
+# ocean's shape decides.
 static func place_tentacles(map_data) -> Array:
 	var ocean: Dictionary = map_data.get_meta("story_ocean", {})
 	var ch: Rect2i = map_data.get_meta("story_boss_chamber", Rect2i())
@@ -292,17 +258,8 @@ static func place_tentacles(map_data) -> Array:
 			p["side"] = side
 			out.append(p)
 			break
-	var unob: int = int(Minerals.TABLE["unobtainium"]["tile_id"])
-	var cleared: int = 0
 	for p: Dictionary in out:
-		for c: Vector2i in p["reach"]:
-			if map_data.get_resourcev(c) == unob:
-				map_data.set_resourcev(c, Data.TILE_EMPTY)
-				cleared += 1
 		p.erase("reach")
-	if cleared > 0:
-		ocean["unobtainium"] = int(ocean.get("unobtainium", 0)) - cleared
-		map_data.set_meta("story_ocean", ocean)
 	map_data.set_meta("story_tentacles", out)
 	return out
 
@@ -349,6 +306,200 @@ static func _fit_tentacle(x: int, top: int, bottom: int, tip_row: int, entries: 
 				return {}
 			reach.append(c)
 	return {"x": x, "base_row": base_row, "tip_row": tip_row, "segments": n, "reach": reach}
+
+
+# The ten chain anchors (#365, data/anchors.gd): AnchorData.PER_TENTACLE round
+# 2 x 2 stones round each ocean tentacle, each tied to it by one chain. Meta
+# "story_anchors": an Array of {id (0..9, the bit in the saved record),
+# cell (top-left tile), tentacle (index into "story_tentacles"), slot, seg
+# (the tentacle segment its chain is tied to, from 1 at the base; == segments
+# for the tip)}.
+# Each slot wants an anchor AnchorData.HEIGHTS[slot] of the way up its
+# tentacle, on the side AnchorData.SIDES[slot] (out toward the map's edge or in
+# toward the chamber's middle), as close to the tentacle as fits. A tile of it
+# is either open lava or air outside both tentacles' swing reach (which
+# already keeps a tile of margin) and the space over their tips, or the
+# ocean's own rock wall, floor or
+# ceiling (an anchor set into the wall), with at least MIN_OPEN tiles open so
+# it shows. It stays off the chamber's entry columns near the bottom, GAP
+# tiles from any other anchor and nearer its own tentacle than the other, and
+# every keeper can reach it: rock within SUPPORT_TILES (the Beastmaster climbs
+# to it) or the tentacle at rest within CLAW_REACH. The band of rows widens
+# step by step until one fits; then the other side; the last steps drop the
+# support rule. No randomness: the ocean's shape decides, so an old save gets
+# the same ones (gamemode/legacy_saves.gd).
+static func place_anchors(map_data) -> Array:
+	var ocean: Dictionary = map_data.get_meta("story_ocean", {})
+	var ch: Rect2i = map_data.get_meta("story_boss_chamber", Rect2i())
+	var tents: Array = map_data.get_meta("story_tentacles", [])
+	if ocean.is_empty() or ch.size == Vector2i.ZERO or tents.is_empty():
+		map_data.set_meta("story_anchors", [])
+		return []
+	var rows: Dictionary = ocean["rows"]
+	var top: int = int(ocean["top"])
+	var bottom: int = int(ocean["bottom"])
+	var ceiling: int = int(ocean["ceiling"])
+	var ox0: int = int(ocean["x0"])
+	var ox1: int = int(ocean["x1"])
+	var cx: float = float(ch.position.x) + float(ch.size.x - 1) * 0.5
+	var entries: Array = []
+	for col in LavaData.BOSS_CHAMBER_ENTRY:
+		entries.append(ch.position.x + int(col))
+	var in_ocean := func(c: Vector2i) -> bool:
+		if c.y > ceiling and c.y < top:
+			return c.x >= ox0 and c.x <= ox1
+		return rows.has(c.y) and c.x >= int(rows[c.y][0]) and c.x <= int(rows[c.y][1])
+	# Every open cell either tentacle's swing can reach, and the rows over
+	# its tip's swing up to the ceiling (room to get over the top).
+	var blocked: Dictionary = {}
+	for p: Dictionary in tents:
+		var fit: Dictionary = _fit_tentacle(int(p["x"]), top, bottom, int(p["tip_row"]), [], in_ocean)
+		for c: Vector2i in fit.get("reach", []):
+			blocked[c] = true
+			if c.y == int(p["tip_row"]):
+				for up in range(1, int(p["tip_row"]) - ceiling + 1):
+					blocked[c + Vector2i(0, -up)] = true
+	# 1: open, 2: wall rock, 0: neither.
+	var kind := func(c: Vector2i) -> int:
+		if blocked.has(c):
+			return 0
+		if in_ocean.call(c):
+			return 1 if map_data.get_resourcev(c) == Data.TILE_EMPTY else 0
+		if map_data.get_biomev(c) >= 0 and map_data.get_resourcev(c) == Data.TILE_DIRT_START and map_data.get_hardnessv(c) < Data.HARDNESS_INDESTRUCTIBLE:
+			return 2
+		return 0
+	var out: Array = []
+	var ctx: Dictionary = {"kind": kind, "entries": entries, "bottom": bottom, "placed": out}
+	var T: float = 24.0
+	for ti in tents.size():
+		var p: Dictionary = tents[ti]
+		var x: int = int(p["x"])
+		var base_row: int = int(p["base_row"])
+		var tip_row: int = int(p["tip_row"])
+		var n: int = int(p["segments"])
+		var length: float = float(base_row - tip_row) * T + 8.0 - TentData.PAD_HEIGHT
+		var seg_len: float = length / float(n)
+		ctx["x"] = x
+		ctx["ti"] = ti
+		var others: Array = []
+		for q: Dictionary in tents:
+			if int(q["x"]) != x:
+				others.append(int(q["x"]))
+		ctx["others"] = others
+		# "Out" is away from the chamber's middle.
+		var out_sign: int = 1 if float(x) >= cx else -1
+		for slot in AnchorData.PER_TENTACLE:
+			var want: float = float(base_row) - float(AnchorData.HEIGHTS[slot]) * float(base_row - tip_row)
+			var side: int = int(AnchorData.SIDES[slot]) * out_sign
+			var best: Vector2i = Vector2i.ZERO
+			var best_score: float = INF
+			# Steps: each band on this side, then on the other; then a wider
+			# band on either; then without the same-side spacing (kept apart
+			# as far as it goes); last, without the support rule.
+			# [band, side, support, spacing]
+			var steps: Array = []
+			var wide: int = int(AnchorData.BANDS[-1])
+			for band in AnchorData.BANDS:
+				steps.append([int(band), side, true, true])
+			for band in AnchorData.BANDS:
+				steps.append([int(band), -side, true, true])
+			var widest: int = int(AnchorData.BAND_LAST)
+			steps.append_array([[widest, side, true, true], [widest, -side, true, true], [wide, side, true, false], [wide, -side, true, false], [wide, side, false, false], [wide, -side, false, false]])
+			ctx["want"] = want
+			for st: Array in steps:
+				ctx["support"] = st[2]
+				ctx["spacing"] = st[3]
+				for y in range(int(round(want)) - int(st[0]), int(round(want)) + int(st[0]) + 1):
+					for d in range(1, AnchorData.MAX_OUT + 1):
+						# The block's columns: d tiles out on that side (its near edge).
+						var bx: int = x + d if int(st[1]) > 0 else x - d - (AnchorData.SIZE - 1)
+						var at := Vector2i(bx, y)
+						var sc: float = _anchor_score(map_data, at, ctx)
+						if sc < best_score:
+							best_score = sc
+							best = at
+				if best_score < INF:
+					break
+			if best_score == INF:
+				continue
+			# Its chain is tied ATTACH_RISE tiles above the anchor's middle.
+			var mid_y: float = float(best.y) + 0.5 * float(AnchorData.SIZE) - 0.5
+			var h: float = (float(base_row) - mid_y + AnchorData.ATTACH_RISE) * T
+			var seg: int = clampi(int(round(h / seg_len)), 2, n)
+			out.append({"id": out.size(), "cell": best, "tentacle": ti, "slot": slot, "seg": seg})
+			for c: Vector2i in anchor_cells(best):
+				map_data.set_resourcev(c, AnchorData.TILE_ID)
+				map_data.set_hardnessv(c, Data.HARDNESS_HARD)
+				map_data.set_biomev(c, MapConfig.BIOMES - 1)
+	map_data.set_meta("story_anchors", out)
+	return out
+
+
+# The four tiles of the anchor whose top-left tile is `at`.
+static func anchor_cells(at: Vector2i) -> Array:
+	var out: Array = []
+	for dy in AnchorData.SIZE:
+		for dx in AnchorData.SIZE:
+			out.append(at + Vector2i(dx, dy))
+	return out
+
+
+# How well an anchor at `at` fits (lower is better), or INF. `ctx`: kind
+# (cell -> 1 open, 2 wall, 0 neither), entries, bottom, placed, x (its
+# tentacle's column), others (the other tentacles' columns), want (the row
+# it wants), support (whether the reach rule applies).
+static func _anchor_score(map_data, at: Vector2i, ctx: Dictionary) -> float:
+	var kind: Callable = ctx["kind"]
+	var opens: int = 0
+	for c: Vector2i in anchor_cells(at):
+		var k: int = kind.call(c)
+		if k == 0:
+			return INF
+		if k == 1:
+			opens += 1
+		if c.y >= int(ctx["bottom"]) - 6:
+			for e: int in ctx["entries"]:
+				if absi(c.x - e) <= TentData.ENTRY_GAP:
+					return INF
+	if opens < AnchorData.MIN_OPEN:
+		return INF
+	var x: int = ctx["x"]
+	var half: float = 0.5 * float(AnchorData.SIZE) - 0.5
+	var mid := Vector2(float(at.x) + half, float(at.y) + half)
+	for ox: int in ctx["others"]:
+		if absf(mid.x - float(ox)) <= absf(mid.x - float(x)):
+			return INF
+	var gap: int = AnchorData.GAP + AnchorData.SIZE
+	var crowd: float = 0.0
+	for a: Dictionary in ctx["placed"]:
+		var o: Vector2i = a["cell"]
+		if absi(o.x - at.x) < gap and absi(o.y - at.y) < gap:
+			return INF
+		# On the same side of the same tentacle, a few rows apart, so no
+		# chain runs behind another anchor; where nothing else fits, as far
+		# apart as it can.
+		var dy: int = absi(o.y - at.y)
+		if int(a["tentacle"]) == int(ctx["ti"]) and signf(float(o.x - x)) == signf(float(at.x - x)) and dy < AnchorData.SAME_SIDE_ROWS:
+			if bool(ctx["spacing"]):
+				return INF
+			crowd += 6.0 * float(AnchorData.SAME_SIDE_ROWS - dy)
+	# Rock (not ocean) within SUPPORT_TILES, or the tentacle at rest in claw reach.
+	var near_rock: bool = opens < AnchorData.SIZE * AnchorData.SIZE
+	var r: int = AnchorData.SUPPORT_TILES
+	if not near_rock:
+		for dy in range(-r, AnchorData.SIZE + r):
+			for dx in range(-r, AnchorData.SIZE + r):
+				# Rock, or off the map (vanilla's border pass walls it later).
+				var rc: Vector2i = at + Vector2i(dx, dy)
+				var id: int = map_data.get_resourcev(rc)
+				if (id != Data.TILE_EMPTY and id != AnchorData.TILE_ID) or map_data.get_biomev(rc) < 0:
+					near_rock = true
+	var gap_px: float = (absf(mid.x - float(x)) - 0.5 * float(AnchorData.SIZE)) * 24.0 - TentData.WIDTH_BASE * 0.5
+	if bool(ctx["support"]) and not near_rock and gap_px > AnchorData.CLAW_REACH:
+		return INF
+	# Nearer the tentacle and its row is better; a stone more out in the
+	# open reads better than one sunk in the wall.
+	return absf(mid.x - float(x)) + 1.5 * absf(mid.y - float(ctx["want"])) + float(AnchorData.SIZE * AnchorData.SIZE - opens) + crowd
 
 
 # The chamber's living stone (#361): its walls and floor (`wall` tiles thick)

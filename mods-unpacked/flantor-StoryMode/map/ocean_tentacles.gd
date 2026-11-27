@@ -12,8 +12,9 @@ extends Node2D
 #
 # Wake: the chains broken, 0..10 (data/tentacles.gd CHAINS), saved in Data
 # (CHAINS_KEY) and mapped smoothly onto the test room's wake stages 0..4. The
-# chain anchors (#365) call set_chains_broken(n) on the host; `--chains=N` sets
-# it at a run's start (dev).
+# end-game state (endgame/end_game.gd, #365) calls set_chains_broken(n) on the
+# host as each chain anchor breaks and after a load; `--chains=N` (dev) breaks
+# the first N anchors at a run's start (map/chain_anchors.gd).
 #
 # Online (#222): the host owns the chains broken (Data, which clients get with
 # everything else) and the wave clock: it sends each rig's clock, swing and
@@ -154,8 +155,6 @@ func setup(map) -> bool:
 		for dx in [-3, -2, -1, 1, 2, 3]:
 			_probe.append(Vector2(x + dx, tip_row))
 		i += 1
-	if not net_client and _Story.user_arg("chains", "") != "":
-		set_chains_broken(int(_Story.user_arg("chains", "0")))
 	_apply_chains(true)
 	visible = false
 	_check_seen()

@@ -8,8 +8,8 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 #
 # Ticket 175: the ocean is half the map's width and half as deep as it was, so
 # only the cells over the ocean count here; the columns beside it end in the
-# map's border. Its size, the boss chamber under it and its unobtainium are
-# checked for every seed.
+# map's border. Its size, the boss chamber under it and its ten chain anchors
+# (#365; its unobtainium before) are checked for every seed.
 #
 # Ticket 184: the ocean is a rough funnel. Its top spans the map's bottom row
 # (so the size check wants most of the map's width), every cell over it is
@@ -60,10 +60,10 @@ func run(h) -> void:
 				mx1 = maxi(mx1, c.x)
 		var ch: Rect2i = td.get_meta("story_boss_chamber")
 		var size: Dictionary = {"seed": 6000 + s, "map width": mx1 - mx0 + 1, "ocean width": int(o["x1"]) - int(o["x0"]) + 1, "ocean rows": int(o["bottom"]) - int(o["top"]) + 1,
-			"unobtainium": o["unobtainium"], "chamber x": [ch.position.x, ch.end.x - 1], "ocean x": [o["x0"], o["x1"]]}
+			"anchors": td.get_meta("story_anchors", []).size(), "chamber x": [ch.position.x, ch.end.x - 1], "ocean x": [o["x0"], o["x1"]]}
 		sizes.append(size)
 		var share: float = float(size["ocean width"]) / float(size["map width"])
-		if share < 0.75 or size["ocean rows"] != LavaData.OCEAN_ROWS or ch.position.x <= int(o["x0"]) or ch.end.x - 1 >= int(o["x1"]) or int(o["unobtainium"]) < 25:
+		if share < 0.75 or size["ocean rows"] != LavaData.OCEAN_ROWS or ch.position.x <= int(o["x0"]) or ch.end.x - 1 >= int(o["x1"]) or int(size["anchors"]) != 10:
 			bad_sizes.append(size)
 		var funnel_bad: Array = []
 		var rows: Dictionary = o.get("rows", {})
@@ -154,5 +154,5 @@ func run(h) -> void:
 	h.check("over the ocean, from anywhere, at least 70%% (%.1f%%)" % all, all >= 70.0)
 	for z in sizes.slice(0, 5):
 		h.note("ocean size", z)
-	h.check("every ocean is most of the map's width, %d rows deep, spans the boss chamber and holds 25+ unobtainium" % LavaData.OCEAN_ROWS, bad_sizes.is_empty() and sizes.size() >= SEEDS - 1, bad_sizes)
+	h.check("every ocean is most of the map's width, %d rows deep, spans the boss chamber and holds its 10 chain anchors" % LavaData.OCEAN_ROWS, bad_sizes.is_empty() and sizes.size() >= SEEDS - 1, bad_sizes)
 	h.check("every ocean is a funnel: full width on top, narrowing overall, its bottom row over the chamber, the chamber the deepest open space", bad_funnels.is_empty(), bad_funnels)

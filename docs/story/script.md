@@ -20,7 +20,7 @@ Chosen: Velle
 
 ## Story beats
 
-Cut in the user's passes (#285), triggers kept in code so a beat can come back: biome_b4, first_gem, unobtainium_1, _3, _5, _7, _10 (2026-11-18), lava_death_2 to _5 (2026-11-19).
+Cut in the user's passes (#285), triggers kept in code so a beat can come back: biome_b4, first_gem, unobtainium_1, _3, _5, _7, _10 (2026-11-18; Unobtainium itself was removed in #365, and its per-piece triggers became `chain:<n>`, one per chain broken), lava_death_2 to _5 (2026-11-19).
 
 ### biome_b2 (tier 1)
 > You hear a quiet voice whispering something softly. You can't quite tell if the sound is coming from deep below, or from the walls themselves.

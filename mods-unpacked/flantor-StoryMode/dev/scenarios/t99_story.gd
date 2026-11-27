@@ -8,7 +8,8 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 #   the miner's log), the three
 #   translator chambers (opened, carried home, installed, the horror's reply,
 #   then a plea at the new translation stage), and an overheat death;
-#   the lava ocean, 10 unobtainium (the seal beats, if the script has them),
+#   the lava ocean, the 10 chain anchors (#365; their beats, if the script has
+#   any),
 #   the boss chamber (the awakening); Retire Rich bought with the shop open and the
 #   whole doom ending to the end screen.
 # Heat Shielding IV is bought first so depth heat never recalls the keeper.
@@ -39,7 +40,6 @@ static var _Runes = Runes  # calls go through this: lazy_preload makes const-pre
 
 # The whole story takes about 335 s on the dev machine, over the default 300 (#272).
 const TIMEOUT := 600
-const UNOB_ID := 47
 const GEM_IDS := [42, 43, 44, 46]
 const GATE_X := 2
 # The overheat death comes after this biome's events (B5).
@@ -177,7 +177,10 @@ func _bones(h, p: Array) -> void:
 	await h.shot("bones_b%d" % (b + 1))
 	var dome = Level.getDome("team1")
 	var m0: int = int(h.inv("money"))
-	Level.map.destroyTile("team1", "", Level.map.getTile(Vector2(at)))
+	# The keeper's drill can get there first (the room is dug beside it).
+	var bt = Level.map.getTile(Vector2(at))
+	if bt != null:
+		Level.map.destroyTile("team1", "", bt)
 	await h.wait(0.5)
 	var drop = null
 	for d in Level.drops.find_children("*", "", true, false):
@@ -321,23 +324,24 @@ func run(h) -> void:
 	_cool()
 	await _plea(h, "ocean", "D")
 
-	# ---- ten unobtainium: the seal breaks
-	var cells: Array = td.get_resource_cells_by_id(UNOB_ID)
-	cells.sort_custom(func(a, b): return absi(a.x) + a.y < absi(b.x) + b.y)
-	h.check("the ocean holds at least 10 unobtainium", cells.size() >= 10, cells.size())
-	var seal: Dictionary = {1: "unobtainium_1", 3: "unobtainium_3", 5: "unobtainium_5", 7: "unobtainium_7", 10: "unobtainium_10"}
-	for i in mini(10, cells.size()):
-		var c: Vector2i = cells[i]
-		await h.reveal([c])
-		await h.teleport_tile(c + Vector2i(0, -1))
+	# ---- ten chains: the seal breaks (#365)
+	var anchors = load("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd").find()
+	h.check("the ocean has its 10 chain anchors", anchors != null and anchors.anchors.size() == 10, anchors.anchors.size() if anchors else 0)
+	var seal: Dictionary = {}
+	for b in _BeatData.BEATS:
+		if str(b["trigger"]).begins_with("chain:"):
+			seal[int(str(b["trigger"]).substr(6))] = b["id"]
+	for i in anchors.anchors.size():
+		var a: Dictionary = anchors.anchors[i]
+		await h.teleport_tile(a["cell"] + Vector2i(0, -2))
 		_cool()
-		Level.map.destroyTile("team1", "", Level.map.getTile(Vector2(c)))
-		await h.frames(3)
+		anchors.dev_break(a["id"])
+		await h.until(func(): return a["broken"], 3.0)
 		if seal.has(i + 1):
-			await _expect(h, seal[i + 1], "unob%02d" % (i + 1), 6.0)
+			await _expect(h, seal[i + 1], "chain%02d" % (i + 1), 6.0)
 		else:
-			await _quiet(h, "unobtainium %d" % (i + 1))
-	h.check("10 mined, the seal at %.2f" % _Awakening.level(), _Awakening.mined() == 10, _Awakening.mined())
+			await _quiet(h, "chain %d" % (i + 1))
+	h.check("10 chains broken, the seal at %.2f" % _Awakening.level(), _Awakening.chains() == 10, _Awakening.chains())
 
 	# ---- the boss chamber (the fight has its own scenarios, #160)
 	load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").enabled = false
@@ -388,8 +392,9 @@ func run(h) -> void:
 
 	# ---- the whole story, once each
 	h.note("opened in order", opened)
-	# One death here: lava deaths 2 to 5 have their own run (t157_lava_deaths).
-	var want: Array = BeatData.BEATS.map(func(b): return b["id"]).filter(func(id): return not (id.begins_with("lava_death_") and id != "lava_death_1")) + LogData.LOGS.map(func(l): return l["id"])
+	# One death here: lava deaths 2 to 5 have their own run (t157_lava_deaths),
+	# and so do the gas deaths (#357, t357_gas_death_beat).
+	var want: Array = BeatData.BEATS.map(func(b): return b["id"]).filter(func(id): return not (id.begins_with("lava_death_") and id != "lava_death_1") and not id.begins_with("gas_death_")) + LogData.LOGS.map(func(l): return l["id"])
 	var wrong: Dictionary = {}
 	for id in want:
 		if opened.count(id) != 1:

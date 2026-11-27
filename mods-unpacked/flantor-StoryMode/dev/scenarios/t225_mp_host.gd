@@ -24,8 +24,7 @@ func run(h) -> void:
 static func _counts() -> Dictionary:
 	var lava = Level.map.get_node_or_null("StoryLavaField")
 	var gas = Level.map.get_node_or_null("StoryGasField")
-	var chains: int = -1
-	for c in Level.map.get_children():
-		if c.get("chains") is Array:
-			chains = c.chains.size()
+	# The chain anchors (#365; the seal chains of #101 before).
+	var anchors = Level.map.get_node_or_null("StoryChainAnchors")
+	var chains: int = anchors.anchors.size() if anchors != null else -1
 	return {"magma": lava.magma.size() if lava else -1, "lava cells": lava.mass.size() if lava else -1, "gas rock": gas.rock.size() if gas else -1, "chains": chains}

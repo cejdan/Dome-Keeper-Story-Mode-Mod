@@ -54,8 +54,8 @@ const POOL_GAP := 2                    # rock tiles kept between a pool and anyt
 
 # --- lava ocean (#43) -------------------------------------------------------
 # Below B8: a rock ceiling row, then OCEAN_ROWS of open cells in a funnel
-# centred under the dome, brim-full of lava from the start, with unobtainium
-# scattered inside; then the ocean floor and, under its narrow end, a sealed
+# centred under the dome, brim-full of lava from the start, with the chain
+# anchors (#365, data/anchors.gd) round its two tentacles; then the ocean floor and, under its narrow end, a sealed
 # boss chamber.
 const OCEAN_ROWS := 25                    # was 50: half the height (#175)
 # The ocean is a rough funnel (#184): its top spans the map's full width, so
@@ -75,8 +75,6 @@ const OCEAN_FUNNEL_BUMP_ROWS := [6, 2]
 # Open air between the ocean's rock ceiling and the lava (#149), so breaking in
 # opens onto a wide cavern, and lava from above has room to drain into.
 const OCEAN_AIR_ROWS := 4
-const OCEAN_UNOB_CELLS_PER_TILE := 30.0   # one unobtainium tile per this many cells of the map's full width x OCEAN_ROWS; keeps the total of the first, full-size ocean (#43: 60 per cell of a box twice as deep)
-const OCEAN_UNOB_CLUMP := [1, 3]
 const OCEAN_FLOOR_ROWS := 2               # rock under the ocean (1 row over the chamber)
 const BOSS_CHAMBER := Vector2i(20, 10)    # width x height, empty and sealed
 const BOSS_CHAMBER_WALL := 2

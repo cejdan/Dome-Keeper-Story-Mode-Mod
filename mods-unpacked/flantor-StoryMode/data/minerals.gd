@@ -14,10 +14,10 @@ static var _Delivery = Delivery  # calls go through this: lazy_preload makes con
 #   tile_id       resource id stored in the map (0 is vanilla iron; new minerals use 40+)
 #   extra_health  added to the tile base health (vanilla iron adds 2)
 #   richness      drives how many pieces a tile drops (vanilla iron uses 2)
-#   shape         art family: "square" metals, "star" gems, "shard" unobtainium
+#   shape         art family: "square" metals, "star" gems
 #   drops         optional: every tile drops exactly this many pieces (diamond, #186)
 
-const ORDER: Array = ["bronze", "iron", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond", "unobtainium"]
+const ORDER: Array = ["bronze", "iron", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond"]
 
 const TABLE: Dictionary = {
 	"bronze": {"value": 1, "tile_id": 40, "extra_health": 2, "richness": 2.0, "shape": "square"},
@@ -28,12 +28,11 @@ const TABLE: Dictionary = {
 	"ruby": {"value": 300, "tile_id": 44, "extra_health": 2, "richness": 2.0, "shape": "star"},
 	"mythril": {"value": 500, "tile_id": 45, "extra_health": 2, "richness": 2.0, "shape": "square"},
 	"diamond": {"value": 1000, "tile_id": 46, "extra_health": 2, "richness": 2.0, "shape": "star", "drops": 1},
-	"unobtainium": {"value": 100000, "tile_id": 47, "extra_health": 2, "richness": 1.0, "shape": "shard"},
 }
 
 
 # Minerals the mod adds (everything on the ladder except vanilla iron).
-const MOD_MINERALS: Array = ["bronze", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond", "unobtainium"]
+const MOD_MINERALS: Array = ["bronze", "gold", "sapphire", "emerald", "ruby", "mythril", "diamond"]
 
 const ART := "res://mods-unpacked/flantor-StoryMode/art/minerals/"
 const DROPS := "res://mods-unpacked/flantor-StoryMode/drops/"
