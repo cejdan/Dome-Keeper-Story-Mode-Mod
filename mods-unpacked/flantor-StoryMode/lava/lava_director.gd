@@ -84,6 +84,14 @@ func _process(_delta: float) -> void:
 				map.move_child(ship, front.get_index())
 		else:
 			ship.free()
+		# The last-chain cutscene (#367): the horror hands the ship over. Made
+		# after the ship, so its EndGame.when_free callback comes after the
+		# ship's and takes the ship over in the same frame.
+		var cut = load(_Story.MOD_DIR + "endgame/last_chain.gd").new()
+		if cut.setup(map):
+			map.add_child(cut)
+		else:
+			cut.free()
 
 
 func _wants_lava() -> bool:

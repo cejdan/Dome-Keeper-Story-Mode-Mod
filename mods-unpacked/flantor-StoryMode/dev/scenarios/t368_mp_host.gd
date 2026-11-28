@@ -48,8 +48,11 @@ func run(h) -> void:
 			anchors.dev_break(a["id"], false)
 			await h.wait(0.1)
 	h.check("host: free", _EndGame.is_free(), _EndGame.state())
-	var landed: bool = await h.until(func(): return ship.mode == "dome", 12.0)
-	h.check("host: the ship stands at the dome (the placeholder move, live)", landed and _Ship.events.any(func(e): return e["what"] == "landed" and e["live"]), _Ship.events)
+	var landed: bool = await h.until(func(): return ship.mode == "dome", 40.0)
+	h.check("host: the ship stands at the dome (the last-chain cutscene, live)", landed and _Ship.events.any(func(e): return e["what"] == "landed" and e["live"]), _Ship.events)
+	# The cutscene (#367) ends before play goes on.
+	var LastChain = load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd")
+	await h.until(func(): return LastChain.is_done() and not GameWorld.paused, 40.0)
 	# The host's keeper out in the mine, far from the dome.
 	k.teleport(Level.getDome("team1").global_position + Vector2(0, 24 * 12))
 	h.snap_camera(k)

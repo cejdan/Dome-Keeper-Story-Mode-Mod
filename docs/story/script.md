@@ -134,6 +134,9 @@ Then fly free from this prison.
 ---
 > You're not sure if knowing what they say brings you comfort, or dread.
 
+### last_chain (tier 3)
+[DRAFT] The horror speaks as it sets the ship down by the dome.
+
 ### boss_chamber (tier 4)
 Why did you come here, little digger? We are both free now. You could have flown home.
 ---
