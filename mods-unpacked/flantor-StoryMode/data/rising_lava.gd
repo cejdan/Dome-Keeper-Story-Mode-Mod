@@ -57,5 +57,5 @@ const STOP_FADE_S := 2.5         # the lair: the rise stops, the rumble fades ou
 const NET_EVERY := 0.2           # the host sends the level this often
 
 # --- the "too late" loss -------------------------------------------------------
-const SURFACE_HOLD_S := 2.5      # the lava at the surface: this long before the cards
+const SURFACE_HOLD_S := 3.5      # the lava at the surface: this long before the cards
 const DEATH_HOLD_S := 1.6        # a keeper lost in the lava: this long before the cards

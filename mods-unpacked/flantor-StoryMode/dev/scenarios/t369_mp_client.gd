@@ -52,7 +52,19 @@ func run(h) -> void:
 	h.check("client: its level follows the host's (within 1.5 rows: the shared word itself comes late)", not diffs.is_empty() and diffs.all(func(d): return absf(d) < 1.5), diffs)
 	var top: int = int(floor(rise.row))
 	var band_cell := Vector2i(3, top + 1)
-	h.check("client: its own band is lava here (filled from the level)", lava.mass.get(band_cell, 0.0) > 0.9 and lava.flooded(Vector2i(3, top + 6)) and not lava.mass.has(Vector2i(3, top + 6)), [lava.mass.get(band_cell, 0.0), lava.flood_stats()])
+	var col: Array = []
+	for y in range(top - 1, top + 5):
+		for x in [3, 4]:
+			var c := Vector2i(x, y)
+			col.append([x, y, Level.map.tileData.get_resourcev(c), lava._fl_band.has(c), snappedf(lava.mass.get(c, 0.0), 0.01)])
+	h.note("client: the shaft at the band", {"cells": col, "harden": lava.hardened, "row": rise.row})
+	# (The host's dev dig doesn't reach a client cell for cell, so the check
+	# takes the band's cells as this instance's map has them.)
+	var full: Array = lava._fl_band.keys().filter(func(c): return c.y > top)
+	var st: Dictionary = lava.flood_stats()
+	var stored_under: Array = lava.mass.keys().filter(func(c): return c.y >= st["implied"][0] and c.y < st["implied"][1])
+	h.check("client: its own band is lava here (filled from the level), the cells under it implied, none stored", not full.is_empty() and full.all(func(c): return lava.mass.get(c, 0.0) >= 0.99) and st["implied_seen"] > 0 and stored_under.is_empty(),
+		{"full_cells": full.size(), "not_full": full.filter(func(c): return lava.mass.get(c, 0.0) < 0.99).slice(0, 6), "stored_under": stored_under.slice(0, 6), "stats": st})
 	await h.teleport_tile(Vector2i(3, top - 5))
 	await h.wait(0.5)
 	lava.set_heat_of(k, 0.0)

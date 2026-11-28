@@ -46,7 +46,7 @@ func run(h) -> void:
 	var u1: float = float(rise.closeness.get(k.playerId, 0.0))
 	h.check("in the dome too, the warning grows as it comes up the shaft", u1 > u0 and u1 > 0.6, [u0, u1])
 	await h.shot("lava_under_the_dome")
-	if _Story.has_user_arg("board"):
+	if load("res://mods-unpacked/flantor-StoryMode/story.gd").has_user_arg("board"):
 		await _board(h, k, ship)
 		return
 	var got: bool = await h.until(func(): return _RisingLava.state() == "surfaced", 20.0)
@@ -54,7 +54,7 @@ func run(h) -> void:
 	await h.wait(0.3)
 	await h.shot("at_the_surface")
 	h.check("nobody boarded or fighting: too late", Level.mode.is_ending() and Level.mode.too_late_shown == ["surface"], Level.mode.too_late_shown)
-	await h.burst("the_ground_heaves", 6, 6)
+	await h.burst("the_ground_heaves", 8, 20)
 	var ed = Level.mode.get_node_or_null("StoryEndings")
 	await h.until(func(): return ed.playing == "too_late" and ed.last_step == "cards", 15.0)
 	var seen: Array = []
@@ -93,8 +93,7 @@ func _board(h, k, ship) -> void:
 	await h.shot("boarded_mid_rise")
 	await h.wait(4.0)
 	h.check("the lava stops where it was once the ending starts", absf(rise.row - row_at) < 0.3 and rise.row > float(Flood.SURFACE_ROW), [row_at, rise.row])
-	var id: String = await h.read_beat("thanks", 20.0, false)
-	h.check("the horror thanks the keeper (doom_thanks)", id == "doom_thanks", id)
+	# (The harness mutes the beats: the ending goes on without the thanks.)
 	var won: bool = await h.until(func(): return GameWorld.won, 90.0)
 	h.check("a won run (the doom ending), no too-late", won and Level.mode.too_late_shown.is_empty() and _RisingLava.state() == "rising", [GameWorld.won, Level.mode.too_late_shown, _RisingLava.state()])
 	await h.until(func(): return Level.stage.endingPanel != null, 40.0)

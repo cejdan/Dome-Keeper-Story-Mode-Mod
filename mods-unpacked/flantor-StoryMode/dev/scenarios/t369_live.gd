@@ -11,7 +11,6 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenarios/t367_cutscene.gd"
 
 const RisingLava = preload("res://mods-unpacked/flantor-StoryMode/endgame/rising_lava.gd")
 static var _RisingLava = RisingLava  # calls go through this: lazy_preload makes const-preload calls slow
-const TIMEOUT := 420
 
 var rise
 

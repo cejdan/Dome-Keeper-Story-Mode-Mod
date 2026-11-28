@@ -16,7 +16,6 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/scenarios/t369_rise.gd"
 
 const Meter = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t347_meter.gd")
 const WINDOW := 4.0
-const TIMEOUT := 420
 
 
 func _measure(h, meter, label: String) -> void:

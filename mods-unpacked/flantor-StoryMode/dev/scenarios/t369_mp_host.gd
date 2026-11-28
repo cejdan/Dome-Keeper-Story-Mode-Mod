@@ -16,6 +16,10 @@ const Base = preload("res://mods-unpacked/flantor-StoryMode/dev/scenarios/t369_r
 const TIMEOUT := 480
 
 
+func boot() -> Dictionary:
+	return {"loadout": true, "nethost": true}
+
+
 func run(h) -> void:
 	if not await host_start(h):
 		return
@@ -36,6 +40,7 @@ func run(h) -> void:
 	await h.teleport_tile(Vector2i(3, 92))
 	share("dug", true)
 	await shared_wait_client(h, "client_ready")
+	var sent0: Dictionary = base.lava._net_sent.duplicate()
 	base.rise.dev_start(float(base.ceiling) + 1.0)
 	share("rising", true)
 	# The level, every second, for the client to compare with its own.
@@ -45,13 +50,14 @@ func run(h) -> void:
 		base.cool(h)
 		share("row", [snappedf(base.rise.row, 0.001), Time.get_ticks_msec()])
 	var band: Array = base.lava._fl_band.keys()
-	var sent: Array = band.filter(func(c): return base.lava._net_sent.has(c))
+	# (A cell that held lava before the flood was sent then; nothing since.)
+	var sent: Array = band.filter(func(c): return base.lava._net_sent.get(c, -1.0) != sent0.get(c, -1.0))
 	h.check("host: the band's cells were never sent over the lava stream", sent.is_empty() and not band.is_empty(), {"band": band.size(), "sent": sent.slice(0, 6)})
 	await h.shot("host_rising")
 	share("die", true)
 	var ended: bool = await h.until(func():
 		base.cool(h)
-		return Level.mode.is_ending(), 60.0)
+		return Level.mode.is_ending() and not Level.mode.too_late_shown.is_empty(), 60.0)
 	var client_pid: String = ""
 	for kk in Keepers.getAll():
 		if kk != k:

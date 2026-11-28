@@ -445,6 +445,12 @@ func _too_late_fx(cause: String, pid: String) -> void:
 		InputSystem.shake(22.0, 1.8, 12.0)
 		Sfx.play("roar", -1.0, 0.55)
 		Sfx.play("boom", -4.0, 0.5)
+		# The ground round the dome splits and the lava bursts through.
+		var dome = Level.getDome("team1")
+		if dome != null and Level.map != null and is_instance_valid(Level.map):
+			var fx = load(Story.MOD_DIR + "endgame/too_late_fx.gd").new()
+			fx.setup(dome.global_position, dome.global_position.y + 2.0)
+			Level.map.add_child(fx)
 		return
 	InputSystem.shake(12.0, 0.8, 14.0)
 	Sfx.play("keeper_down", -4.0, 0.8)

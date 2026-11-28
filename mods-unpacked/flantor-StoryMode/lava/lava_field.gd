@@ -1398,6 +1398,7 @@ func _fl_tick(delta: float) -> void:
 	if _fl_scan_t >= FLOOD_RESCAN_S:
 		_fl_scan_t = 0.0
 		_fl_rescan()
+		_fl_rescan_band()
 	if _fl_mask_dirty and _fl_img != null:
 		_fl_mask_dirty = false
 		_fl_img.set_data(_fl_x1 - _fl_x0, fl_r1 - _fl_my0, false, Image.FORMAT_R8, _fl_mask)
@@ -1463,6 +1464,22 @@ func _fl_rescan() -> void:
 				if kn == FL_ROCK or kn == FL_LAVA or (kn == FL_UNSEEN and not reveal):
 					continue
 				_fl_learn(Vector2i(x, y), row + x)
+
+
+# Band cells a tile change missed (a client's tile breaks can come without the
+# map's signal, and the open-cell cache may still hold the old answer): the
+# band's rows are looked at again, straight from the map.
+func _fl_rescan_band() -> void:
+	var added := false
+	for r in range(maxi(_fl_top, MIN_Y), fl_r0):
+		for x in range(_fl_x0, _fl_x1):
+			var c := Vector2i(x, r)
+			if not _fl_band.has(c) and map.is_tile_empty(c) and not _chamber.has_point(c):
+				_open_cache.erase(c)
+				_fl_band_add(c)
+				added = true
+	if added:
+		_fl_full_hold = true
 
 
 const FL_UNKNOWN := 0
@@ -2280,6 +2297,9 @@ func _draw_heat_bar() -> void:
 	for keeper in _Story.local_keepers():
 		var h: float = heat_of(keeper)
 		if h <= 0.5 and passive_rate_of(keeper) <= 0.0:
+			continue
+		# A keeper lost to the lava fades out (#369): its bar goes with it.
+		if keeper.modulate.a < 0.6:
 			continue
 		var frac: float = h / HEAT_MAX
 		_FieldUtil.draw_bar(self, (to_local(keeper.global_position) + Vector2(-9, -20)).round(), frac,
