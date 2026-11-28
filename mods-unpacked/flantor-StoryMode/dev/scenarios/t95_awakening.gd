@@ -24,7 +24,7 @@ func run(h) -> void:
 	await h.until(func(): return not StageManager.isSwitchingStage(), 20.0)
 	await h.wait(1.0)
 	h.disable_waves()
-	Data.apply("team1.story.beatsplayed", "biome_b2,biome_b3,biome_b4,biome_b5,biome_b6,biome_b7,biome_b8,lava_ocean,first_gem,gate_broken,lava_death_1,lava_death_2,lava_death_3,lava_death_4")
+	Data.apply("team1.story.beatsplayed", "biome_b2,biome_b3,biome_b4,biome_b5,biome_b6,biome_b7,biome_b8,lava_ocean,first_gem,gate_broken,lava_death_1,lava_death_2,lava_death_3,lava_death_4,last_chain")
 	load("res://mods-unpacked/flantor-StoryMode/dev/boss_dev.gd").give_gear()
 	h.set_inv("money", 10000000)
 	for n in range(1, 5):
@@ -55,6 +55,9 @@ func run(h) -> void:
 		rising = rising and levels[i] >= levels[i - 1]
 	h.check("the seal weakens with every chain (to its cap)", rising and levels[0] > 0.0 and _Awakening.chains() == 10, levels)
 
+	# The last-chain cutscene (#367, its beat marked played above) ends first.
+	var cut_over: bool = await h.until(func(): return load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd").is_done() and not GameWorld.paused, 40.0)
+	h.check("the last-chain cutscene played and is over", cut_over)
 	# Into the boss chamber. The fight that follows has its own scenarios (#160).
 	load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").enabled = false
 	var room: Rect2i = td.get_meta("story_boss_chamber", Rect2i())

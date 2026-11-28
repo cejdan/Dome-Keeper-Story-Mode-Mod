@@ -342,6 +342,9 @@ func run(h) -> void:
 		else:
 			await _quiet(h, "chain %d" % (i + 1))
 	h.check("10 chains broken, the seal at %.2f" % _Awakening.level(), _Awakening.chains() == 10, _Awakening.chains())
+	# The last chain's cutscene (#367) plays its beat, then play resumes.
+	await _expect(h, "last_chain", "last_chain", 30.0)
+	h.check("the last-chain cutscene is over", await h.until(func(): return load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd").is_done() and not GameWorld.paused, 20.0))
 
 	# ---- the boss chamber (the fight has its own scenarios, #160)
 	load("res://mods-unpacked/flantor-StoryMode/boss/boss_director.gd").enabled = false

@@ -343,6 +343,10 @@ func _process(delta: float) -> void:
 		queue_redraw()
 		proc_us += Time.get_ticks_usec() - us0
 		return
+	var mode = Level.mode
+	if mode != null and mode.has_method("is_ending") and mode.is_ending():
+		_abort()
+		return
 	var stage = Level.stage
 	var menu: bool = stage != null and "pauseMenuOpen" in stage and stage.pauseMenuOpen
 	# Play stays frozen all through (the pause menu or the beat may unpause it).
@@ -420,8 +424,11 @@ func _tick(delta: float) -> void:
 			_crack_grow = u * u * (3.0 - 2.0 * u)
 			_crack_glow = 0.4 + 0.6 * u
 			_rumble(delta, Cut.SHAKE_CRACK * (0.4 + 0.6 * u), 0.3)
-			if _rng.randf() < delta * 26.0 * u:
-				_pebble(Vector2(_rng.randf_range(-70, 70), 0), 90.0)
+			if _rng.randf() < delta * 34.0 * u:
+				_pebble(Vector2(_rng.randf_range(-70, 70), -30.0 * u), 170.0)
+			if _rng.randf() < delta * 20.0 * u:
+				_debris.append({"p": Vector2(_rng.randf_range(-60, 60), -20.0 * u), "v": Vector2(_rng.randf_range(-25, 25), _rng.randf_range(-70, -25)), "s": float(3 + _rng.randi() % 3),
+					"col": Color(0.42, 0.36, 0.47, 0.45), "life": _rng.randf_range(0.7, 1.3), "rest": false, "dust": true})
 			if t >= Cut.CRACK_S:
 				_go("burst")
 		"burst":
@@ -459,7 +466,7 @@ func _tick(delta: float) -> void:
 			if t >= 0.4 and _ship._scorched:
 				_ship.set_scorched(false)
 				_flash = 0.7
-				_Sfx.play("seal_settle", -8.0, 1.25)
+				_Sfx.play("charge", -12.0, 1.4)
 			# The lights flicker on.
 			var on: bool = t >= 0.55 and not (t >= 0.62 and t < 0.7) and not (t >= 0.76 and t < 0.8)
 			if on != _ship._lights_on:
@@ -836,6 +843,21 @@ func _tick_skip(delta: float) -> void:
 		_skip()
 
 
+# An ending started under the cutscene (a dev route; play is frozen for the
+# keepers): it lets go of everything at once and leaves the ending to it.
+func _abort() -> void:
+	events.append({"what": "aborted", "at": step})
+	ModLoaderLog.info("Last chain: an ending started at %s: the cutscene lets go" % step, _Story.LOG)
+	_jump_landed()
+	_unblock_input()
+	_cameras_rest()
+	if _frozen:
+		_unfreeze()
+	step = "done"
+	step_changed.emit("done")
+	_mark_done(true)
+
+
 func _finish() -> void:
 	step = "done"
 	t = 0.0
@@ -1021,10 +1043,20 @@ func _draw() -> void:
 		# The finale's cracks, drawn bigger (wider, and thicker lines).
 		if _crack_glow > 0.0:
 			_Pix.ellipse(self, hole + Vector2(0, -2), 70.0 * _crack_grow, 12.0 * _crack_grow, Color(Pix.VIOLET, 0.22 * _crack_glow * (0.8 + 0.2 * sin(total * 14.0))), -1.0, 1.0)
+		# The ground heaves before it breaks: a mound of earth, lit from the cracks.
+		if step == "crack":
+			var g: float = _crack_grow
+			var hh: float = 42.0 * g * (0.85 + 0.15 * sin(total * 23.0))
+			_Pix.ellipse(self, hole + Vector2(0, 2), 64.0 * g + 6.0, hh + 1.0, Color("0a0612"), -1.0, 0.0)
+			_Pix.ellipse(self, hole + Vector2(0, 2), 64.0 * g + 4.0, hh, EARTH[1], -1.0, 0.0)
+			for i in 5:
+				var x: float = (float(i) - 2.0) * 22.0 * g
+				var top: float = -hh * sqrt(maxf(0.0, 1.0 - (x / (64.0 * g + 4.0)) * (x / (64.0 * g + 4.0))))
+				draw_line((hole + Vector2(x, 2.0 + top * 0.3)).round(), (hole + Vector2(x + 5.0 * sin(i * 2.1), 2.0 + top)).round(), Color(Pix.VIOLET_LIGHT, _crack_glow), 1.0)
 		draw_set_transform(hole, 0.0, Vector2(2.3, 1.7))
 		_ST.draw_cracks(self, Vector2.ZERO, _cracks, _crack_grow, glow)
 		draw_set_transform(hole, 0.0, Vector2(2.0, 1.6))
-		_ST.draw_light(self, Vector2.ZERO, _crack_seed, _crack_grow, _crack_glow * _crack_glow * (0.6 if step == "crack" else 1.0), true)
+		_ST.draw_light(self, Vector2.ZERO, _crack_seed, _crack_grow, _crack_glow * _crack_glow, true)
 		draw_set_transform(Vector2.ZERO)
 	if STEPS.find(step) >= STEPS.find("burst") or step == "done":
 		_Pix.ellipse(self, hole + Vector2(0, -1), 40.0, 6.0, Color("0a0612", 0.85 if step != "done" else 0.85 * _scar), -1.0, 0.1)
