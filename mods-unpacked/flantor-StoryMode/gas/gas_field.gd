@@ -254,7 +254,12 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 func _is_open(c: Vector2i) -> bool:
 	if c.y < GasData.MIN_Y or not map.is_tile_empty(c) or _chamber.has_point(c):
 		return false
-	return _lava == null or _lava.mass.get(c, 0.0) < 0.9
+	if _lava == null:
+		return true
+	# Under the rising lava's band the lava is implied, not stored (#369).
+	if c.y >= _lava.fl_r0 and c.y < _lava.fl_r1:
+		return false
+	return _lava.mass.get(c, 0.0) < 0.9
 
 
 # Open sky over the mine's top row: nothing there at all.

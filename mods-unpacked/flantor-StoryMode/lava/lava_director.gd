@@ -92,6 +92,14 @@ func _process(_delta: float) -> void:
 			map.add_child(cut)
 		else:
 			cut.free()
+		# The rising lava (#369): from the end of that cutscene up through the
+		# mine, until a keeper enters the lair. Made after the cutscene, so its
+		# LastChain.when_done waiter outlives the cutscene's setup.
+		var rise = load(_Story.MOD_DIR + "endgame/rising_lava.gd").new()
+		if rise.setup(map):
+			map.add_child(rise)
+		else:
+			rise.free()
 
 
 func _wants_lava() -> bool:

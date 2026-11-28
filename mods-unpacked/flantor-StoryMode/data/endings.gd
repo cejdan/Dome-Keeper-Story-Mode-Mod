@@ -31,3 +31,13 @@ const SAVED_SUBTITLE := "Saved by the hands that nearly ended it."
 # locked (after the horror's body dies, until the final dome battle is won).
 const SHIP_BOARD := "[DRAFT] Board the ship"
 const SHIP_LOCKED := "[DRAFT] It's still holding the ship down."
+
+# Too late (#369, endgame/rising_lava.gd): the run lost to the rising lava.
+# Drafts until the user writes them: the card when a keeper's suit gives out
+# after the last chain (lava, the heat or gas: no recall to the dome now), the
+# card when the lava reaches the surface with nobody aboard or fighting, and
+# the end screen.
+const TOO_LATE_DEATH_CARDS: Array = ["[DRAFT] Your suit gave out. Nothing carried you home this time."]
+const TOO_LATE_SURFACE_CARDS: Array = ["[DRAFT] The lava reached the surface. The ship never left."]
+const TOO_LATE_TITLE := "[DRAFT] Too Late"
+const TOO_LATE_SUBTITLE := "[DRAFT] The lava rose faster than you."

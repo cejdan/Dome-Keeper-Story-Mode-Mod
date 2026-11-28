@@ -62,6 +62,14 @@ func play_fallen() -> void:
 	_step("end_screen")
 
 
+# Too late (#369): the rising lava took the run.
+func play_too_late(cause: String) -> void:
+	playing = "too_late"
+	_step("cards")
+	await _cards(Endings.TOO_LATE_SURFACE_CARDS if cause == "surface" else Endings.TOO_LATE_DEATH_CARDS, "doom")
+	_step("end_screen")
+
+
 var _card_input = null
 # Card sets shown on this instance (a playtest checks there is one per ending).
 var cards_shown: int = 0

@@ -159,7 +159,8 @@ func run(h) -> void:
 	all_lines.append_array(BossText.THANKS + BossText.FALLEN_CARDS)
 	var keys: Dictionary = s.get("keys", {})
 	var titles: Dictionary = {"Doom title": Endings.DOOM_TITLE, "Doom subtitle": Endings.DOOM_SUBTITLE, "Saved title": Endings.SAVED_TITLE, "Saved subtitle": Endings.SAVED_SUBTITLE,
-		"Fallen title": BossText.FALLEN_TITLE, "Fallen subtitle": BossText.FALLEN_SUBTITLE}
+		"Fallen title": BossText.FALLEN_TITLE, "Fallen subtitle": BossText.FALLEN_SUBTITLE,
+		"Too late title": Endings.TOO_LATE_TITLE, "Too late subtitle": Endings.TOO_LATE_SUBTITLE}
 	bad = []
 	for k: String in titles:
 		if keys.get(k, "<missing>") != titles[k]:
@@ -172,6 +173,12 @@ func run(h) -> void:
 	h.check("the ship's prompt matches ship_board", ship_md.get("ship_board", {}).get("lines", []) == [Endings.SHIP_BOARD], [ship_md.get("ship_board", {}), Endings.SHIP_BOARD])
 	h.check("the ship's locked line matches ship_locked", ship_md.get("ship_locked", {}).get("lines", []) == [Endings.SHIP_LOCKED], [ship_md.get("ship_locked", {}), Endings.SHIP_LOCKED])
 	all_lines.append_array([Endings.SHIP_BOARD, Endings.SHIP_LOCKED])
+
+	# The rising lava's loss (#369): drafts until the user writes them.
+	var late_md: Dictionary = s.get("Too late", {})
+	h.check("the too-late death card matches too_late_death", _diff(late_md.get("too_late_death", {}).get("lines", []), Endings.TOO_LATE_DEATH_CARDS).is_empty(), [late_md.get("too_late_death", {}), Endings.TOO_LATE_DEATH_CARDS])
+	h.check("the too-late surface card matches too_late_surface", _diff(late_md.get("too_late_surface", {}).get("lines", []), Endings.TOO_LATE_SURFACE_CARDS).is_empty(), [late_md.get("too_late_surface", {}), Endings.TOO_LATE_SURFACE_CARDS])
+	all_lines.append_array(Endings.TOO_LATE_DEATH_CARDS + Endings.TOO_LATE_SURFACE_CARDS)
 
 	# No placeholder text anywhere in the story data. A line marked "[DRAFT] "
 	# (#368) is a builder's stand-in the user is to replace: listed, not failed.

@@ -627,6 +627,59 @@ func _last_chain_step(seed: int, step: String) -> void:
 		n.host_step(step)
 
 
+# --- the rising lava (#369, endgame/rising_lava.gd) ---------------------------
+# Host -> clients: the level (rows), how fast it rises (rows a second) and the
+# state, a few times a second (a lost word is replaced by the next); each
+# client extrapolates between words and fills its own band from it.
+
+static func flood_level(row: float, rate: float, state: String) -> void:
+	if _inst != null and not Network.is_offline_mode() and not Network.is_client():
+		Network.rpc_if_state(_inst._flood_level.bind(Level.levelSeed, row, rate, state), Network.ConnectionState.LEVEL_STAGE_SYNC)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _flood_level(seed: int, row: float, rate: float, state: String) -> void:
+	if seed != Level.levelSeed:
+		return
+	var n = load("res://mods-unpacked/flantor-StoryMode/endgame/rising_lava.gd").find()
+	if n != null:
+		n.net_level(row, rate, state)
+
+
+# Host -> clients: the state changed (`live`: the rise begins now, with its roar).
+static func flood_state(row: float, state: String, live: bool) -> void:
+	if _inst != null and not Network.is_offline_mode() and not Network.is_client():
+		Network.rpc_if_state(_inst._flood_state.bind(Level.levelSeed, row, state, live), Network.ConnectionState.LEVEL_STAGE_SYNC)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _flood_state(seed: int, row: float, state: String, live: bool) -> void:
+	if seed != Level.levelSeed:
+		return
+	var n = load("res://mods-unpacked/flantor-StoryMode/endgame/rising_lava.gd").find()
+	if n != null:
+		n.net_state(row, state, live)
+
+
+# Client -> host: my keeper `pid` died in the suit after the last chain (the
+# "too late" loss; `cause` lava or gas). The host ends the run for everyone.
+static func too_late(pid: String, cause: String) -> void:
+	if _inst != null and Network.is_client():
+		_inst.rpc_id(1, "_too_late", pid, cause)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _too_late(pid: String, cause: String) -> void:
+	if Network.is_client() or not _Story.is_story():
+		return
+	var k = Keepers.getKeeper(pid) if Keepers.hasKeeper(pid) else null
+	if k == null or k.peerId != multiplayer.get_remote_sender_id():
+		return
+	var RisingLava = load("res://mods-unpacked/flantor-StoryMode/endgame/rising_lava.gd")
+	if RisingLava.ends_run() and Level.mode != null and Level.mode.has_method("too_late"):
+		Level.mode.too_late("gas" if cause == "gas" else "lava", pid)
+
+
 # --- the ocean's tentacles (#364) ---------------------------------------------
 # The host's wave clocks, swings and speeds (map/ocean_tentacles.gd
 # clock_state), a few times a second; a lost one is replaced by the next.

@@ -88,6 +88,10 @@ _Avoid_: Roots, tethers
 The moment the tenth chain breaks: the horror is unbound. It happens once per run and is what the lair seal, the ship, the cutscene and the rising lava wait for (End game 2.0, #363; `endgame/end_game.gd`).
 _Avoid_: Final seal, release
 
+**Rising lava**:
+After the last chain's cutscene, lava rising from the lava ocean up through the mine at a set speed, the end game's timer (#369). It stops for good when a keeper enters the lair. Its level is the **flood line**: one number; the dug cells in a thin band under it are real lava, every open cell below that is lava by the level alone.
+_Avoid_: Flood (alone), lava timer, tide
+
 ### The keeper's dangers
 
 **Suit heat**:
@@ -211,3 +215,7 @@ _Avoid_: Good ending, true ending
 **Fallen ending**:
 The ending when the keepers run out of hearts during the boss sequence: the horror is awake and the planet is lost.
 _Avoid_: Death, game over (that is the dome falling)
+
+**Too late**:
+The loss to the rising lava (#369): the lava reached the surface with nobody aboard the ship or fighting, or a keeper's suit gave out after the last chain and before anyone entered the lair (no recall to the dome then).
+_Avoid_: Timeout, game over (that is the dome falling)

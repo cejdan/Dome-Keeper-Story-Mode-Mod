@@ -387,6 +387,16 @@ The last thing you see before everything goes dark
 Is the great eye.
 Then, the teeth.
 
+## Too late
+
+Draft lines for the rising lava's loss (#369, `data/endings.gd` TOO_LATE_*), waiting for the user's words: after the last chain a suit death no longer recalls the keeper to the dome, and the lava reaching the surface with nobody aboard the ship or fighting ends the run.
+
+### too_late_death
+[DRAFT] Your suit gave out. Nothing carried you home this time.
+
+### too_late_surface
+[DRAFT] The lava reached the surface. The ship never left.
+
 ## End screen titles
 
 Doom title: The Planet Is Lost
@@ -397,3 +407,6 @@ Saved subtitle: Saved by the hands that nearly ended it.
 
 Fallen title: The Planet Is Lost
 Fallen subtitle: You woke it. Nobody was left to stop it.
+
+Too late title: [DRAFT] Too Late
+Too late subtitle: [DRAFT] The lava rose faster than you.

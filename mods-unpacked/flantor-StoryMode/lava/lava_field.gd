@@ -468,6 +468,16 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 	_open_cache.erase(c)
 	_tile_events += 1
 	_wake(c)
+	# Under the flood line (#369): the new cell is lava at once (in the band,
+	# a real cell; below it, implied). A magma cell there adds nothing.
+	if fl_on and c.y >= _fl_top and c.y < fl_r1:
+		_fl_dug(c)
+		if magma.has(c):
+			magma.erase(c)
+			melt_timers.erase(c)
+			breaches += 1
+			InputSystem.shake(6.0, 0.5, 20.0, world_pos)
+		return
 	if not magma.has(c):
 		return
 	magma.erase(c)
@@ -479,7 +489,22 @@ func _on_tile_destroyed(world_pos: Vector2) -> void:
 
 # The boss chamber counts as closed for lava, so drilling into it from the
 # ocean doesn't flood the arena; the lava rests on its ceiling (#43).
+#
+# Under the flood line's band (#369) every open cell is lava by the level
+# alone (implied, not stored): the flow sees those rows as closed, so the
+# band rests on them and nothing pours down into them.
 func _is_open(c: Vector2i) -> bool:
+	if c.y >= fl_r0 and c.y < fl_r1:
+		return false
+	var v = _open_cache.get(c)
+	if v == null:
+		v = c.y >= MIN_Y and map.is_tile_empty(c) and not _chamber.has_point(c)
+		_open_cache[c] = v
+	return v
+
+
+# _is_open() without the flood line: is the cell dug out (or a cave)?
+func _raw_open(c: Vector2i) -> bool:
 	var v = _open_cache.get(c)
 	if v == null:
 		v = c.y >= MIN_Y and map.is_tile_empty(c) and not _chamber.has_point(c)
@@ -531,6 +556,8 @@ func _physics_body(delta: float) -> void:
 		_melt(delta)
 		_check_water()
 		_net_send(delta)
+	if fl_on:
+		_fl_tick(delta)
 	_update_heat(delta)
 	if not _steam.is_empty():
 		for e in _steam:
@@ -599,9 +626,14 @@ func _step() -> void:
 	# step touches only the cells that move, not every lava cell on the map.
 	var work: Array = mass.keys() if all_awake else _awake.keys().filter(func(c): return mass.has(c))
 	var dm: Dictionary = {}
+	var band: Dictionary = _fl_band
 	for c in work:
 		var m: float = mass[c]
 		if m <= 0.0:
+			continue
+		# The flood line's band (#369) is held at its level: it takes in what
+		# pours onto it and gives nothing back.
+		if fl_on and band.has(c):
 			continue
 		var remaining := m
 		var below: Vector2i = c + Vector2i.DOWN
@@ -652,6 +684,8 @@ func _step() -> void:
 	# Cooling is decided on the flowed masses, then applied.
 	var cool: Array = []
 	for c in nv:
+		if fl_on and band.has(c):
+			continue
 		# A sleeping cell's neighbours didn't change, so neither did its cooling.
 		if (all_awake or _awake.has(c)) and (legacy_cooling or _cools(c, nv[c], nv, mass)):
 			cool.append(c)
@@ -684,6 +718,8 @@ func _step() -> void:
 	_awake = {}
 	for c in woke:
 		_wake(c)
+	if fl_on:
+		_fl_full_hold = true
 
 
 # Lava cools only at a thin, open surface (#41): nothing below it, and its top
@@ -877,6 +913,7 @@ func _harden(c: Vector2i) -> void:
 	_tile_events += 1
 	mass.erase(c)
 	shown.erase(c)
+	_fl_band_remove(c)   # rock now: the flood line passes it by (#369)
 	_wake(c)
 	var td = map.tileData
 	if td.get_hardnessv(c) < 0 or td.get_hardnessv(c) >= Data.HARDNESS_INDESTRUCTIBLE:
@@ -977,6 +1014,13 @@ func overheat(keeper, teleport: bool = true, cause: String = "lava") -> bool:
 	if BossDirector.jams_recall():
 		BossDirector.overheated(keeper)
 		return true
+	# After the last chain, until a keeper enters the lair (#369): no recall to
+	# the dome (it would be a free ride to the ship). The run is lost.
+	var RisingLava = load("res://mods-unpacked/flantor-StoryMode/endgame/rising_lava.gd")
+	if RisingLava.ends_run():
+		heats[keeper.playerId] = HEAT_MAX
+		RisingLava.lost_in_lava(keeper, cause)
+		return true
 	_recall(keeper, teleport, cause)
 	return false
 
@@ -1070,6 +1114,9 @@ func _net_send(delta: float) -> void:
 	var buf := StreamPeerBuffer.new()
 	var n := 0
 	for c: Vector2i in _net_dirty:
+		# Under the flood line clients fill their own band from the level (#369).
+		if fl_on and c.y >= _fl_top and c.y < fl_r1:
+			continue
 		var m: float = mass.get(c, 0.0)
 		if m > 0.0 and absf(m - _net_sent.get(c, 0.0)) <= NET_EPS:
 			continue
@@ -1109,6 +1156,9 @@ func net_apply(data: PackedByteArray, full: bool) -> void:
 	while buf.get_position() + 8 <= data.size():
 		var c := Vector2i(buf.get_16(), buf.get_16())
 		var m: float = buf.get_float()
+		# Under the flood line this instance holds its own band (#369).
+		if fl_on and c.y >= _fl_top and c.y < fl_r1:
+			continue
 		var o: float = mass.get(c, 0.0)
 		if m > MIN_MASS:
 			mass[c] = m
@@ -1122,12 +1172,397 @@ func net_apply(data: PackedByteArray, full: bool) -> void:
 				_puff(c, 3)
 			elif _puff_rng.randf() < (0.3 if m < FILM_MASS else 0.035) * NET_EVERY / TICK:
 				_puff(c, 1)
+	if full and fl_on:
+		_fl_full_hold = true
 
 
 # Client: lava the host hardened into rock with water.
 func net_harden(cells: PackedVector2Array) -> void:
 	for v in cells:
 		_harden(Vector2i(v))
+
+
+# --- the flood line (#369) ----------------------------------------------------------
+# After the last chain the lava rises from the ocean up through the mine
+# (endgame/rising_lava.gd moves the level; it is one number, `fl_row`: the
+# lava's surface in tile rows, smaller is higher). This field turns it into
+# lava:
+#   the band   the dug cells in the BAND_ROWS rows at the top of the flood are
+#              real cells here: the top row as full as the level is into it,
+#              the rest full. They burn, steam, light gas and melt magma like
+#              any lava, and lava pouring onto them joins them; they never flow
+#              or cool (the level holds them). Lava already in a band row's
+#              cells when the line gets there is simply held at the level.
+#   implied    every open cell below the band, down to the ocean's top row (the
+#              ocean keeps its own cells), is lava by the level alone: not
+#              stored, never simulated. The flow sees those rows as closed
+#              (_is_open), a keeper in them is in lava (keeper_in_lava), and one
+#              shader rect draws them (lava/flood_body.gdshader, with its glow
+#              lava/flood_glow.gdshader) from a mask of the open cells the player
+#              has seen. Nothing off screen costs anything to draw.
+# Rock stays rock: only open cells fill. A cell dug under the line fills at
+# once. So the cost is one thin strip of lava however deep the flood is.
+# Online every peer runs this from its own copy of the level (the host sends
+# it); the band and the implied rows never go over the lava stream.
+
+const FloodData = preload("res://mods-unpacked/flantor-StoryMode/data/rising_lava.gd")
+const FLOOD_BODY_SHADER := "res://mods-unpacked/flantor-StoryMode/lava/flood_body.gdshader"
+const FLOOD_GLOW_SHADER := "res://mods-unpacked/flantor-StoryMode/lava/flood_glow.gdshader"
+const FLOOD_RESCAN_S := 0.4
+
+var fl_on := false                 # the flood line is in the mine (rising or held)
+var fl_row: float = INF            # the lava's surface, in tile rows
+var fl_r0 := 0                     # implied rows: fl_r0 ..
+var fl_r1 := 0                     # .. fl_r1 (exclusive: the ocean's top row)
+var _fl_top := 0                   # the band's top row (floor(fl_row)); band rows _fl_top .. fl_r0
+var _fl_y0 := 0.0                  # world y of row fl_r0's top edge ...
+var _fl_y1 := 0.0                  # ... and of fl_r1's
+var _fl_band: Dictionary = {}      # band cell -> true
+var _fl_rows: Dictionary = {}      # band row -> Array of its cells
+var _fl_full_hold := false         # the whole band needs holding (after a flow step, a load ...)
+var _fl_x0 := 0                    # the map's columns x0 ..
+var _fl_x1 := 0                    # .. x1 (exclusive)
+var _fl_my0 := 0                   # the mask's first row
+var _fl_mask := PackedByteArray()  # per cell 255: implied lava the shader draws
+var _fl_img: Image
+var _fl_tex: ImageTexture
+var _fl_mask_dirty := false
+var _fl_scan_t := 0.0
+var _fl_seen_n := -1
+var _fb: Node2D = null             # the implied lava (flood_body.gdshader)
+var _fb_mat: ShaderMaterial
+var _fg: Node2D = null             # ... and its glow
+var _fg_mat: ShaderMaterial
+var _fl_origin := Vector2.INF      # the mask's cell (x0, my0) top-left, in this node's space
+var fl_cells_implied := 0          # open cells under the band, for logs (counted at each move)
+
+
+# The flood line's level (rows): the first call puts it in the mine, later
+# ones move it up. It never moves down (a call below it is ignored).
+func flood_set(row: float) -> void:
+	if _ocean.is_empty() or map == null:
+		return
+	var end: int = int(_ocean["top"])
+	row = clampf(row, float(FloodData.SURFACE_ROW), float(end))
+	if not fl_on:
+		_fl_start(row)
+		return
+	if row >= fl_row:
+		return
+	fl_row = row
+	var top: int = int(floor(row))
+	if top < _fl_top:
+		_fl_move(top)
+
+
+func flood_active() -> bool:
+	return fl_on
+
+
+# The world y of the lava's surface, or INF with no flood.
+func flood_y() -> float:
+	if not fl_on:
+		return INF
+	return map.getTilePos(Vector2(0, 0)).y - TILE * 0.5 + fl_row * TILE
+
+
+# Is cell `c` lava by the flood line (in the band or under it)?
+func flooded(c: Vector2i) -> bool:
+	if not fl_on or c.y < _fl_top or c.y >= fl_r1:
+		return false
+	if c.y >= fl_r0:
+		return _raw_open(c)
+	return _fl_band.has(c) and (c.y > _fl_top or float(c.y + 1) - fl_row > MIN_MASS)
+
+
+func _fl_start(row: float) -> void:
+	fl_on = true
+	fl_row = row
+	var end: int = int(_ocean["top"])
+	var used: Rect2i = map.tileData.get_used_rect()
+	_fl_x0 = used.position.x
+	_fl_x1 = used.end.x
+	_fl_my0 = mini(used.position.y, FloodData.SURFACE_ROW)
+	_fl_top = int(floor(row))
+	fl_r1 = end
+	fl_r0 = mini(_fl_top + FloodData.BAND_ROWS, end)
+	# Lava stored under the band (pockets' lava, pools, streams) is the
+	# level's now.
+	for c: Vector2i in mass.keys():
+		if c.y >= fl_r0 and c.y < fl_r1:
+			mass.erase(c)
+			_shown_dirty[c] = true
+	for c: Vector2i in sources.keys():
+		if c.y >= fl_r0 and c.y < fl_r1:
+			sources.erase(c)
+	_fl_band.clear()
+	_fl_rows.clear()
+	for r in range(maxi(_fl_top, MIN_Y), fl_r0):
+		_fl_add_row(r)
+	_fl_update_ys()
+	_fl_setup_draw()
+	fl_cells_implied = 0
+	for r in range(fl_r0, fl_r1):
+		_fl_mask_row(r)
+	# Straight to the level (no lava pouring in from nothing).
+	_fl_hold_rows(true, 0.0)
+	for c in _fl_band:
+		if mass.has(c):
+			shown[c] = mass[c]
+	_view_dirty = true
+	ModLoaderLog.info("Flood line: in the mine at row %.2f (band rows %d..%d, implied %d..%d, %d band cells, %d implied cells seen)" % [row, _fl_top, fl_r0 - 1, fl_r0, fl_r1 - 1, _fl_band.size(), fl_cells_implied], "flantor-StoryMode")
+
+
+func _fl_update_ys() -> void:
+	var y00: float = map.getTilePos(Vector2(0, 0)).y - TILE * 0.5
+	_fl_y0 = y00 + float(fl_r0) * TILE
+	_fl_y1 = y00 + float(fl_r1) * TILE
+	if _fb != null:
+		_fb.visible = fl_r0 < fl_r1
+		_fg.visible = _fb.visible
+		_fb.queue_redraw()
+		_fg.queue_redraw()
+
+
+# The band moves up: its top row is now `top`.
+func _fl_move(top: int) -> void:
+	var old_top: int = _fl_top
+	var old_r0: int = fl_r0
+	_fl_top = top
+	fl_r0 = mini(top + FloodData.BAND_ROWS, fl_r1)
+	# The rows that leave the band at the bottom are implied from now on.
+	for r in range(fl_r0, old_r0):
+		for x in range(_fl_x0, _fl_x1):
+			var c := Vector2i(x, r)
+			if mass.has(c):
+				mass.erase(c)
+				_shown_dirty[c] = true
+			if sources.has(c):
+				sources.erase(c)
+		for c in _fl_rows.get(r, []):
+			_fl_band.erase(c)
+		_fl_rows.erase(r)
+		_fl_mask_row(r)
+	# And new rows join it at the top.
+	for r in range(maxi(top, MIN_Y), mini(old_top, fl_r0)):
+		_fl_add_row(r)
+	_fl_update_ys()
+	_fl_full_hold = true
+	_view_dirty = true
+
+
+func _fl_add_row(r: int) -> void:
+	for x in range(_fl_x0, _fl_x1):
+		var c := Vector2i(x, r)
+		if _raw_open(c):
+			_fl_band_add(c)
+
+
+func _fl_band_add(c: Vector2i) -> void:
+	if _fl_band.has(c):
+		return
+	_fl_band[c] = true
+	if not _fl_rows.has(c.y):
+		_fl_rows[c.y] = []
+	_fl_rows[c.y].append(c)
+
+
+func _fl_band_remove(c: Vector2i) -> void:
+	if not _fl_band.has(c):
+		return
+	_fl_band.erase(c)
+	var row: Array = _fl_rows.get(c.y, [])
+	row.erase(c)
+
+
+# A cell dug (or melted) under the flood line: lava at once.
+func _fl_dug(c: Vector2i) -> void:
+	if not _raw_open(c):
+		return
+	if c.y >= fl_r0:
+		if not _fl_known.is_empty() and c.x >= _fl_x0 and c.x < _fl_x1 and c.y >= _fl_my0:
+			_fl_learn(c, (c.y - _fl_my0) * (_fl_x1 - _fl_x0) + c.x - _fl_x0)
+		return
+	if c.y >= MIN_Y:
+		_fl_band_add(c)
+		_fl_full_hold = true
+
+
+# Every physics frame while the flood line is in the mine: the band's top row
+# follows the level (the rest after a flow step or a move), steam off the
+# rising surface, the reveal, the shaders' clock.
+func _fl_tick(delta: float) -> void:
+	_fl_hold_rows(_fl_full_hold, delta)
+	_fl_full_hold = false
+	_fl_scan_t += delta
+	if _fl_scan_t >= FLOOD_RESCAN_S:
+		_fl_scan_t = 0.0
+		_fl_rescan()
+	if _fl_mask_dirty and _fl_img != null:
+		_fl_mask_dirty = false
+		_fl_img.set_data(_fl_x1 - _fl_x0, fl_r1 - _fl_my0, false, Image.FORMAT_R8, _fl_mask)
+		_fl_tex.update(_fl_img)
+	if _fb != null and _fb.visible:
+		var o: Vector2 = _origin_base() + Vector2(_fl_x0, _fl_my0) * TILE
+		if o != _fl_origin:
+			_fl_origin = o
+			_fb_mat.set_shader_parameter("origin", o)
+			_fg_mat.set_shader_parameter("origin", o)
+			_fb.queue_redraw()
+			_fg.queue_redraw()
+		_fb_mat.set_shader_parameter("time", _time)
+		_fg_mat.set_shader_parameter("time", _time)
+
+
+# Sets the band's cells to the level: the top row as full as the level is into
+# it, the rows under it full. Lava that poured onto the band is taken in.
+func _fl_hold_rows(all: bool, delta: float) -> void:
+	var rows: Array = range(_fl_top, fl_r0) if all else [_fl_top]
+	var puff_p: float = FloodData.SURFACE_PUFFS_PER_S * delta
+	for r: int in rows:
+		var f: float = 1.0 if r > _fl_top else clampf(float(r + 1) - fl_row, 0.0, 1.0)
+		for c: Vector2i in _fl_rows.get(r, []):
+			var o: float = mass.get(c, 0.0)
+			if f <= MIN_MASS:
+				if o > 0.0:
+					mass.erase(c)
+					_shown_dirty[c] = true
+				continue
+			if absf(o - f) > 0.0005:
+				mass[c] = f
+				_shown_dirty[c] = true
+				if o < 0.1 and f >= 0.1:
+					# Magma rock beside it starts to melt (host).
+					for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.UP]:
+						if magma.has(c + d):
+							_melt_check[c + d] = true
+			if r == _fl_top and puff_p > 0.0 and f > 0.05 and _puff_rng.randf() < puff_p and _on_screen(c):
+				_puff(c, 1)
+
+
+# Implied cells the player sees now (a cave opened into, a reveal near the
+# line, the tiles a loaded run reveals, a view that moved): open cells in the
+# view boxes not yet known as seen, looked at again when the reveal count or
+# the view boxes change. Each cell is worked out once (rock stays rock; an
+# open cell nobody has seen waits for the next reveal).
+func _fl_rescan() -> void:
+	if fl_r0 >= fl_r1 or _fl_known.is_empty():
+		return
+	var n: int = map.visibleTileCoords.size()
+	var reveal: bool = n != _fl_seen_n
+	if not reveal and _view_boxes == _fl_scan_boxes:
+		return
+	_fl_seen_n = n
+	_fl_scan_boxes = _view_boxes.duplicate()
+	var w: int = _fl_x1 - _fl_x0
+	for bx in _view_boxes:
+		for y in range(maxi(bx[0].y, fl_r0), mini(bx[1].y, fl_r1 - 1) + 1):
+			var row: int = (y - _fl_my0) * w - _fl_x0
+			for x in range(maxi(bx[0].x, _fl_x0), mini(bx[1].x, _fl_x1 - 1) + 1):
+				var kn: int = _fl_known[row + x]
+				if kn == FL_ROCK or kn == FL_LAVA or (kn == FL_UNSEEN and not reveal):
+					continue
+				_fl_learn(Vector2i(x, y), row + x)
+
+
+const FL_UNKNOWN := 0
+const FL_ROCK := 1
+const FL_UNSEEN := 2               # open, not seen yet
+const FL_LAVA := 3                 # open and seen: the shader draws it
+var _fl_known := PackedByteArray()
+var _fl_scan_boxes: Array = []
+
+
+# Works out one implied cell: rock, open but unseen, or lava the shader draws.
+func _fl_learn(c: Vector2i, i: int) -> bool:
+	if not _raw_open(c):
+		_fl_known[i] = FL_ROCK
+		return false
+	if not _FieldUtil.seen(map, c):
+		_fl_known[i] = FL_UNSEEN
+		return false
+	_fl_known[i] = FL_LAVA
+	if _fl_mask[i] != 255:
+		_fl_mask[i] = 255
+		_fl_mask_dirty = true
+		fl_cells_implied += 1
+	return true
+
+
+# Marks the implied, seen open cells of row `r` for the shader.
+func _fl_mask_row(r: int) -> void:
+	if _fl_mask.is_empty() or r < _fl_my0 or r >= fl_r1:
+		return
+	var row: int = (r - _fl_my0) * (_fl_x1 - _fl_x0) - _fl_x0
+	for x in range(_fl_x0, _fl_x1):
+		_fl_learn(Vector2i(x, r), row + x)
+
+
+func _fl_setup_draw() -> void:
+	var w: int = _fl_x1 - _fl_x0
+	var hgt: int = fl_r1 - _fl_my0
+	if w <= 0 or hgt <= 0:
+		return
+	_fl_mask.resize(w * hgt)
+	_fl_mask.fill(0)
+	_fl_known.resize(w * hgt)
+	_fl_known.fill(FL_UNKNOWN)
+	_fl_scan_boxes = []
+	_fl_seen_n = -1
+	if DisplayServer.get_name() == "headless":
+		return
+	_fl_img = Image.create_from_data(w, hgt, false, Image.FORMAT_R8, _fl_mask)
+	_fl_tex = ImageTexture.create_from_image(_fl_img)
+	_fb_mat = ShaderMaterial.new()
+	_fb_mat.shader = load(FLOOD_BODY_SHADER)
+	_fb_mat.set_shader_parameter("mask", _fl_tex)
+	_fb_mat.set_shader_parameter("first_cell", Vector2(_fl_x0, _fl_my0))
+	_fb_mat.set_shader_parameter("tile", TILE)
+	_fb_mat.set_shader_parameter("col_body", COL_BODY)
+	_fb_mat.set_shader_parameter("col_deep", COL_DEEP)
+	_fb_mat.set_shader_parameter("col_hot", COL_HOT)
+	_fb_mat.set_shader_parameter("col_crust", COL_CRUST)
+	_fb = Node2D.new()
+	_fb.name = "LavaFloodBody"
+	_fb.material = _fb_mat
+	_fb.show_behind_parent = true
+	_fb.draw.connect(_draw_flood_rect)
+	add_child(_fb)
+	_fg_mat = ShaderMaterial.new()
+	_fg_mat.shader = load(FLOOD_GLOW_SHADER)
+	_fg_mat.set_shader_parameter("mask", _fl_tex)
+	_fg_mat.set_shader_parameter("glow_tex", _glow_tex)
+	_fg_mat.set_shader_parameter("tile", TILE)
+	_fg_mat.set_shader_parameter("first_cell", Vector2(_fl_x0, _fl_my0))
+	_fg = Node2D.new()
+	_fg.name = "LavaFloodGlow"
+	_fg.material = _fg_mat
+	_fg.z_index = _glow.z_index
+	_fg.draw.connect(_draw_flood_glow_rect)
+	add_child(_fg)
+	_fl_origin = Vector2.INF
+	_fb.visible = fl_r0 < fl_r1
+	_fg.visible = _fb.visible
+
+
+# The rect over the implied rows (the shader keeps to the masked cells).
+func _draw_flood_rect() -> void:
+	if _fl_origin == Vector2.INF or fl_r0 >= fl_r1:
+		return
+	var o: Vector2 = _fl_origin + Vector2(0, fl_r0 - _fl_my0) * TILE
+	_fb.draw_rect(Rect2(o, Vector2(_fl_x1 - _fl_x0, fl_r1 - fl_r0) * TILE), Color.WHITE)
+
+
+func _draw_flood_glow_rect() -> void:
+	if _fl_origin == Vector2.INF or fl_r0 >= fl_r1:
+		return
+	var o: Vector2 = _fl_origin + Vector2(-2, fl_r0 - _fl_my0 - 2) * TILE
+	_fg.draw_rect(Rect2(o, Vector2(_fl_x1 - _fl_x0 + 4, fl_r1 - fl_r0 + 2) * TILE), Color.WHITE)
+
+
+func flood_stats() -> Dictionary:
+	return {"on": fl_on, "row": snappedf(fl_row, 0.01) if fl_on else null, "band_top": _fl_top, "implied": [fl_r0, fl_r1], "band_cells": _fl_band.size(),
+		"implied_seen": fl_cells_implied, "mass_cells": mass.size()}
 
 
 # --- drawing -------------------------------------------------------------------
@@ -1489,8 +1924,14 @@ func lava_touched(world_rect: Rect2) -> Vector2i:
 
 # The keeper's body for lava contact: a fixed box around its position, from its
 # collision shapes (a 5 px circle and two small squares 3.9 px above and below).
+#
+# Under the flood line's band (#369) the lava is the level's, not stored: a
+# keeper whose body reaches below the band's bottom edge is in it.
 func keeper_in_lava(keeper) -> bool:
-	return lava_overlaps(_FieldUtil.keeper_rect(keeper))
+	var r := _FieldUtil.keeper_rect(keeper)
+	if fl_r0 < fl_r1 and r.end.y - BURN_TOLERANCE > _fl_y0 and r.position.y < _fl_y1:
+		return true
+	return lava_overlaps(r)
 
 
 func _fill_of(c: Vector2i) -> float:
@@ -1633,6 +2074,9 @@ func _sort_cells(vis: Array, b0: Vector2) -> void:
 		# (_is_stream() is false for a cell 0.9 full or more: asked only below that.)
 		var su: float = shown.get(up, 0.0)
 		var above_has: bool = su > 0.05 and (su >= 0.9 or not _is_stream(up))
+		# The ocean's top row under the flood line's implied lava (#369).
+		if not above_has and c.y == fl_r1 and fl_r0 < fl_r1 and _raw_open(up):
+			above_has = true
 		if s < 0.9 and _is_stream(c):
 			kind[idx] = 1
 			continue

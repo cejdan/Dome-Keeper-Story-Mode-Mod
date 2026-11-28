@@ -397,6 +397,84 @@ func keeper_lost() -> void:
 	await _end_fallen()
 
 
+# Too late (#369, endgame/rising_lava.gd): after the last chain the lava rose
+# to the surface with nobody aboard the ship or fighting (`cause` "surface"),
+# or a keeper died in the suit before anyone entered the lair (`cause` "lava"
+# or "gas", `pid` that keeper). The run ends in failure for everyone: play
+# stops, the moment plays on every instance (the lost keeper sinks into the
+# lava; the surface shakes and roars), a [DRAFT] card, the end screen. The host
+# decides (a client's keeper asks through StoryNet.too_late). Returns whether
+# it started.
+func too_late(cause: String, pid: String = "") -> bool:
+	if not multiplayer.is_server() or not _can_end():
+		return false
+	_lost = true
+	ModLoaderLog.info("Too late (%s%s): the run ends in failure" % [cause, ", " + pid if pid != "" else ""], Story.LOG)
+	_too_late_run(cause, pid)
+	return true
+
+
+func _too_late_run(cause: String, pid: String) -> void:
+	await _stop_play()
+	_to_clients(_net_too_late.bind(cause, pid))
+	_too_late_fx(cause, pid)
+	var Flood = load(Story.MOD_DIR + "data/rising_lava.gd")
+	await get_tree().create_timer(Flood.SURFACE_HOLD_S if cause == "surface" else Flood.DEATH_HOLD_S).timeout
+	var endings = get_node_or_null("StoryEndings")
+	if endings != null:
+		await endings.play_too_late(cause)
+	await _end_too_late()
+
+
+# Host to clients: the "too late" moment.
+@rpc("authority", "call_remote", "reliable")
+func _net_too_late(cause: String, pid: String) -> void:
+	_too_late_fx(cause, pid)
+
+
+# Too-late moments shown on this instance (playtests).
+var too_late_shown: Array = []
+
+
+# The moment, on this instance: the lost keeper glows and sinks away into the
+# lava; at the surface, the ground heaves and the horror roars.
+func _too_late_fx(cause: String, pid: String) -> void:
+	too_late_shown.append(cause)
+	var Sfx = load(Story.MOD_DIR + "boss/sfx.gd")
+	if cause == "surface":
+		InputSystem.shake(22.0, 1.8, 12.0)
+		Sfx.play("roar", -1.0, 0.55)
+		Sfx.play("boom", -4.0, 0.5)
+		return
+	InputSystem.shake(12.0, 0.8, 14.0)
+	Sfx.play("keeper_down", -4.0, 0.8)
+	Sfx.play("roar", -10.0, 0.5)
+	var k = Keepers.getKeeper(pid) if pid != "" and Keepers.hasKeeper(pid) else null
+	if k != null and is_instance_valid(k):
+		var tw: Tween = k.create_tween()
+		tw.tween_property(k, "modulate", Color(1.6, 0.55, 0.2, 1.0), 0.35)
+		tw.tween_property(k, "modulate", Color(1.2, 0.3, 0.1, 0.0), 1.0)
+
+
+# The too-late end screen. Online, every player's instance runs it.
+@rpc("authority", "call_remote", "reliable")
+func _end_too_late() -> void:
+	_to_clients(_end_too_late)
+	Level.moveHudOut()
+	GameWorld.lost = true
+	await get_tree().create_timer(1.2).timeout
+	Audio.sound("lose")
+	await get_tree().create_timer(0.2).timeout
+	GameWorld.handleGameLost()
+	Audio.startGameOver(1.0)
+	await get_tree().create_timer(5.0).timeout
+	var popup = load("res://content/gamemode/relichunt/RunFinishedPopup.tscn").instantiate()
+	popup.init(multiplayer.is_server())
+	var Endings = load(Story.MOD_DIR + "data/endings.gd")
+	load(Story.MOD_DIR + "endings/ending_director.gd").retitle(popup, Endings.TOO_LATE_TITLE, Endings.TOO_LATE_SUBTITLE)
+	_show_end(popup)
+
+
 # The lost ending's end screen. Online, every player's instance runs it.
 @rpc("authority", "call_remote", "reliable")
 func _end_fallen() -> void:
