@@ -31,12 +31,15 @@ func run(h) -> void:
 	# The shop, focused on it.
 	h.set_inv("money", 48210)
 	Level.stage.startUpgradesInput(h.keeper())
-	await h.wait(1.5)
+	await h.wait(0.6)
+	await h.shot("shop_opening")
+	await h.wait(2.0)
+	await h.shot("shop_open")
 	var focused: String = ""
 	var panels: Array = h.get_tree().root.find_children("*", "", true, false).filter(func(n): return n is Control and "techId" in n and str(n.techId).ends_with("storyretirerich"))
 	if not panels.is_empty():
 		InputSystem.grabFocus(panels[0])
-		await h.wait(1.2)
+		await h.wait(2.5)
 	var tree = _tech_tree(h)
 	focused = str(tree.focussedTechPanel.techId) if tree != null and tree.focussedTechPanel != null else ""
 	await h.wait(0.6)
