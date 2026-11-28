@@ -76,6 +76,9 @@ func run(h) -> void:
 	await shared(h, "free", 120.0)
 	var live: bool = await h.until(func(): return _LairSeal.events.any(func(e): return e["what"] == "free_live"), 10.0)
 	h.check("client: the last chain reached the seal live, and it let keepers through", live and not seal.blocking, [_LairSeal.events, seal.state()])
+	# The last-chain cutscene (#367) plays first; the opening waits for it.
+	var LastChain = load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd")
+	await h.until(func(): return LastChain.is_done() and not GameWorld.paused, 45.0)
 	await h.teleport_tile(c + Vector2i(2, -1))
 	h.snap_camera(k)
 	await h.until(func():

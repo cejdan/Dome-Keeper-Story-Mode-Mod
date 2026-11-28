@@ -13,10 +13,11 @@ extends Node2D
 #   a lava haze puts it behind them. Hidden until the player has seen the
 #   ocean round it; drawn only while a view shows it.
 #
-#   At the last chain (EndGame.when_free): until #367's cutscene exists, a
-#   placeholder: the coil drags the ship down into the lava, the ground
-#   beside the dome cracks and the ship is pushed up out of it, legs out.
-#   After a load or a late join it is simply at the dome.
+#   At the last chain (EndGame.when_free): the last-chain cutscene (#367,
+#   endgame/last_chain.gd) takes the ship over and sets it down by the dome.
+#   Without it (no cutscene node), a placeholder: the coil drags the ship down
+#   into the lava, the ground beside the dome cracks and the ship is pushed
+#   up out of it, legs out. After a load or a late join it is simply at the dome.
 #
 #   At the dome: it stands on the ground on the dome's left (the station is on
 #   every dome's right), nose to the dome, no collision, behind the monsters.
@@ -53,6 +54,12 @@ extends Node2D
 #                                      during the cutscene; ship.set_legs(0..1),
 #                                      ship.set_visor(0..1), ship.set_scorched(bool)
 #   ship.release_ocean(animated)       the coil lets go and sinks (or just goes)
+#   ship.clip_to_ground(on)            hides what of the carrier is under the
+#                                      ground beside the dome (#367's break-out)
+#   ship.ground_y() -> float           the ground's height there (global)
+#   ship.set_lights(on)                its windows and running lights
+#   ship.land_now(live)                ends it where the cutscene set it down:
+#                                      clean, lit, standing at the dome
 #   ship.place_at_dome(animated)       ends it: the ship stands at the dome
 #                                      (animated: the placeholder rise from the
 #                                      ground; false: at once). Any peer, local.
@@ -620,6 +627,53 @@ func place_at_dome(animated: bool) -> void:
 		events.append({"what": "rise", "t": _t})
 	else:
 		_land(false)
+
+
+# #367: the cutscene has set the ship down at the dome itself; it stands there
+# from now on (`live`: the landed signal says it was live).
+func land_now(live: bool) -> void:
+	if mode == "dome" or mode == "lifting" or mode == "gone" or not _dome_geo():
+		return
+	_want_land = 0
+	_sink_t = -1.0
+	if ocean != null:
+		ocean.visible = false
+	carrier.visible = true
+	set_scorched(false)
+	set_lights(true)
+	_land(live)
+
+
+# #367: hides what of the carrier is under the ground beside the dome (the
+# ship and anything the cutscene hangs on it), or stops hiding it.
+func clip_to_ground(on: bool) -> void:
+	if not _dome_geo():
+		return
+	var at: Vector2 = carrier.global_position
+	_clip.clip_contents = on
+	if on:
+		_clip.position = Vector2(spot.x - 1400.0, _ground_y - 3200.0)
+		_clip.size = Vector2(2800.0, 3200.0)
+	else:
+		_clip.position = Vector2.ZERO
+		_clip.size = Vector2.ZERO
+	carrier.global_position = at
+
+
+# The ground's height beside the dome (global y), INF before the dome is up.
+func ground_y() -> float:
+	if not _dome_geo():
+		return INF
+	return to_global(Vector2(0, _ground_y)).y
+
+
+func set_lights(on: bool) -> void:
+	_lights_on = on
+	if _hull != null and _hull.lights != on:
+		_hull.lights = on
+		_hull.queue_redraw()
+	if _lights != null:
+		_lights.queue_redraw()
 
 
 func _land(live: bool) -> void:

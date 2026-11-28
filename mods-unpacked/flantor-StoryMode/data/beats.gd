@@ -14,7 +14,9 @@ extends RefCounted
 #              translator:1 .. translator:3,
 #              chain:1 .. chain:10 (each chain broken in the lava ocean,
 #              #365; they replaced unobtainium:<n> when Unobtainium went),
-#              ending:doom
+#              ending:doom,
+#              last_chain (#367: the last-chain cutscene plays its beat
+#              itself, endgame/last_chain.gd, once the ship is set down)
 #            The user cut the biome:B4, first_gem and unobtainium beats in
 #            their script pass (#285), and lava_death:2 .. :5 in the second. The code still fires those triggers (chain:<n> for the old unobtainium ones);
 #            with no beat on them nothing plays, so a beat added back here
@@ -49,6 +51,7 @@ const BEATS: Array = [
 	{"id": "translator_1", "trigger": "translator:1", "tier": 1, "lines": ["> You bring the alien artifact back into your dome for closer study. It's covered in alien symbols and hums and sings quietly. It sounds just like the animals outside your dome.", "---", "> You struggle to understand the meaning. After some frustration, you shout: \"Please! Help me understand!\"", "---", "> The machine responds, singing back. Excited, you try again. \"Please. Help me.\" you repeat. It sings the same sounds. You realize this might be a crude translator.", "---", "> You practice and think you learn a few words.", "---", "> Just as you are getting the hang of it, the machine starts to buzz and pop, then goes quiet. With no way of knowing how to fix it, you stash it away and get back to work."]},
 	{"id": "translator_2", "trigger": "translator:2", "tier": 2, "lines": ["> You find a second device, this one still seems to be working.", "---", "> You were correct on this being a translator because you've been starting to understand the creatures outside the dome.", "---", "> Excited, you practice and memorize more words.", "---", "> Eventually however this one also starts to fizz and pop and goes quiet. You are not sure why and have no way to repair it, but at least you've learned more."]},
 	{"id": "translator_3", "trigger": "translator:3", "tier": 3, "lines": ["> You find a third translator, this one seems to be in better condition than the first two. The sounds are clearer and more responsive.", "---", "> With this one working so well, you are able to replay the dome's recorded sound from the daily attacks, and start to piece together every word they are saying during the attacks.", "---", "> You're not sure if knowing what they say brings you comfort, or dread."]},
+	{"id": "last_chain", "trigger": "last_chain", "tier": 3, "lines": ["[DRAFT] The horror speaks as it sets the ship down by the dome."]},
 	{"id": "boss_chamber", "trigger": "boss_chamber", "tier": 4, "lines": ["Why did you come here, little digger? We are both free now. You could have flown home.", "---", "But, now that you are here. I am so very...", "---", "{big shake} hungry."]},
 ]
 

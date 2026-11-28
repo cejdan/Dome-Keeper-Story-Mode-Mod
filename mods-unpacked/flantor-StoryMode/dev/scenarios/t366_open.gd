@@ -50,6 +50,10 @@ func run(h) -> void:
 	h.check("the last chain: free", _EndGame.is_free(), _EndGame.state())
 	h.check("at once the seal lets keepers through (its bodies off)", not seal.blocking and seal.entries.all(func(e): return e["shape"].disabled), seal.state())
 	h.check("and the opening is under way", seal.mode in ["pending", "opening"], seal.mode)
+	# The last-chain cutscene (#367) freezes play first; the opening waits for it.
+	var LastChain = load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd")
+	var cut_over: bool = await h.until(func(): return LastChain.is_done() and not GameWorld.paused, 40.0)
+	h.check("the cutscene is over (the opening waited for it)", cut_over, _LairSeal.events)
 	var steps: Array = [[0.5, "opening_strain"], [SealData.STRAIN_S + 0.06, "opening_break"], [1.75, "opening_midway"], [2.3, "opening_late"]]
 	for s in steps:
 		await h.until(func():

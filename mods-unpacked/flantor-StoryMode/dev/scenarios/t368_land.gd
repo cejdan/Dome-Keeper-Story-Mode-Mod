@@ -1,10 +1,10 @@
 extends "res://mods-unpacked/flantor-StoryMode/dev/scenarios/t365_anchors.gd"
 
 # #368: the last chain sets the ship down by the dome (huge map, seed 12345,
-# the Engineer). Until #367's cutscene: the placeholder. Nine chains break
-# (the ship stays in the coil), the last one breaks with the keeper by the
-# ship: the coil drags it down into the lava; the ground beside the dome
-# cracks and the ship is pushed up out of it, legs out (shots of both). Then
+# the Engineer). Since #367 the last-chain cutscene does it (t367_cutscene
+# checks the cutscene itself). Nine chains break (the ship stays in the
+# coil), the last one breaks with the keeper by the ship: the cutscene takes
+# the ship over (shots of it sinking) and sets it down by the dome. Then
 # at the dome: it stands on the ground left of the dome, clear of the dome,
 # its doors, its station and the keeper's way down; nothing of it collides;
 # the boarding tube runs to a hatch in the dome's glass. Saves slot 68 (for
@@ -101,25 +101,23 @@ func run(h) -> void:
 	await h.shot("held_before_last_chain")
 	anchors.dev_break(last["id"], false)
 	await h.frames(3)
-	h.check("the last chain: the coil drags the ship down (the placeholder move)", ship.mode == "sinking" and _EndGame.is_free(), ship.mode)
+	# Since #367 the last-chain cutscene sets the ship down (t367_cutscene
+	# checks how); the ship's placeholder move no longer runs.
+	h.check("the last chain: the cutscene takes the ship over", ship.mode == "carried" and _EndGame.is_free(), ship.mode)
 	for t in [0.7, 1.4]:
 		await h.wait(0.7)
-		cool(h)
 		await h.shot("sinking_%.1fs" % t)
-	# Over to the dome for the rise.
-	cam.targetOffset = Vector2.ZERO
-	await go_home(h, k)
-	var rising: bool = await h.until(func(): return ship.mode == "rising", 6.0)
-	h.check("then the ground beside the dome cracks and the ship rises out of it", rising, ship.mode)
-	await h.wait(0.5)
-	await h.shot("rising_from_the_ground")
-	await h.wait(0.6)
-	await h.shot("rising_late")
-	var landed: bool = await h.until(func(): return ship.mode == "dome", 6.0)
+	var cut = load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd").find()
+	var landed: bool = await h.until(func(): return ship.mode == "dome", 30.0)
 	h.check("it stands at the dome", landed and _Ship.is_landed(), ship.mode)
 	var whats: Array = _Ship.events.map(func(e): return e["what"])
-	h.check("in order: the live word, the rise, landed (live)", whats.has("free_live") and whats.find("rise") > whats.find("free_live") and whats.find("landed") > whats.find("rise") and _Ship.events.filter(func(e): return e["what"] == "landed")[0]["live"] == true, _Ship.events)
+	h.check("in order: the live word, taken over, landed (live), no placeholder rise", whats.has("free_live") and whats.find("taken") > whats.find("free_live") and whats.find("landed") > whats.find("taken") and not whats.has("rise") and _Ship.events.filter(func(e): return e["what"] == "landed")[0]["live"] == true, _Ship.events)
 	h.check("with its sounds", int(Sfx.played.get("grow", 0)) >= 1 and int(Sfx.played.get("ship_land", 0)) == 1, Sfx.played)
+	var over: bool = await h.until(func(): return cut.step == "done", 30.0)
+	h.check("the cutscene is over, play resumes", over and not GameWorld.paused, [cut.step, GameWorld.paused])
+	cool(h)
+	cam.targetOffset = Vector2.ZERO
+	await go_home(h, k)
 	await h.wait(1.0)
 	_check_at_dome(h, k)
 	h.check("its phase: the escape (boarding plays the doom ending)", _Ship.phase() == "escape" and _Ship.board_kind() == "doom", _Ship.phase())

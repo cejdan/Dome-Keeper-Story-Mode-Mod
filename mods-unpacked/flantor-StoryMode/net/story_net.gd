@@ -606,6 +606,27 @@ func _seal_touch(entry: int, at: Vector2) -> void:
 		_seal_touch_out(entry, at, multiplayer.get_remote_sender_id())
 
 
+# --- the last-chain cutscene (#367, endgame/last_chain.gd) --------------------
+# Host -> clients: where the host's cutscene is ("beat": it opened the beat for
+# the team; "return": the beat is over, back to the keepers; "skip": the host
+# skipped it). Each client plays its own copy and follows this word.
+static func last_chain_step(step: String) -> void:
+	if _inst == null or Network.is_offline_mode() or Network.is_client():
+		return
+	for c in Network.clients:
+		if c.connection_state == Network.ConnectionState.LEVEL_STAGE_SYNC:
+			_inst.rpc_id(c.peer_id, "_last_chain_step", Level.levelSeed, step)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _last_chain_step(seed: int, step: String) -> void:
+	if seed != Level.levelSeed:
+		return
+	var n = load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd").find()
+	if n != null:
+		n.host_step(step)
+
+
 # --- the ocean's tentacles (#364) ---------------------------------------------
 # The host's wave clocks, swings and speeds (map/ocean_tentacles.gd
 # clock_state), a few times a second; a lost one is replaced by the next.

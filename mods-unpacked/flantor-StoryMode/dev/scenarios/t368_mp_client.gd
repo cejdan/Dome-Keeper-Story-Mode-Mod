@@ -1,8 +1,8 @@
 extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 
 # #368: client half. Its ship is built from the host's map facts, in the
-# ocean. The host's last chain reaches it live: the placeholder move plays
-# here too and the ship stands at the dome. Its keeper walks into the dome to
+# ocean. The host's last chain reaches it live: the last-chain cutscene
+# (#367) plays here too and the ship stands at the dome. Its keeper walks into the dome to
 # the hatch by real input (the hatch's focus and prompt are this instance's
 # own) and holds the use key: it asks the host, which boards it; the lift-off
 # plays here with this keeper aboard, then the host's doom ending (the cards)
@@ -33,11 +33,13 @@ func run(h) -> void:
 	var base = Base.new()
 	base.ship = ship
 	await base.go_home(h, k)
-	var landed: bool = await h.until(func(): return ship.mode == "dome", 30.0)
+	var landed: bool = await h.until(func(): return ship.mode == "dome", 45.0)
 	var whats: Array = _Ship.events.map(func(e): return e["what"])
-	h.check("client: the host's last chain plays here live: the move, then at the dome", landed and whats.has("free_live") and whats.has("rise")
+	h.check("client: the host's last chain plays here live: the cutscene takes the ship, then at the dome", landed and whats.has("free_live") and whats.has("taken")
 		and _Ship.events.any(func(e): return e["what"] == "landed" and e["live"]), _Ship.events)
-	await shared(h, "landed", 30.0)
+	await shared(h, "landed", 45.0)
+	var LastChain = load("res://mods-unpacked/flantor-StoryMode/endgame/last_chain.gd")
+	await h.until(func(): return LastChain.is_done() and not GameWorld.paused, 40.0)
 	await h.wait(0.5)
 	await h.shot("client_ship_at_dome")
 	var got: bool = await base.walk_to_hatch(h, k)
