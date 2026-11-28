@@ -91,6 +91,11 @@ func setup() -> void:
 	_rng.randomize()
 	unit_hp = Boss.FINALE_TENTACLE_HP
 	fall_side = 1.0 if _rng.randf() < 0.5 else -1.0
+	# The ship stands on the dome's left (#368): the eye falls, and the
+	# monsters gather, on the other side.
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	if Ship.find() != null:
+		fall_side = 1.0
 	if not puppet:
 		# (A client gets the monsters' data and the battle stations through Data.)
 		load(TENTACLE).register(Boss.FINALE_TENTACLE_HP)

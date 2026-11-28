@@ -1,8 +1,8 @@
 extends "res://mods-unpacked/flantor-StoryMode/dev/scenario.gd"
 
-# Ticket 96 (review fix): a beat still waiting when Retire Rich is bought must
-# not open over the doom ending. Sells a set of miner bones (its log waits out
-# the sale pop's hold), opens the shop at once and buys Retire Rich. Only the
+# Ticket 96 (review fix): a beat still waiting when the doom ending starts (the
+# ship's escape since #368) must not open over it. Sells a set of miner bones
+# (its log waits out the sale pop's hold) and boards the ship at once. Only the
 # horror's thanks may open; the miner's log stays queued through the last
 # words, the narration cards and the end screen.
 
@@ -13,7 +13,7 @@ static var _StoryBeats = StoryBeats  # calls go through this: lazy_preload makes
 
 
 func boot() -> Dictionary:
-	return {"seed": 12345, "beats": true}
+	return {"seed": 12345, "beats": true, "free": true}
 
 
 func run(h) -> void:
@@ -25,12 +25,11 @@ func run(h) -> void:
 	# The bones' log is queued with a hold, as a sale does (drops/BonesDrop.gd).
 	h.check("the miner's log is queued", _StoryBeats.fire("log_b1"))
 	_StoryBeats.hold(2.0)
-	h.set_inv("money", 1000000)
-	Level.stage.startUpgradesInput(h.keeper())
-	await h.wait(1.0)
-	var ok: bool = await h.buy("storyretirerich")
-	h.check("Retire Rich bought", ok)
-	var id: String = await h.read_beat("thanks", 8.0, false)
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	await h.until(func(): return Ship.is_landed(), 10.0)
+	var ok: bool = Level.mode.board_ship(h.keeper().playerId)
+	h.check("the keeper boards the ship (the escape)", ok)
+	var id: String = await h.read_beat("thanks", 16.0, false)
 	h.check("the first beat is the horror's thanks", id == "doom_thanks", id)
 	# Through the rest of the ending, nothing else opens.
 	var opened: Array = []

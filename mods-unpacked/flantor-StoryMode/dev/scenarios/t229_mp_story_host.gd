@@ -4,8 +4,10 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # closes its box first and the beat stays open (and the game paused) until the
 # client closes too. A depth beat fired by the client's keeper: the client
 # closes first, the host last. Then a sale, a plea and a heat line for the
-# client to see, and Retire Rich (the client buys it): the doom ending's beat,
-# last words, cards and end screen on both. Pair: t229_mp_story_client.
+# client to see, and the doom ending started by the client (since #368 its
+# keeper boards the ship; the host lands the ship by breaking every chain
+# quietly): the doom ending's beat, last words, cards and end screen on both.
+# Pair: t229_mp_story_client.
 
 const TIMEOUT := 600
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
@@ -113,15 +115,18 @@ func run(h) -> void:
 	var heard: bool = await h.until(func(): return ht.shown_remote.size() >= 1, 30.0)
 	h.check("host sees the client keeper's heat line", heard, ht.shown_remote)
 
-	# --- Retire Rich, bought by the client.
+	# --- The ship (#368), boarded by the client's keeper.
 	await h.wait(4.0)
-	Data.apply("team1.inventory.money", 1000000)
+	var anchors = load("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd").find()
+	if anchors != null:
+		anchors.dev_free_all()
+	load("res://mods-unpacked/flantor-StoryMode/endgame/end_game.gd").dev_free()
 	share("rich", true)
 	var ending: bool = await h.until(func(): return Level.mode.is_ending(), 30.0)
-	h.check("the client's purchase starts the ending on the host", ending)
+	h.check("the client's keeper boarding starts the ending on the host", ending)
 	if not ending:
-		await h.buy("storyretirerich")
-	opened = await h.until(func(): return sb.open_id == "doom_thanks", 20.0)
+		Level.mode.board_ship(Keepers.local.keepers[0].playerId)
+	opened = await h.until(func(): return sb.open_id == "doom_thanks", 30.0)
 	h.check("the ending's beat opens", opened, sb.open_id)
 	await h.wait(2.0)
 	await h.shot("host_thanks")

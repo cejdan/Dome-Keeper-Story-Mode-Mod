@@ -356,8 +356,18 @@ Safe in your ship, you were spared from hearing the screams.
 The voice inside your head finally went quiet, and stayed quiet.
 The creatures stopped attacking the dome.
 You could finally breathe easy.
-You stopped mining and finally got some rest as you awaited the scheduled pickup.
+[DRAFT] You stopped mining, climbed aboard the ship by the dome and finally got some rest.
 As your ship was departing, in the distance you could still hear them singing.
+
+## Ship
+
+Draft lines for the ship by the dome (#368, `data/endings.gd` SHIP_BOARD, SHIP_LOCKED), waiting for the user's words. The fourth saved card above is a draft too: no pickup is scheduled any more, the ship takes the keeper home.
+
+### ship_board
+[DRAFT] Board the ship
+
+### ship_locked
+[DRAFT] It's still holding the ship down.
 
 ## Boss
 

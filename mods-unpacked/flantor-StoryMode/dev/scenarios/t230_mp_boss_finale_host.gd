@@ -115,8 +115,9 @@ func run(h) -> void:
 	await h.shot("host_allies")
 	var won: bool = await h.until(func(): return _Director.current() == "won", 60.0)
 	h.check("the finale is done: the boss state is `won`", won, [_Director.current(), fin.step])
-	var ending: bool = await h.until(func(): return Level.mode.get("_ending") == true, 10.0)
-	h.check("the saved ending plays on the host", ending)
+	# Since #368 the saved ending waits for a keeper to board the ship: the client's does.
+	var ending: bool = await h.until(func(): return Level.mode.get("_ending") == true, 40.0)
+	h.check("the client's keeper boards the ship: the saved ending plays on the host", ending)
 	await h.wait(3.0)
 	await h.shot("host_ending")
 	var panel: bool = await h.until(func(): return Level.stage.endingPanel != null, 120.0)

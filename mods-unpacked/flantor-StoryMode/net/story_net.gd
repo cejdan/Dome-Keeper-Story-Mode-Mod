@@ -559,6 +559,26 @@ func _lair_entered(pid: String) -> void:
 	load("res://mods-unpacked/flantor-StoryMode/endgame/end_game.gd").record_lair_entered(pid)
 
 
+# --- the ship (#368, endgame/ship.gd) ------------------------------------------
+# Client -> host: my keeper `pid` held the use key at the ship's hatch. The
+# host decides (Storymode.board_ship: refused while the ship is locked) and,
+# if it boards, ends the run for everyone.
+static func ship_board(pid: String) -> void:
+	if _inst != null and Network.is_client():
+		_inst.rpc_id(1, "_ship_board", pid)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _ship_board(pid: String) -> void:
+	if Network.is_client() or not _Story.is_story():
+		return
+	var k = Keepers.getKeeper(pid) if Keepers.hasKeeper(pid) else null
+	if k == null or k.peerId != multiplayer.get_remote_sender_id():
+		return
+	if Level.mode != null and Level.mode.has_method("board_ship"):
+		Level.mode.board_ship(pid)
+
+
 # A keeper touched the blue seal at `at` (the seal's space) on its own
 # instance: the crackle on every other peer (the throw stays on its own). A
 # client sends it to the host, which plays it and passes it on.

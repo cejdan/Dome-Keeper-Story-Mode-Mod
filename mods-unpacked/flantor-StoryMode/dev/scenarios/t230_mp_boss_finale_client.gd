@@ -163,7 +163,12 @@ func run(h) -> void:
 	await h.shot("client_thanks")
 	var won: bool = await h.until(func(): return _Director.current() == "won", 60.0)
 	h.check("the client reads `won`", won, _Director.current())
-	var ending: bool = await h.until(func(): return Level.mode.get("_ending") == true, 10.0)
+	# #368: the ship by the dome opens; this keeper boards it (the host decides).
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	var home: bool = await h.until(func(): return Ship.phase() == "home", 15.0)
+	h.check("the ship is the way home here", home, Ship.phase())
+	Ship.find().request_board(h.keeper().playerId)
+	var ending: bool = await h.until(func(): return Level.mode.get("_ending") == true, 15.0)
 	h.check("the saved ending plays on the client", ending)
 	await h.wait(3.0)
 	await h.shot("client_ending")

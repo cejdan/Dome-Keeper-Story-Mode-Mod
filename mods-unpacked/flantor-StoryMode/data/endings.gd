@@ -19,6 +19,15 @@ const DOOM_TITLE := "The Planet Is Lost"
 const DOOM_SUBTITLE := "The company gave you a 5% bonus."
 
 # Saved ending, after the horror is defeated: narration cards, the end screen.
-const SAVED_CARDS: Array = ["The voice inside your head finally went quiet, and stayed quiet.", "The creatures stopped attacking the dome.", "You could finally breathe easy.", "You stopped mining and finally got some rest as you awaited the scheduled pickup.", "As your ship was departing, in the distance you could still hear them singing."]
+# #368: the fourth card was "You stopped mining and finally got some rest as
+# you awaited the scheduled pickup."; no pickup comes now, the ship by the dome
+# takes the keeper home. The draft stands in until the user writes the line.
+const SAVED_CARDS: Array = ["The voice inside your head finally went quiet, and stayed quiet.", "The creatures stopped attacking the dome.", "You could finally breathe easy.", "[DRAFT] You stopped mining, climbed aboard the ship by the dome and finally got some rest.", "As your ship was departing, in the distance you could still hear them singing."]
 const SAVED_TITLE := "The Planet Is Saved"
 const SAVED_SUBTITLE := "Saved by the hands that nearly ended it."
+
+# The ship by the dome (#368, endgame/ship.gd). Drafts until the user writes
+# them: the boarding hatch's prompt, and the keeper's line when the hatch is
+# locked (after the horror's body dies, until the final dome battle is won).
+const SHIP_BOARD := "[DRAFT] Board the ship"
+const SHIP_LOCKED := "[DRAFT] It's still holding the ship down."

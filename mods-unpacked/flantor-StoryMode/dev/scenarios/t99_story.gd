@@ -351,7 +351,7 @@ func run(h) -> void:
 	h.check("the horror is awake", _Awakening.is_awake(), _Awakening.level())
 	await _quiet(h, "boss chamber")
 
-	# ---- Retire Rich, from inside the shop: the doom ending
+	# ---- The ship (#368): boarded after the horror woke, before the fight: the doom ending
 	await _home(h)
 	var ed = Level.mode.get_node_or_null("StoryEndings")
 	h.set_inv("money", 1000000)
@@ -362,8 +362,11 @@ func run(h) -> void:
 	h.check("Call for Evacuation bought", await h.buy("storyevacuate"))
 	await _expect(h, "evac_refused", "evacuation")
 	h.check("the run goes on after the refusal", not GameWorld.won, GameWorld.won)
-	h.check("Retire Rich bought", await h.buy("storyretirerich"))
-	await _expect(h, "doom_thanks", "thanks")
+	h.check("Fill Quota can't be bought (#368: an impossible quota)", not (await h.buy("storyretirerich")) and not GameWorld.won)
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	h.check("the ship stands at the dome", Ship.is_landed(), Ship.phase())
+	h.check("the keeper boards the ship", Level.mode.board_ship(h.keeper().playerId))
+	await _expect(h, "doom_thanks", "thanks", 16.0)
 	await h.until(func(): return ed.last_step == "last_words", 5.0)
 	var lines: Array = []
 	for i in Endings.DOOM_LAST_WORDS.size():

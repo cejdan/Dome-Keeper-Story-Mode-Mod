@@ -4,8 +4,9 @@ extends "res://mods-unpacked/flantor-StoryMode/dev/mp_scenario.gd"
 # closing its box doesn't close this one; closing this one resumes the game.
 # This keeper walks into B2 and the depth beat opens; this player closes first
 # and waits, paused, for the host. Then the host's sale pops, plea and heat
-# line show here, this player buys Retire Rich, and the doom ending plays here
-# to the end screen. Pair: t229_mp_story_host.
+# line show here, this player's keeper boards the ship (#368; the host landed
+# it), and the doom ending plays here to the end screen. Pair:
+# t229_mp_story_host.
 
 const TIMEOUT := 600
 const StoryBeats = preload("res://mods-unpacked/flantor-StoryMode/beats/story_beats.gd")
@@ -84,12 +85,13 @@ func run(h) -> void:
 	h.check("no plea of the client's own", pd.say("arrive") == "" and pd.shown.size() == 1)
 	ht._say(Keepers.local.keepers[0], "so hot", Color("ff7a3c"), "hot")
 
-	# --- Retire Rich.
+	# --- The ship (#368): this keeper boards it.
 	var rich = await shared(h, "rich", 60.0)
-	await h.until(func(): return int(Data.ofOr("team1.inventory.money", 0)) >= 1000000, 10.0)
-	h.check("the team has $1,000,000", rich != null and int(Data.ofOr("team1.inventory.money", 0)) == 1000000, Data.ofOr("team1.inventory.money", 0))
-	await h.buy("storyretirerich")
-	opened = await h.until(func(): return sb.open_id == "doom_thanks", 30.0)
+	var Ship = load("res://mods-unpacked/flantor-StoryMode/endgame/ship.gd")
+	var landed: bool = await h.until(func(): return Ship.is_landed(), 15.0)
+	h.check("the ship stands at the dome here", rich != null and landed, Ship.phase())
+	Ship.find().request_board(Keepers.local.keepers[0].playerId)
+	opened = await h.until(func(): return sb.open_id == "doom_thanks", 40.0)
 	h.check("the ending's beat opens on the client", opened, sb.open_id)
 	h.check("the client's mode is in its ending", Level.mode.is_ending())
 	await h.wait(2.0)

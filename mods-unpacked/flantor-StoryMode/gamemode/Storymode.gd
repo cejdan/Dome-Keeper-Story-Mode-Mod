@@ -103,7 +103,10 @@ func _welcome() -> void:
 	_StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").WELCOME)
 
 
-# Retire Rich (#31, #54): the only way to win a Story Mode run until the boss.
+# Retire Rich (#31, #54), shown as Fill Quota. Since #368 the quota is more
+# than the whole map is worth: it stays in the shop as the company's rude,
+# impossible option and wins nothing. The doom ending is the ship's escape
+# (board_ship).
 const RETIRE_ENTRY := "storyretirerich"
 # Retire Rich's own root, the shop's top section (#144).
 const WIN_ROOT := "storywin"
@@ -119,7 +122,8 @@ func _on_upgrade_added(id: String, teamId: String) -> void:
 	if not multiplayer.is_server():
 		return
 	if id == teamId + "." + RETIRE_ENTRY:
-		_win()
+		# Only a dev cheat gets here (the price is out of reach): nothing happens.
+		ModLoaderLog.info("Fill Quota bought (dev): it wins nothing since #368", Story.LOG)
 		return
 	if id == teamId + "." + EVACUATE_ENTRY:
 		_StoryBeats.fire(load(Story.MOD_DIR + "data/logs.gd").EVACUATION)
@@ -165,24 +169,64 @@ func propertyChanged(property: String, oldValue, newValue) -> void:
 var _ending: bool = false
 
 
-# Retire Rich: the doom ending (#96), then vanilla Relic Hunt's win, minus the
-# relic and the final wave. Still a won run with the $1M.
-func _win() -> void:
-	if not _can_end():
-		return
+# The ship by the dome (#368, endgame/ship.gd): keeper `pid` boarded it. The
+# host decides what that plays (Ship.board_kind()): before the horror's body
+# is dead, the escape: the doom ending (#96), still a won run (vanilla Relic
+# Hunt's win, minus the relic and the final wave); after the final dome battle,
+# the way home: the saved ending (#97). Between the two (the chase, the final
+# battle) the ship is locked and this refuses. Online a client's keeper asks
+# through StoryNet.ship_board; any keeper boarding ends the run for everyone.
+# Returns whether the ending started.
+func board_ship(pid: String) -> bool:
+	if not multiplayer.is_server() or not _can_end():
+		return false
+	var Ship = load(Story.MOD_DIR + "endgame/ship.gd")
+	var kind: String = Ship.board_kind()
+	if kind == "":
+		ModLoaderLog.info("Ship: %s can't board now (%s)" % [pid, Ship.phase()], Story.LOG)
+		return false
 	_ending = true
-	ModLoaderLog.info("Retire Rich bought: the run is won", Story.LOG)
+	ModLoaderLog.info("Ship: %s boarded: the %s ending" % [pid, kind], Story.LOG)
+	_ship_ending(pid, kind)
+	return true
+
+
+func _ship_ending(pid: String, kind: String) -> void:
+	# A teammate still fighting Velle (online) stops with everyone.
+	var boss = get_node_or_null("StoryBoss")
+	if boss != null and boss.has_method("ship_left"):
+		boss.ship_left()
 	await _stop_play()
+	# The lift-off, on every instance; the ending once it is out of sight.
+	var ship = load(Story.MOD_DIR + "endgame/ship.gd").find()
+	if ship != null:
+		_to_clients(_net_ship_lift.bind(pid))
+		await ship.lift_off(pid)
 	var endings = get_node_or_null("StoryEndings")
-	if endings != null:
-		await endings.play_doom()
 	var Endings = load(Story.MOD_DIR + "data/endings.gd")
-	await _end_won(Endings.DOOM_TITLE, Endings.DOOM_SUBTITLE)
+	if kind == "doom":
+		if endings != null:
+			await endings.play_doom()
+		await _end_won(Endings.DOOM_TITLE, Endings.DOOM_SUBTITLE)
+	else:
+		if endings != null:
+			await endings.play_saved()
+		await _end_won(Endings.SAVED_TITLE, Endings.SAVED_SUBTITLE)
 
 
-# The saved ending's hook (#97). The future boss fight calls this when the horror
-# is defeated: Level.mode.horror_defeated(). It plays the saved ending (narration
-# cards), then ends the run as a win on the end screen "The Planet Is Saved".
+# Host to clients: the ship lifts off with `pid` aboard.
+@rpc("authority", "call_remote", "reliable")
+func _net_ship_lift(pid: String) -> void:
+	var ship = load(Story.MOD_DIR + "endgame/ship.gd").find()
+	if ship != null:
+		ship.lift_off(pid)
+
+
+# The saved ending's hook (#97). It plays the saved ending (narration cards),
+# then ends the run as a win on the end screen "The Planet Is Saved". Since
+# #368 a won final battle leaves the run to the ship (boarding it plays this
+# ending through board_ship); this stays for `-- --story --horror-defeated` and
+# for a run with no ship.
 # Returns false, and does nothing, when the run is already won, lost or playing
 # an ending; true when the ending started. The ending runs on its own; the
 # caller need not await it. The boss director calls it when the finale is won;
@@ -214,7 +258,7 @@ func is_ending() -> bool:
 	return _ending or _lost
 
 
-# Online (#229): the host runs every story ending (Retire Rich's doom, the
+# Online (#229): the host runs every story ending (the ship's doom, the
 # saved ending, the boss's lost ending) and tells the clients each step: the
 # start (_net_ending_start), the cards (StoryEndings._net_cards), the end screen
 # (_end_won / _end_fallen). This is the one way an ending reaches a client; the

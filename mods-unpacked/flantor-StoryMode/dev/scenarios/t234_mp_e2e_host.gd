@@ -476,11 +476,14 @@ func run(h) -> void:
 	st0.useHit(h.keeper())
 	await h.wait(1.0)
 
-	# ---- 9. Retire Rich, bought by the client: the doom ending on both.
-	Data.apply(MONEY, 1000000)
+	# ---- 9. The ship (#368), boarded by the client's keeper: the doom ending on both.
+	var anchors = load("res://mods-unpacked/flantor-StoryMode/map/chain_anchors.gd").find()
+	if anchors != null:
+		anchors.dev_free_all()
+	load("res://mods-unpacked/flantor-StoryMode/endgame/end_game.gd").dev_free()
 	share("rich", true)
 	var ending: bool = await h.until(func(): return Level.mode.is_ending(), 40.0)
-	h.check("the client's Retire Rich starts the ending on the host", ending)
+	h.check("the client's keeper boarding the ship starts the ending on the host", ending)
 	var panel: bool = await to_end_screen(h, 180.0)
 	h.check("end screen on the host, the doom ending's", panel and GameWorld.won and Level.stage.endingPanel.titleLabel.text == Endings.DOOM_TITLE, [GameWorld.won, Level.stage.endingPanel.titleLabel.text if panel else null])
 	await h.wait(2.0)
